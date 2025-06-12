@@ -19,6 +19,10 @@ AppSetting.set('default_user_role', 'registered', description: 'Default role ass
 
 puts "Created default app settings"
 
+# Create default OAuth settings
+OauthSetting.setup_defaults!
+puts "Created default OAuth settings"
+
 # Create a default admin user if none exists
 if User.where(email: "admin@vantage.com").empty?
   admin_user = User.create!(

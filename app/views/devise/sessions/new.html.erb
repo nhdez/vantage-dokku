@@ -40,6 +40,25 @@
             </div>
           <% end %>
 
+          <!-- OAuth Sign-In -->
+          <% if OauthSetting.google_enabled? %>
+            <div class="text-center my-4">
+              <div class="divider">
+                <span class="divider-text text-muted">Or sign in with</span>
+              </div>
+            </div>
+            
+            <div class="d-grid mb-3">
+              <%= link_to "/users/auth/google_oauth2", 
+                  method: :post,
+                  class: "btn btn-outline-danger btn-lg d-flex align-items-center justify-content-center",
+                  data: { turbo: false } do %>
+                <i class="fab fa-google me-2"></i>
+                Continue with Google
+              <% end %>
+            </div>
+          <% end %>
+
           <!-- Links -->
           <div class="text-center">
             <%= render "devise/shared/links" %>

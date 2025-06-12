@@ -8,3 +8,38 @@
  *
  * Consider organizing styles into separate files for maintainability.
  */
+
+/* OAuth Divider Styles */
+.divider {
+  position: relative;
+  text-align: center;
+  margin: 1rem 0;
+}
+
+.divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #dee2e6;
+  z-index: 1;
+}
+
+.divider-text {
+  background: white;
+  padding: 0 1rem;
+  position: relative;
+  z-index: 2;
+  font-size: 0.875rem;
+}
+
+/* Dark mode support for divider */
+[data-theme="dark"] .divider::before {
+  background: var(--border-color);
+}
+
+[data-theme="dark"] .divider-text {
+  background: var(--bg-primary);
+}

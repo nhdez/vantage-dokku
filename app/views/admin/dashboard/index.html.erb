@@ -146,6 +146,38 @@
       </div>
     </div>
 
+    <!-- OAuth Settings Card -->
+    <div class="col-lg-4 mb-4">
+      <div class="card shadow h-100">
+        <div class="card-header py-3 bg-danger text-white">
+          <h6 class="m-0 font-weight-bold">
+            <i class="fab fa-google me-2"></i>OAuth Settings
+          </h6>
+        </div>
+        <div class="card-body">
+          <p class="card-text text-muted mb-3">
+            Configure Google OAuth authentication to allow users to sign up and sign in with their Google accounts.
+          </p>
+          <div class="mb-3">
+            <h6 class="text-muted mb-2">Authentication Options:</h6>
+            <ul class="list-unstyled text-sm">
+              <li><i class="fab fa-google text-danger me-2"></i>Google Sign-In</li>
+              <li><i class="fas fa-shield-alt text-success me-2"></i>Secure OAuth Flow</li>
+              <li>
+                <i class="fas fa-toggle-<%= OauthSetting.google_enabled? ? 'on text-success' : 'off text-muted' %> me-2"></i>
+                Status: <%= OauthSetting.google_enabled? ? 'Enabled' : 'Disabled' %>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="card-footer">
+          <%= link_to admin_oauth_settings_path, class: "btn btn-danger btn-block" do %>
+            <i class="fab fa-google me-2"></i>Configure OAuth
+          <% end %>
+        </div>
+      </div>
+    </div>
+
     <!-- User Management Card -->
     <div class="col-lg-4 mb-4">
       <div class="card shadow h-100">
