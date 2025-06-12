@@ -1,0 +1,140 @@
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-10">
+      <div class="card shadow">
+        <div class="card-header bg-primary text-white py-3">
+          <h1 class="h3 mb-0">
+            <i class="fas fa-bell me-2"></i>Toast Notification Demo
+          </h1>
+          <p class="mb-0 opacity-75">Test our beautiful toast notification system</p>
+        </div>
+        <div class="card-body p-5">
+          <div class="row">
+            <!-- Basic Toasts -->
+            <div class="col-md-6 mb-4">
+              <h4 class="mb-3">
+                <i class="fas fa-palette me-2 text-primary"></i>Basic Toast Types
+              </h4>
+              
+              <div class="d-grid gap-2">
+                <%= link_to toast_demo_show_success_path, class: "btn btn-success btn-lg" do %>
+                  <i class="fas fa-check-circle me-2"></i>Success Toast
+                <% end %>
+                
+                <%= link_to toast_demo_show_error_path, class: "btn btn-danger btn-lg" do %>
+                  <i class="fas fa-exclamation-circle me-2"></i>Error Toast
+                <% end %>
+                
+                <%= link_to toast_demo_show_warning_path, class: "btn btn-warning btn-lg" do %>
+                  <i class="fas fa-exclamation-triangle me-2"></i>Warning Toast
+                <% end %>
+                
+                <%= link_to toast_demo_show_info_path, class: "btn btn-info btn-lg" do %>
+                  <i class="fas fa-info-circle me-2"></i>Info Toast
+                <% end %>
+              </div>
+            </div>
+
+            <!-- Contextual Toasts -->
+            <div class="col-md-6 mb-4">
+              <h4 class="mb-3">
+                <i class="fas fa-magic me-2 text-primary"></i>Contextual Toasts
+              </h4>
+              
+              <div class="d-grid gap-2">
+                <%= link_to toast_demo_show_login_path, class: "btn btn-outline-success btn-lg" do %>
+                  <i class="fas fa-sign-in-alt me-2"></i>Login Success
+                <% end %>
+                
+                <%= link_to toast_demo_show_role_assigned_path, class: "btn btn-outline-warning btn-lg" do %>
+                  <i class="fas fa-user-tag me-2"></i>Role Assigned
+                <% end %>
+                
+                <%= link_to toast_demo_show_settings_updated_path, class: "btn btn-outline-info btn-lg" do %>
+                  <i class="fas fa-cogs me-2"></i>Settings Updated
+                <% end %>
+                
+                <%= link_to toast_demo_show_multiple_path, class: "btn btn-outline-primary btn-lg" do %>
+                  <i class="fas fa-layer-group me-2"></i>Multiple Toasts
+                <% end %>
+              </div>
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <!-- JavaScript Demo -->
+          <div class="row">
+            <div class="col-12">
+              <h4 class="mb-3">
+                <i class="fas fa-code me-2 text-primary"></i>JavaScript Demo
+              </h4>
+              <p class="text-muted mb-3">Test toasts directly from JavaScript:</p>
+              
+              <div class="row">
+                <div class="col-sm-6 col-lg-3 mb-2">
+                  <button class="btn btn-success w-100" onclick="Toast.success('JavaScript success!', 'JS Toast')">
+                    <i class="fas fa-check me-2"></i>JS Success
+                  </button>
+                </div>
+                <div class="col-sm-6 col-lg-3 mb-2">
+                  <button class="btn btn-danger w-100" onclick="Toast.error('JavaScript error!', 'JS Toast')">
+                    <i class="fas fa-times me-2"></i>JS Error
+                  </button>
+                </div>
+                <div class="col-sm-6 col-lg-3 mb-2">
+                  <button class="btn btn-warning w-100" onclick="Toast.warning('JavaScript warning!', 'JS Toast')">
+                    <i class="fas fa-exclamation me-2"></i>JS Warning
+                  </button>
+                </div>
+                <div class="col-sm-6 col-lg-3 mb-2">
+                  <button class="btn btn-info w-100" onclick="Toast.info('JavaScript info!', 'JS Toast')">
+                    <i class="fas fa-info me-2"></i>JS Info
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <!-- Code Examples -->
+          <div class="row">
+            <div class="col-12">
+              <h4 class="mb-3">
+                <i class="fas fa-terminal me-2 text-primary"></i>Code Examples
+              </h4>
+              
+              <div class="row">
+                <div class="col-md-6">
+                  <h6 class="text-muted">Rails Controller:</h6>
+                  <pre class="bg-light p-3 rounded"><code>toast_success("User updated!", title: "Success!")
+toast_error("Something went wrong")
+toast_role_assigned("admin", "John Doe")</code></pre>
+                </div>
+                
+                <div class="col-md-6">
+                  <h6 class="text-muted">JavaScript:</h6>
+                  <pre class="bg-light p-3 rounded"><code>Toast.success("Success message", "Title")
+Toast.error("Error message")
+Toast.warning("Warning message")</code></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="alert alert-info mt-4">
+            <h6><i class="fas fa-lightbulb me-2"></i>Pro Tips:</h6>
+            <ul class="mb-0">
+              <li>Toasts auto-hide after 5 seconds (8 seconds for errors)</li>
+              <li>Multiple toasts stack beautifully</li>
+              <li>Click the × to dismiss manually</li>
+              <li>Fully responsive on mobile devices</li>
+              <li>Activity is automatically logged!</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

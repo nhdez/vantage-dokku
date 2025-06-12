@@ -1,0 +1,70 @@
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+      <div class="card shadow-lg">
+        <div class="card-header text-center bg-primary text-white">
+          <h3 class="mb-0">
+            <i class="fas fa-sign-in-alt me-2"></i>
+            Sign In
+          </h3>
+        </div>
+        <div class="card-body p-4">
+          <%= form_for(resource, as: resource_name, url: session_path(resource_name), local: true) do |f| %>
+            <!-- Email Input -->
+            <div class="mb-4">
+              <%= f.label :email, "Email Address", class: "form-label", for: "user_email" %>
+              <%= f.email_field :email, autofocus: true, autocomplete: "email", 
+                  class: "form-control form-control-lg", 
+                  id: "user_email" %>
+            </div>
+
+            <!-- Password Input -->
+            <div class="mb-4">
+              <%= f.label :password, "Password", class: "form-label", for: "user_password" %>
+              <%= f.password_field :password, autocomplete: "current-password", 
+                  class: "form-control form-control-lg", 
+                  id: "user_password" %>
+            </div>
+
+            <!-- Remember Me Checkbox -->
+            <% if devise_mapping.rememberable? %>
+              <div class="form-check mb-4">
+                <%= f.check_box :remember_me, class: "form-check-input", id: "user_remember_me" %>
+                <%= f.label :remember_me, "Remember me", class: "form-check-label", for: "user_remember_me" %>
+              </div>
+            <% end %>
+
+            <!-- Submit Button -->
+            <div class="d-grid mb-4">
+              <%= f.submit "Sign In", class: "btn btn-primary btn-lg" %>
+            </div>
+          <% end %>
+
+          <!-- OAuth Sign-In -->
+          <% if OauthSetting.google_enabled? %>
+            <div class="text-center my-4">
+              <div class="divider">
+                <span class="divider-text text-muted">Or sign in with</span>
+              </div>
+            </div>
+            
+            <div class="d-grid mb-3">
+              <%= link_to "/users/auth/google_oauth2", 
+                  method: :post,
+                  class: "btn btn-outline-danger btn-lg d-flex align-items-center justify-content-center",
+                  data: { turbo: false } do %>
+                <i class="fab fa-google me-2"></i>
+                Continue with Google
+              <% end %>
+            </div>
+          <% end %>
+
+          <!-- Links -->
+          <div class="text-center">
+            <%= render "devise/shared/links" %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

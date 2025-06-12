@@ -1,0 +1,201 @@
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-1">
+        <i class="fab fa-google me-2 text-danger"></i>
+        OAuth Settings
+      </h1>
+      <p class="text-muted mb-0">Configure Google OAuth authentication for user sign-up and sign-in</p>
+    </div>
+    <div>
+      <%= link_to admin_root_path, class: "btn btn-outline-secondary" do %>
+        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+      <% end %>
+    </div>
+  </div>
+
+  <!-- OAuth Status Card -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-toggle-<%= @oauth_settings['google_oauth_enabled']&.enabled? ? 'on text-success' : 'off text-muted' %> me-2"></i>
+            Google OAuth Status
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row align-items-center">
+            <div class="col-md-8">
+              <h5 class="mb-1">
+                Google OAuth is 
+                <span class="badge bg-<%= @oauth_settings['google_oauth_enabled']&.enabled? ? 'success' : 'secondary' %>">
+                  <%= @oauth_settings['google_oauth_enabled']&.enabled? ? 'Enabled' : 'Disabled' %>
+                </span>
+              </h5>
+              <p class="text-muted mb-0">
+                <% if @oauth_settings['google_oauth_enabled']&.enabled? %>
+                  Users can sign up and sign in using their Google accounts.
+                <% else %>
+                  Google OAuth authentication is disabled. Users must use email/password authentication.
+                <% end %>
+              </p>
+            </div>
+            <div class="col-md-4 text-end">
+              <i class="fab fa-google fa-3x text-<%= @oauth_settings['google_oauth_enabled']&.enabled? ? 'danger' : 'muted' %>"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Configuration Form -->
+  <div class="row">
+    <div class="col-lg-8">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-cog me-2"></i>Google OAuth Configuration
+          </h6>
+        </div>
+        <div class="card-body">
+          <%= form_with url: admin_oauth_settings_path, method: :patch, local: true, data: { controller: "form-validation" } do |f| %>
+            
+            <!-- Enable/Disable OAuth -->
+            <div class="mb-4">
+              <div class="form-check form-switch">
+                <%= check_box_tag "oauth[google_oauth_enabled]", "true", @oauth_settings['google_oauth_enabled']&.enabled?, 
+                    class: "form-check-input", 
+                    id: "google_oauth_enabled",
+                    data: { action: "change->form-validation#toggleFields" } %>
+                <%= label_tag "google_oauth_enabled", "Enable Google OAuth", class: "form-check-label fw-bold" %>
+              </div>
+              <small class="text-muted">Allow users to sign up and sign in with their Google accounts</small>
+            </div>
+
+            <hr>
+
+            <!-- Client ID -->
+            <div class="mb-4">
+              <label for="google_client_id" class="form-label fw-bold">
+                <i class="fas fa-key me-2 text-primary"></i>Google Client ID
+              </label>
+              <%= text_field_tag "oauth[google_client_id]", @oauth_settings['google_client_id']&.value,
+                  class: "form-control form-control-lg",
+                  id: "google_client_id",
+                  placeholder: "Enter your Google OAuth Client ID",
+                  data: { target: "form-validation.requiredField" } %>
+              <div class="form-text">
+                <i class="fas fa-info-circle me-1"></i>
+                Get this from your Google Cloud Console project
+              </div>
+            </div>
+
+            <!-- Client Secret -->
+            <div class="mb-4">
+              <label for="google_client_secret" class="form-label fw-bold">
+                <i class="fas fa-lock me-2 text-warning"></i>Google Client Secret
+              </label>
+              <%= password_field_tag "oauth[google_client_secret]", @oauth_settings['google_client_secret']&.value,
+                  class: "form-control form-control-lg",
+                  id: "google_client_secret",
+                  placeholder: "Enter your Google OAuth Client Secret",
+                  data: { target: "form-validation.requiredField" } %>
+              <div class="form-text">
+                <i class="fas fa-shield-alt me-1"></i>
+                This will be encrypted and stored securely
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="d-grid">
+              <%= f.submit "Save OAuth Settings", 
+                  class: "btn btn-primary btn-lg",
+                  data: { 
+                    confirm: "Are you sure you want to update OAuth settings? This will affect user authentication.",
+                    disable_with: "Saving..." 
+                  } %>
+            </div>
+
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Setup Instructions -->
+    <div class="col-lg-4">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-info">
+            <i class="fas fa-book me-2"></i>Setup Instructions
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-info" role="alert">
+            <h6 class="alert-heading">
+              <i class="fab fa-google me-2"></i>Google Cloud Console Setup
+            </h6>
+            <p class="mb-2">To enable Google OAuth, you need to:</p>
+            <ol class="mb-0 small">
+              <li>Go to <a href="https://console.cloud.google.com" target="_blank" class="alert-link">Google Cloud Console</a></li>
+              <li>Create a new project or select existing</li>
+              <li>Enable the Google+ API</li>
+              <li>Create OAuth 2.0 credentials</li>
+              <li>Add authorized redirect URIs</li>
+              <li>Copy the Client ID and Secret here</li>
+            </ol>
+          </div>
+
+          <div class="alert alert-warning" role="alert">
+            <h6 class="alert-heading">
+              <i class="fas fa-link me-2"></i>Redirect URI
+            </h6>
+            <p class="mb-2">Add this URL to your Google OAuth app:</p>
+            <code class="small d-block bg-light p-2 rounded">
+              <%= request.protocol + request.host_with_port + "/users/auth/google_oauth2/callback" %>
+            </code>
+          </div>
+
+          <div class="alert alert-success" role="alert">
+            <h6 class="alert-heading">
+              <i class="fas fa-check-circle me-2"></i>Security Notes
+            </h6>
+            <ul class="mb-0 small">
+              <li>Client secrets are encrypted</li>
+              <li>OAuth can be disabled anytime</li>
+              <li>Users can still use email/password</li>
+              <li>All OAuth events are logged</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Test OAuth Card -->
+      <% if @oauth_settings['google_oauth_enabled']&.enabled? && 
+            @oauth_settings['google_client_id']&.value.present? && 
+            @oauth_settings['google_client_secret']&.value.present? %>
+        <div class="card shadow mt-4">
+          <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-success">
+              <i class="fas fa-flask me-2"></i>Test OAuth
+            </h6>
+          </div>
+          <div class="card-body text-center">
+            <p class="text-muted mb-3">Test your Google OAuth configuration</p>
+            <%= link_to "/users/auth/google_oauth2", 
+                class: "btn btn-outline-danger",
+                data: { method: :post } do %>
+              <i class="fab fa-google me-2"></i>Test Google Sign-In
+            <% end %>
+            <div class="form-text mt-2">
+              <i class="fas fa-info-circle me-1"></i>
+              This will redirect you through the OAuth flow
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

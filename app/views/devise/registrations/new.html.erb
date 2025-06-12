@@ -1,0 +1,77 @@
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+      <div class="card shadow-lg">
+        <div class="card-header text-center bg-success text-white">
+          <h3 class="mb-0">
+            <i class="fas fa-user-plus me-2"></i>
+            Sign Up
+          </h3>
+        </div>
+        <div class="card-body p-4">
+          <%= form_for(resource, as: resource_name, url: registration_path(resource_name), local: true) do |f| %>
+            <%= render "devise/shared/error_messages", resource: resource %>
+
+            <!-- Email Input -->
+            <div class="mb-4">
+              <%= f.label :email, "Email Address", class: "form-label", for: "user_email" %>
+              <%= f.email_field :email, autofocus: true, autocomplete: "email", 
+                  class: "form-control form-control-lg", 
+                  id: "user_email" %>
+            </div>
+
+            <!-- Password Input -->
+            <div class="mb-4">
+              <%= f.label :password, class: "form-label", for: "user_password" do %>
+                Password 
+                <% if @minimum_password_length %>
+                  <small class="text-muted">(<%= @minimum_password_length %> characters minimum)</small>
+                <% end %>
+              <% end %>
+              <%= f.password_field :password, autocomplete: "new-password", 
+                  class: "form-control form-control-lg", 
+                  id: "user_password" %>
+            </div>
+
+            <!-- Password Confirmation Input -->
+            <div class="mb-4">
+              <%= f.label :password_confirmation, "Confirm Password", class: "form-label", for: "user_password_confirmation" %>
+              <%= f.password_field :password_confirmation, autocomplete: "new-password", 
+                  class: "form-control form-control-lg", 
+                  id: "user_password_confirmation" %>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="d-grid mb-4">
+              <%= f.submit "Create Account", class: "btn btn-success btn-lg" %>
+            </div>
+          <% end %>
+
+          <!-- OAuth Sign-Up -->
+          <% if OauthSetting.google_enabled? %>
+            <div class="text-center my-4">
+              <div class="divider">
+                <span class="divider-text text-muted">Or sign up with</span>
+              </div>
+            </div>
+            
+            <div class="d-grid mb-3">
+              <%= link_to "/users/auth/google_oauth2", 
+                  method: :post,
+                  class: "btn btn-outline-danger btn-lg d-flex align-items-center justify-content-center",
+                  data: { turbo: false } do %>
+                <i class="fab fa-google me-2"></i>
+                Sign up with Google
+              <% end %>
+            </div>
+          <% end %>
+
+          <!-- Links -->
+          <div class="text-center">
+            <%= render "devise/shared/links" %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
