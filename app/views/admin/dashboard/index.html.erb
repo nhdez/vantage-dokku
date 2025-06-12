@@ -1,0 +1,311 @@
+<div class="container-fluid">
+  <!-- Admin Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-tachometer-alt me-2 text-primary"></i>
+            Administration Dashboard
+          </h1>
+          <p class="text-muted mb-0">System administration and configuration</p>
+        </div>
+        <div>
+          <span class="badge bg-success">
+            <i class="fas fa-crown me-1"></i>Administrator
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Stats -->
+  <div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-primary shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Users</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800"><%= @total_users %></div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-users fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-success shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Administrators</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800"><%= @admin_users %></div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-user-shield fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-info shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-info text-uppercase mb-1">System Roles</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800"><%= @system_stats[:total_roles] %></div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-key fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-warning shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Storage Used</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800"><%= @system_stats[:storage_used] %></div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-hdd fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Action Cards -->
+  <div class="row">
+    <!-- General Settings Card -->
+    <div class="col-lg-4 mb-4">
+      <div class="card shadow h-100">
+        <div class="card-header py-3 bg-primary text-white">
+          <h6 class="m-0 font-weight-bold">
+            <i class="fas fa-cogs me-2"></i>General Settings
+          </h6>
+        </div>
+        <div class="card-body">
+          <p class="card-text text-muted mb-3">
+            Configure application-wide settings including user registration, app name, and basic configurations.
+          </p>
+          <div class="mb-3">
+            <h6 class="text-muted mb-2">Current Settings:</h6>
+            <ul class="list-unstyled text-sm">
+              <li><i class="fas fa-check text-success me-2"></i>User Registration: Enabled</li>
+              <li><i class="fas fa-times text-danger me-2"></i>Email Confirmation: Disabled</li>
+              <li><i class="fas fa-info text-info me-2"></i>App Name: Vantage</li>
+            </ul>
+          </div>
+        </div>
+        <div class="card-footer">
+          <%= link_to admin_general_settings_path, class: "btn btn-primary btn-block" do %>
+            <i class="fas fa-cog me-2"></i>Manage Settings
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- SMTP Settings Card -->
+    <div class="col-lg-4 mb-4">
+      <div class="card shadow h-100">
+        <div class="card-header py-3 bg-success text-white">
+          <h6 class="m-0 font-weight-bold">
+            <i class="fas fa-envelope me-2"></i>SMTP Settings
+          </h6>
+        </div>
+        <div class="card-body">
+          <p class="card-text text-muted mb-3">
+            Configure email delivery settings using AWS SES or other SMTP providers. Test email functionality.
+          </p>
+          <div class="mb-3">
+            <h6 class="text-muted mb-2">Email Configuration:</h6>
+            <ul class="list-unstyled text-sm">
+              <li><i class="fas fa-server text-info me-2"></i>Provider: AWS SES</li>
+              <li><i class="fas fa-shield-alt text-success me-2"></i>Encryption: TLS</li>
+              <li><i class="fas fa-plug text-warning me-2"></i>Status: Ready to Configure</li>
+            </ul>
+          </div>
+        </div>
+        <div class="card-footer">
+          <%= link_to admin_smtp_settings_path, class: "btn btn-success btn-block" do %>
+            <i class="fas fa-envelope-open me-2"></i>Configure SMTP
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- User Management Card -->
+    <div class="col-lg-4 mb-4">
+      <div class="card shadow h-100">
+        <div class="card-header py-3 bg-info text-white">
+          <h6 class="m-0 font-weight-bold">
+            <i class="fas fa-users-cog me-2"></i>User Management
+          </h6>
+        </div>
+        <div class="card-body">
+          <p class="card-text text-muted mb-3">
+            Manage user accounts, assign roles, and search through the user database with advanced filtering.
+          </p>
+          <div class="mb-3">
+            <h6 class="text-muted mb-2">Quick Actions:</h6>
+            <ul class="list-unstyled text-sm">
+              <li><i class="fas fa-search text-primary me-2"></i>Search & Filter Users</li>
+              <li><i class="fas fa-user-tag text-warning me-2"></i>Assign Roles</li>
+              <li><i class="fas fa-edit text-info me-2"></i>Edit User Accounts</li>
+            </ul>
+          </div>
+        </div>
+        <div class="card-footer">
+          <%= link_to admin_users_path, class: "btn btn-info btn-block" do %>
+            <i class="fas fa-users me-2"></i>Manage Users
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activity Logs Card -->
+    <div class="col-lg-4 mb-4">
+      <div class="card shadow h-100">
+        <div class="card-header py-3 bg-warning text-dark">
+          <h6 class="m-0 font-weight-bold">
+            <i class="fas fa-history me-2"></i>Activity Logs
+          </h6>
+        </div>
+        <div class="card-body">
+          <p class="card-text text-muted mb-3">
+            Monitor user actions, system events, and security activities across the application with detailed tracking.
+          </p>
+          <div class="mb-3">
+            <h6 class="text-muted mb-2">Activity Summary:</h6>
+            <ul class="list-unstyled text-sm">
+              <li><i class="fas fa-chart-line text-success me-2"></i>Total: <%= ActivityLog.count %> activities</li>
+              <li><i class="fas fa-calendar-day text-info me-2"></i>Today: <%= ActivityLog.today.count %> activities</li>
+              <li><i class="fas fa-shield-alt text-danger me-2"></i>Security: Full audit trail</li>
+            </ul>
+          </div>
+        </div>
+        <div class="card-footer">
+          <%= link_to admin_activity_logs_path, class: "btn btn-warning btn-block" do %>
+            <i class="fas fa-history me-2"></i>View Activity Logs
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Users -->
+  <div class="row">
+    <div class="col-lg-8">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-user-plus me-2"></i>Recent User Registrations
+          </h6>
+        </div>
+        <div class="card-body">
+          <% if @recent_users.any? %>
+            <% @recent_users.each do |user| %>
+              <div class="d-flex align-items-center mb-3">
+                <div class="me-3">
+                  <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                    <span class="text-white font-weight-bold"><%= user.initials %></span>
+                  </div>
+                </div>
+                <div class="flex-grow-1">
+                  <div class="font-weight-bold"><%= user.full_name %></div>
+                  <div class="text-muted small"><%= user.email %></div>
+                </div>
+                <div class="text-muted small">
+                  <%= time_ago_in_words(user.created_at) %> ago
+                </div>
+              </div>
+            <% end %>
+          <% else %>
+            <div class="text-center text-muted py-4">
+              <i class="fas fa-users fa-3x mb-3"></i>
+              <p>No recent user registrations</p>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- System Information -->
+    <div class="col-lg-4">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-info-circle me-2"></i>System Information
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <h6 class="text-muted mb-2">Application</h6>
+            <ul class="list-unstyled text-sm">
+              <li><strong>Rails Version:</strong> <%= Rails.version %></li>
+              <li><strong>Ruby Version:</strong> <%= RUBY_VERSION %></li>
+              <li><strong>Environment:</strong> <%= Rails.env.titleize %></li>
+            </ul>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-muted mb-2">Database</h6>
+            <ul class="list-unstyled text-sm">
+              <li><strong>Adapter:</strong> PostgreSQL</li>
+              <li><strong>Tables:</strong> <%= ActiveRecord::Base.connection.tables.count %></li>
+            </ul>
+          </div>
+
+          <div class="mb-3">
+            <h6 class="text-muted mb-2">Features</h6>
+            <ul class="list-unstyled text-sm">
+              <li><i class="fas fa-check text-success me-2"></i>Authentication (Devise)</li>
+              <li><i class="fas fa-check text-success me-2"></i>Authorization (Pundit)</li>
+              <li><i class="fas fa-check text-success me-2"></i>Role Management (Rolify)</li>
+              <li><i class="fas fa-check text-success me-2"></i>File Uploads (Active Storage)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.border-left-primary {
+  border-left: 0.25rem solid #4e73df !important;
+}
+.border-left-success {
+  border-left: 0.25rem solid #1cc88a !important;
+}
+.border-left-info {
+  border-left: 0.25rem solid #36b9cc !important;
+}
+.border-left-warning {
+  border-left: 0.25rem solid #f6c23e !important;
+}
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.text-gray-300 {
+  color: #dddfeb !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+.btn-block {
+  width: 100%;
+}
+</style>

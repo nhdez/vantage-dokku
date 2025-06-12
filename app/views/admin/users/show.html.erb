@@ -1,0 +1,262 @@
+<div class="container-fluid">
+  <!-- User Profile Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-user me-2 text-primary"></i>
+            User Profile: <%= @user.full_name %>
+          </h1>
+          <p class="text-muted mb-0">Detailed user information and role management</p>
+        </div>
+        <div>
+          <%= link_to admin_users_path, class: "btn btn-outline-secondary me-2" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to Users
+          <% end %>
+          <%= link_to edit_admin_user_path(@user), class: "btn btn-primary" do %>
+            <i class="fas fa-edit me-2"></i>Edit User
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- User Information Card -->
+    <div class="col-lg-8 mb-4">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-info-circle me-2"></i>User Information
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <!-- Profile Picture -->
+            <div class="col-md-4 text-center mb-4">
+              <div class="mb-3">
+                <% if @user.profile_picture.attached? %>
+                  <%= image_tag @user.profile_picture, class: "rounded-circle shadow", style: "width: 150px; height: 150px; object-fit: cover;" %>
+                <% else %>
+                  <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center mx-auto shadow" style="width: 150px; height: 150px;">
+                    <span class="text-white" style="font-size: 3rem; font-weight: bold;"><%= @user.initials %></span>
+                  </div>
+                <% end %>
+              </div>
+              <h5 class="mb-1"><%= @user.full_name %></h5>
+              <p class="text-muted mb-2"><%= @user.email %></p>
+              <div class="d-flex justify-content-center gap-1">
+                <% @user.roles.each do |role| %>
+                  <span class="badge bg-<%= role.name == 'admin' ? 'danger' : role.name == 'mod' ? 'warning' : 'secondary' %>">
+                    <%= role.name.titleize %>
+                  </span>
+                <% end %>
+                <% if @user.roles.empty? %>
+                  <span class="badge bg-light text-dark">No Roles</span>
+                <% end %>
+              </div>
+            </div>
+
+            <!-- User Details -->
+            <div class="col-md-8">
+              <div class="row mb-3">
+                <div class="col-sm-4 font-weight-bold">User ID:</div>
+                <div class="col-sm-8">#<%= @user.id %></div>
+              </div>
+              
+              <div class="row mb-3">
+                <div class="col-sm-4 font-weight-bold">Email:</div>
+                <div class="col-sm-8">
+                  <%= @user.email %>
+                  <% if @user.respond_to?(:confirmed?) %>
+                    <% if @user.confirmed? %>
+                      <span class="badge bg-success ms-2">Verified</span>
+                    <% else %>
+                      <span class="badge bg-warning ms-2">Unverified</span>
+                    <% end %>
+                  <% end %>
+                </div>
+              </div>
+
+              <div class="row mb-3">
+                <div class="col-sm-4 font-weight-bold">Full Name:</div>
+                <div class="col-sm-8">
+                  <%= @user.first_name.present? ? @user.full_name : "Not provided" %>
+                </div>
+              </div>
+
+              <div class="row mb-3">
+                <div class="col-sm-4 font-weight-bold">Date of Birth:</div>
+                <div class="col-sm-8">
+                  <% if @user.date_of_birth %>
+                    <%= @user.date_of_birth.strftime("%B %d, %Y") %>
+                    <small class="text-muted">(Age: <%= Date.current.year - @user.date_of_birth.year %>)</small>
+                  <% else %>
+                    Not provided
+                  <% end %>
+                </div>
+              </div>
+
+              <div class="row mb-3">
+                <div class="col-sm-4 font-weight-bold">Member Since:</div>
+                <div class="col-sm-8">
+                  <%= @user.created_at.strftime("%B %d, %Y at %I:%M %p") %>
+                  <small class="text-muted">(<%= time_ago_in_words(@user.created_at) %> ago)</small>
+                </div>
+              </div>
+
+              <div class="row mb-3">
+                <div class="col-sm-4 font-weight-bold">Last Updated:</div>
+                <div class="col-sm-8">
+                  <%= @user.updated_at.strftime("%B %d, %Y at %I:%M %p") %>
+                  <small class="text-muted">(<%= time_ago_in_words(@user.updated_at) %> ago)</small>
+                </div>
+              </div>
+
+              <% if @user.respond_to?(:sign_in_count) %>
+                <div class="row mb-3">
+                  <div class="col-sm-4 font-weight-bold">Login Count:</div>
+                  <div class="col-sm-8">
+                    <span class="badge bg-info"><%= @user.sign_in_count || 0 %> times</span>
+                  </div>
+                </div>
+              <% end %>
+
+              <% if @user.respond_to?(:last_sign_in_at) && @user.last_sign_in_at %>
+                <div class="row mb-3">
+                  <div class="col-sm-4 font-weight-bold">Last Login:</div>
+                  <div class="col-sm-8">
+                    <%= @user.last_sign_in_at.strftime("%B %d, %Y at %I:%M %p") %>
+                    <small class="text-muted">(<%= time_ago_in_words(@user.last_sign_in_at) %> ago)</small>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Role Management Card -->
+    <div class="col-lg-4 mb-4">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-user-tag me-2"></i>Role Management
+          </h6>
+        </div>
+        <div class="card-body">
+          <!-- Current Roles -->
+          <div class="mb-4">
+            <h6 class="text-muted mb-2">Current Roles</h6>
+            <% if @user_roles.any? %>
+              <% @user_roles.each do |role| %>
+                <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
+                  <div>
+                    <span class="badge bg-<%= role.name == 'admin' ? 'danger' : role.name == 'mod' ? 'warning' : 'secondary' %> me-2">
+                      <%= role.name.titleize %>
+                    </span>
+                  </div>
+                  <% unless @user == current_user %>
+                    <%= link_to remove_role_admin_user_path(@user, role_id: role.id), 
+                        method: :delete, 
+                        class: "btn btn-sm btn-outline-danger",
+                        data: { 
+                          confirm: "Remove #{role.name} role from #{@user.full_name}?",
+                          turbo_method: :delete
+                        } do %>
+                      <i class="fas fa-times"></i>
+                    <% end %>
+                  <% end %>
+                </div>
+              <% end %>
+            <% else %>
+              <p class="text-muted mb-0">No roles assigned</p>
+            <% end %>
+          </div>
+
+          <!-- Assign New Role -->
+          <% unless @user == current_user %>
+            <div>
+              <h6 class="text-muted mb-2">Assign New Role</h6>
+              <% Role.all.each do |role| %>
+                <% unless @user.has_role?(role.name) %>
+                  <%= link_to assign_role_admin_user_path(@user, role_id: role.id), 
+                      method: :patch, 
+                      class: "btn btn-sm btn-outline-primary me-2 mb-2",
+                      data: { turbo_method: :patch } do %>
+                    <i class="fas fa-plus me-1"></i><%= role.name.titleize %>
+                  <% end %>
+                <% end %>
+              <% end %>
+            </div>
+          <% else %>
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle me-2"></i>
+              You cannot modify your own roles for security reasons.
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- Account Actions Card -->
+      <div class="card shadow mt-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-cogs me-2"></i>Account Actions
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <%= link_to edit_admin_user_path(@user), class: "btn btn-outline-primary" do %>
+              <i class="fas fa-edit me-2"></i>Edit Profile
+            <% end %>
+            
+            <button class="btn btn-outline-warning" onclick="alert('Password reset functionality coming soon!')">
+              <i class="fas fa-key me-2"></i>Reset Password
+            </button>
+
+            <% unless @user == current_user %>
+              <button class="btn btn-outline-danger" onclick="alert('Account deletion functionality coming soon!')">
+                <i class="fas fa-trash me-2"></i>Delete Account
+              </button>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity Log (Placeholder) -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-history me-2"></i>Recent Activity
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="text-center text-muted py-4">
+            <i class="fas fa-clock fa-3x mb-3"></i>
+            <p>Activity logging coming soon...</p>
+            <small>This will show user login history, role changes, and other account activities.</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+.font-weight-bold {
+  font-weight: 600;
+}
+</style>

@@ -1,0 +1,15 @@
+<%= @greeting %>
+
+This is a test email from <%= @app_name %> to verify your email configuration.
+
+Configuration Details:
+- Delivery Method: <%= @smtp_enabled ? 'SMTP' : 'Letter Opener' %>
+- Application: <%= @app_name %>
+- Environment: <%= Rails.env.capitalize %>
+- Sent at: <%= @current_time %>
+
+If you're receiving this email, your configuration is working properly!
+
+--
+This is an automated test email from <%= @app_name %>.
+Sent on <%= @current_time %>

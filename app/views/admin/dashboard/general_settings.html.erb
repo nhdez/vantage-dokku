@@ -1,0 +1,202 @@
+<div class="container-fluid">
+  <!-- General Settings Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-cogs me-2 text-primary"></i>
+            General Settings
+          </h1>
+          <p class="text-muted mb-0">Configure application-wide settings and behavior</p>
+        </div>
+        <div>
+          <%= link_to admin_root_path, class: "btn btn-outline-secondary" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Settings Form -->
+    <div class="col-lg-8 mb-4">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-sliders-h me-2"></i>Application Configuration
+          </h6>
+        </div>
+        <div class="card-body">
+          <%= form_with url: admin_general_settings_path, method: :patch, local: true do |f| %>
+            <div class="row">
+              <% @settings.each do |setting| %>
+                <div class="col-12 mb-4">
+                  <div class="border rounded p-3 bg-light">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                      <div>
+                        <h6 class="mb-1 text-primary"><%= setting.key.humanize %></h6>
+                        <% if setting.description.present? %>
+                          <small class="text-muted"><%= setting.description %></small>
+                        <% end %>
+                      </div>
+                      <span class="badge bg-secondary"><%= setting.setting_type %></span>
+                    </div>
+                    
+                    <div class="mt-3">
+                      <% case setting.setting_type %>
+                      <% when 'boolean' %>
+                        <div class="form-check form-switch">
+                          <%= f.check_box "settings[#{setting.key}]", 
+                              { checked: setting.typed_value, class: "form-check-input" }, 
+                              "true", "false" %>
+                          <%= f.label "settings_#{setting.key}", setting.key.humanize, class: "form-check-label" %>
+                        </div>
+                      <% when 'integer' %>
+                        <div class="form-outline">
+                          <%= f.number_field "settings[#{setting.key}]", 
+                              value: setting.typed_value, 
+                              class: "form-control",
+                              min: 0 %>
+                          <label for="settings_<%= setting.key %>" class="form-label"><%= setting.key.humanize %></label>
+                        </div>
+                      <% else %>
+                        <% if setting.key == 'default_user_role' %>
+                          <%= f.select "settings[#{setting.key}]", 
+                              options_from_collection_for_select(Role.all, :name, :name, setting.value), 
+                              {}, { class: "form-select" } %>
+                        <% else %>
+                          <div class="form-outline">
+                            <%= f.text_field "settings[#{setting.key}]", 
+                                value: setting.value, 
+                                class: "form-control" %>
+                            <label for="settings_<%= setting.key %>" class="form-label"><%= setting.key.humanize %></label>
+                          </div>
+                        <% end %>
+                      <% end %>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+            
+            <div class="d-flex justify-content-end mt-4">
+              <%= f.submit "Save Settings", class: "btn btn-primary btn-lg" %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Information -->
+    <div class="col-lg-4 mb-4">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-info-circle me-2"></i>Settings Information
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-4">
+            <h6 class="text-muted mb-2">Current Configuration</h6>
+            <ul class="list-unstyled">
+              <li class="mb-2">
+                <strong>App Name:</strong> 
+                <span class="badge bg-info"><%= AppSetting.get('app_name', 'Vantage') %></span>
+              </li>
+              <li class="mb-2">
+                <strong>Registration:</strong> 
+                <span class="badge bg-<%= AppSetting.get('allow_registration', true) ? 'success' : 'danger' %>">
+                  <%= AppSetting.get('allow_registration', true) ? 'Enabled' : 'Disabled' %>
+                </span>
+              </li>
+              <li class="mb-2">
+                <strong>Email Confirmation:</strong> 
+                <span class="badge bg-<%= AppSetting.get('require_email_confirmation', false) ? 'warning' : 'secondary' %>">
+                  <%= AppSetting.get('require_email_confirmation', false) ? 'Required' : 'Optional' %>
+                </span>
+              </li>
+              <li class="mb-2">
+                <strong>Maintenance Mode:</strong> 
+                <span class="badge bg-<%= AppSetting.get('maintenance_mode', false) ? 'danger' : 'success' %>">
+                  <%= AppSetting.get('maintenance_mode', false) ? 'Active' : 'Inactive' %>
+                </span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Important:</strong> Changes to these settings take effect immediately. Some settings may require users to log out and back in.
+          </div>
+
+          <div class="alert alert-info">
+            <i class="fas fa-lightbulb me-2"></i>
+            <strong>Tip:</strong> Use maintenance mode when performing system updates or maintenance to prevent user access.
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="card shadow mt-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-bolt me-2"></i>Quick Actions
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <button class="btn btn-outline-warning" onclick="toggleMaintenanceMode()">
+              <i class="fas fa-tools me-2"></i>Toggle Maintenance Mode
+            </button>
+            
+            <button class="btn btn-outline-info" onclick="clearApplicationCache()">
+              <i class="fas fa-broom me-2"></i>Clear Cache
+            </button>
+            
+            <%= link_to admin_smtp_settings_path, class: "btn btn-outline-success" do %>
+              <i class="fas fa-envelope me-2"></i>SMTP Settings
+            <% end %>
+            
+            <%= link_to admin_users_path, class: "btn btn-outline-primary" do %>
+              <i class="fas fa-users me-2"></i>Manage Users
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleMaintenanceMode() {
+  if (confirm('Are you sure you want to toggle maintenance mode? This will affect all users.')) {
+    // This would be implemented with a proper AJAX request
+    alert('Maintenance mode toggle functionality coming soon!');
+  }
+}
+
+function clearApplicationCache() {
+  if (confirm('Are you sure you want to clear the application cache?')) {
+    // This would be implemented with a proper AJAX request
+    alert('Cache clearing functionality coming soon!');
+  }
+}
+</script>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+.font-weight-bold {
+  font-weight: 600;
+}
+.form-check-input:checked {
+  background-color: #007bff;
+  border-color: #007bff;
+}
+</style>

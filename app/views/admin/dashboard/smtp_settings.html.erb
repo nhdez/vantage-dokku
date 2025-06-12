@@ -1,0 +1,244 @@
+<div class="container-fluid">
+  <!-- SMTP Settings Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-envelope-open-text me-2 text-primary"></i>
+            SMTP Settings
+          </h1>
+          <p class="text-muted mb-0">Configure email delivery settings and test email functionality</p>
+        </div>
+        <div>
+          <%= link_to admin_root_path, class: "btn btn-outline-secondary me-2" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+          <% end %>
+          <%= form_with url: admin_test_email_path, method: :post, local: true do |f| %>
+            <%= f.submit "Send Test Email", class: "btn btn-info" %>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- SMTP Configuration Form -->
+    <div class="col-lg-8 mb-4">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-cogs me-2"></i>Email Configuration
+          </h6>
+        </div>
+        <div class="card-body">
+          <%= form_with url: admin_smtp_settings_path, method: :patch, local: true do |f| %>
+            <!-- Email Delivery Toggle -->
+            <div class="row mb-4">
+              <div class="col-12">
+                <div class="card bg-light">
+                  <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <div>
+                        <h5 class="mb-1">Email Delivery Method</h5>
+                        <p class="text-muted mb-0">Choose between letter_opener (development) or SMTP (production)</p>
+                      </div>
+                      <div class="form-check form-switch">
+                        <% smtp_enabled = AppSetting.get('smtp_enabled', false) %>
+                        <%= f.check_box "smtp[smtp_enabled]", 
+                            { checked: smtp_enabled, class: "form-check-input", id: "smtp_toggle" }, 
+                            "true", "false" %>
+                        <label for="smtp_toggle" class="form-check-label">
+                          <span class="text-danger">Letter Opener</span> / <span class="text-success">SMTP</span>
+                        </label>
+                      </div>
+                    </div>
+                    <div class="mt-2">
+                      <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        <strong>Letter Opener:</strong> Emails open in browser (development only). 
+                        <strong>SMTP:</strong> Real email delivery via configured server.
+                      </small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SMTP Settings (shown when enabled) -->
+            <div id="smtp-settings" style="<%= smtp_enabled ? '' : 'display: none;' %>">
+              <div class="row">
+                <% @smtp_settings.reject { |s| s.key == 'smtp_enabled' }.each do |setting| %>
+                  <div class="col-md-6 mb-4">
+                    <div class="border rounded p-3 bg-light">
+                      <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                          <h6 class="mb-1 text-primary"><%= setting.key.humanize %></h6>
+                          <% if setting.description.present? %>
+                            <small class="text-muted"><%= setting.description %></small>
+                          <% end %>
+                        </div>
+                        <span class="badge bg-secondary"><%= setting.setting_type %></span>
+                      </div>
+                      
+                      <div class="mt-3">
+                        <% case setting.setting_type %>
+                        <% when 'integer' %>
+                          <div class="form-outline">
+                            <%= f.number_field "smtp[#{setting.key}]", 
+                                value: setting.typed_value, 
+                                class: "form-control",
+                                min: 0 %>
+                            <label for="smtp_<%= setting.key %>" class="form-label"><%= setting.key.humanize %></label>
+                          </div>
+                        <% when 'string' %>
+                          <% if setting.key.include?('password') %>
+                            <div class="form-outline">
+                              <%= f.password_field "smtp[#{setting.key}]", 
+                                  value: setting.value, 
+                                  class: "form-control",
+                                  placeholder: "Enter SMTP password/secret key" %>
+                              <label for="smtp_<%= setting.key %>" class="form-label"><%= setting.key.humanize %></label>
+                            </div>
+                          <% elsif setting.key == 'smtp_authentication' %>
+                            <%= f.select "smtp[#{setting.key}]", 
+                                options_for_select([['Plain', 'plain'], ['Login', 'login'], ['CRAM-MD5', 'cram_md5']], setting.value), 
+                                {}, { class: "form-select" } %>
+                          <% else %>
+                            <div class="form-outline">
+                              <%= f.text_field "smtp[#{setting.key}]", 
+                                  value: setting.value, 
+                                  class: "form-control" %>
+                              <label for="smtp_<%= setting.key %>" class="form-label"><%= setting.key.humanize %></label>
+                            </div>
+                          <% end %>
+                        <% end %>
+                      </div>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+            
+            <div class="d-flex justify-content-end mt-4">
+              <%= f.submit "Save SMTP Settings", class: "btn btn-primary btn-lg" %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Current Configuration & Help -->
+    <div class="col-lg-4 mb-4">
+      <!-- Current Status -->
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-info-circle me-2"></i>Current Configuration
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <strong>Email Delivery:</strong>
+            <% if AppSetting.get('smtp_enabled', false) %>
+              <span class="badge bg-success">SMTP Enabled</span>
+            <% else %>
+              <span class="badge bg-warning">Letter Opener</span>
+            <% end %>
+          </div>
+          
+          <div class="mb-3">
+            <strong>SMTP Server:</strong><br>
+            <small class="text-muted"><%= AppSetting.get('smtp_address', 'Not configured') %></small>
+          </div>
+          
+          <div class="mb-3">
+            <strong>From Address:</strong><br>
+            <small class="text-muted"><%= AppSetting.get('mail_from', 'Not configured') %></small>
+          </div>
+          
+          <div class="mb-3">
+            <strong>Current Environment:</strong><br>
+            <span class="badge bg-<%= Rails.env.production? ? 'danger' : 'info' %>"><%= Rails.env.capitalize %></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- AWS SES Configuration Help -->
+      <div class="card shadow mt-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-aws me-2"></i>AWS SES Configuration
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-info">
+            <h6><i class="fas fa-lightbulb me-2"></i>Quick Setup</h6>
+            <p class="mb-2">For AWS SES, use these typical settings:</p>
+            <ul class="small mb-0">
+              <li><strong>Address:</strong> email-smtp.region.amazonaws.com</li>
+              <li><strong>Port:</strong> 587 (recommended)</li>
+              <li><strong>Authentication:</strong> Plain</li>
+              <li><strong>Username:</strong> Your SES SMTP username</li>
+              <li><strong>Password:</strong> Your SES SMTP password</li>
+            </ul>
+          </div>
+          
+          <div class="alert alert-warning">
+            <h6><i class="fas fa-exclamation-triangle me-2"></i>Security Note</h6>
+            <p class="small mb-0">Store sensitive credentials in environment variables. Never commit passwords to version control.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Test Email Section -->
+      <div class="card shadow mt-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-paper-plane me-2"></i>Test Email
+          </h6>
+        </div>
+        <div class="card-body">
+          <p class="text-muted small">Send a test email to <strong><%= current_user.email %></strong> to verify your configuration.</p>
+          
+          <%= form_with url: admin_test_email_path, method: :post, local: true do |f| %>
+            <div class="d-grid">
+              <%= f.submit "Send Test Email", class: "btn btn-outline-primary" %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const smtpToggle = document.getElementById('smtp_toggle');
+  const smtpSettings = document.getElementById('smtp-settings');
+  
+  smtpToggle.addEventListener('change', function() {
+    if (this.checked) {
+      smtpSettings.style.display = 'block';
+    } else {
+      smtpSettings.style.display = 'none';
+    }
+  });
+});
+</script>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+.font-weight-bold {
+  font-weight: 600;
+}
+.form-check-input:checked {
+  background-color: #007bff;
+  border-color: #007bff;
+}
+</style>

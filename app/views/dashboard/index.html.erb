@@ -1,0 +1,202 @@
+<div class="container-fluid">
+  <!-- Dashboard Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-0 text-gray-800">Dashboard</h1>
+          <p class="text-muted mb-0">Welcome back, <%= current_user.email.split('@').first.titleize %>!</p>
+        </div>
+        <div>
+          <button type="button" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>New Project
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Analytics Cards -->
+  <div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-primary shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Projects</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800"><%= @analytics_data[:total_projects] %></div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-folder fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-success shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Active Projects</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800"><%= @analytics_data[:active_projects] %></div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-play-circle fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-info shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Completed Projects</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800"><%= @analytics_data[:completed_projects] %></div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-warning shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Team Members</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800"><%= @analytics_data[:team_members] %></div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-users fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Content Row -->
+  <div class="row">
+    <!-- Recent Projects -->
+    <div class="col-lg-8 mb-4">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+          <h6 class="m-0 font-weight-bold text-primary">Recent Projects</h6>
+          <%= link_to "View All", projects_path, class: "btn btn-sm btn-outline-primary" %>
+        </div>
+        <div class="card-body">
+          <% @recent_projects.each do |project| %>
+            <div class="row mb-3 align-items-center">
+              <div class="col-md-6">
+                <h6 class="mb-1"><%= project[:name] %></h6>
+                <small class="text-muted">Updated <%= project[:updated] %></small>
+              </div>
+              <div class="col-md-3">
+                <span class="badge bg-<%= project[:status] == 'Active' ? 'success' : project[:status] == 'In Progress' ? 'warning' : 'info' %>">
+                  <%= project[:status] %>
+                </span>
+              </div>
+              <div class="col-md-3">
+                <div class="progress" style="height: 8px;">
+                  <div class="progress-bar bg-<%= project[:progress] > 80 ? 'success' : project[:progress] > 50 ? 'info' : 'warning' %>" 
+                       role="progressbar" 
+                       style="width: <%= project[:progress] %>%" 
+                       aria-valuenow="<%= project[:progress] %>" 
+                       aria-valuemin="0" 
+                       aria-valuemax="100">
+                  </div>
+                </div>
+                <small class="text-muted"><%= project[:progress] %>% complete</small>
+              </div>
+            </div>
+            <% unless project == @recent_projects.last %>
+              <hr>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notifications & Activity -->
+    <div class="col-lg-4 mb-4">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">Recent Activity</h6>
+        </div>
+        <div class="card-body">
+          <% @notifications.each do |notification| %>
+            <div class="d-flex align-items-center mb-3">
+              <div class="me-3">
+                <div class="bg-<%= notification[:type] == 'warning' ? 'warning' : notification[:type] == 'info' ? 'info' : 'success' %> rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                  <i class="fas fa-<%= notification[:type] == 'warning' ? 'exclamation' : notification[:type] == 'info' ? 'info' : 'check' %> text-white"></i>
+                </div>
+              </div>
+              <div class="flex-grow-1">
+                <div class="small text-muted"><%= notification[:time] %></div>
+                <div><%= notification[:message] %></div>
+              </div>
+            </div>
+          <% end %>
+          <div class="text-center mt-3">
+            <a href="#" class="btn btn-sm btn-outline-primary">View All Activity</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">Quick Actions</h6>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <button type="button" class="btn btn-outline-primary btn-sm">
+              <i class="fas fa-plus me-2"></i>Create Project
+            </button>
+            <button type="button" class="btn btn-outline-success btn-sm">
+              <i class="fas fa-user-plus me-2"></i>Invite Team Member
+            </button>
+            <button type="button" class="btn btn-outline-info btn-sm">
+              <i class="fas fa-chart-bar me-2"></i>Generate Report
+            </button>
+            <%= link_to settings_path, class: "btn btn-outline-secondary btn-sm" do %>
+              <i class="fas fa-cog me-2"></i>Settings
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.border-left-primary {
+  border-left: 0.25rem solid #4e73df !important;
+}
+.border-left-success {
+  border-left: 0.25rem solid #1cc88a !important;
+}
+.border-left-info {
+  border-left: 0.25rem solid #36b9cc !important;
+}
+.border-left-warning {
+  border-left: 0.25rem solid #f6c23e !important;
+}
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.text-gray-300 {
+  color: #dddfeb !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+</style>

@@ -1,0 +1,69 @@
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <!-- Hero Section -->
+      <div class="text-center mb-5">
+        <h1 class="display-4 fw-bold text-primary mb-4">Welcome to Vantage</h1>
+        <p class="lead text-muted mb-4">
+          A modern Rails 8 application built with MDBootstrap Material Design, featuring 
+          authentication, authorization, and all the tools you need for rapid development.
+        </p>
+        
+        <% unless user_signed_in? %>
+          <div class="d-grid gap-2 d-md-block">
+            <%= link_to "Get Started", new_user_registration_path, class: "btn btn-primary btn-lg me-2" %>
+            <%= link_to "Sign In", new_user_session_path, class: "btn btn-outline-primary btn-lg" %>
+          </div>
+        <% else %>
+          <div class="alert alert-success" role="alert">
+            <i class="fas fa-check-circle me-2"></i>
+            Welcome back, <%= current_user.email %>! You're successfully signed in.
+          </div>
+        <% end %>
+      </div>
+
+      <!-- Features Section -->
+      <div class="row g-4 mb-5">
+        <div class="col-md-6">
+          <div class="card h-100">
+            <div class="card-body text-center">
+              <i class="fas fa-shield-alt fa-3x text-primary mb-3"></i>
+              <h5 class="card-title">Secure Authentication</h5>
+              <p class="card-text">Built-in user authentication with Devise, featuring secure password handling and user management.</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-6">
+          <div class="card h-100">
+            <div class="card-body text-center">
+              <i class="fas fa-users-cog fa-3x text-primary mb-3"></i>
+              <h5 class="card-title">Role-Based Access</h5>
+              <p class="card-text">Integrated Pundit and Rolify for granular authorization and role management.</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-6">
+          <div class="card h-100">
+            <div class="card-body text-center">
+              <i class="fas fa-mobile-alt fa-3x text-primary mb-3"></i>
+              <h5 class="card-title">Material Design</h5>
+              <p class="card-text">Beautiful, responsive UI with MDBootstrap Material Design components.</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-6">
+          <div class="card h-100">
+            <div class="card-body text-center">
+              <i class="fas fa-rocket fa-3x text-primary mb-3"></i>
+              <h5 class="card-title">Rails 8 Ready</h5>
+              <p class="card-text">Latest Rails 8 features with solid gems for caching, queueing, and real-time features.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
