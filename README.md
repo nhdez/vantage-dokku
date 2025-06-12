@@ -4,6 +4,8 @@
 [![Ruby Version](https://img.shields.io/badge/ruby-3.2+-red.svg)](https://www.ruby-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+![vantage_bp](https://github.com/user-attachments/assets/68761cc4-89f7-42f7-bc82-5b8a3cadb7b0)
+
 A modern, production-ready Rails 8 boilerplate application featuring comprehensive authentication, advanced dark mode theming, beautiful toast notifications, detailed activity logging, and a powerful admin panel. Built with MDBootstrap Material Design for an exceptional user experience.
 
 ## ✨ Features
