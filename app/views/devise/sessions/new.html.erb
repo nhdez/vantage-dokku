@@ -8,22 +8,22 @@
             Sign In
           </h3>
         </div>
-        <div class="card-body p-4" data-controller="mdb-init">
+        <div class="card-body p-4">
           <%= form_for(resource, as: resource_name, url: session_path(resource_name), local: true) do |f| %>
             <!-- Email Input -->
-            <div class="mb-4" data-mdb-input-init>
+            <div class="mb-4">
+              <%= f.label :email, "Email Address", class: "form-label", for: "user_email" %>
               <%= f.email_field :email, autofocus: true, autocomplete: "email", 
                   class: "form-control form-control-lg", 
                   id: "user_email" %>
-              <%= f.label :email, "Email Address", class: "form-label", for: "user_email" %>
             </div>
 
             <!-- Password Input -->
-            <div class="mb-4" data-mdb-input-init>
+            <div class="mb-4">
+              <%= f.label :password, "Password", class: "form-label", for: "user_password" %>
               <%= f.password_field :password, autocomplete: "current-password", 
                   class: "form-control form-control-lg", 
                   id: "user_password" %>
-              <%= f.label :password, "Password", class: "form-label", for: "user_password" %>
             </div>
 
             <!-- Remember Me Checkbox -->

@@ -36,32 +36,23 @@ export default class extends Controller {
   }
 
   initializeMDBComponents() {
-    // Find and initialize MDB inputs in the container
-    const inputs = this.containerTarget.querySelectorAll('.form-outline')
+    // Initialize any MDB components that might be in the container
+    // (Currently not needed since we're using standard Bootstrap forms, 
+    // but keeping for future extensibility)
     
-    inputs.forEach(inputContainer => {
-      if (window.mdb && window.mdb.Input) {
-        const input = inputContainer.querySelector('input, textarea')
-        if (input) {
-          // Initialize MDB Input
-          new mdb.Input(input)
-          
-          // Handle pre-filled inputs - activate label if input has value
-          if (input.value && input.value.trim() !== '') {
-            const label = inputContainer.querySelector('.form-label')
-            if (label) {
-              label.classList.add('active')
-            }
-          }
-        }
-      }
-    })
-
-    // Initialize selects
-    const selects = this.containerTarget.querySelectorAll('.form-select')
+    // Initialize selects if any exist
+    const selects = this.containerTarget.querySelectorAll('[data-mdb-select-init]')
     selects.forEach(select => {
       if (window.mdb && window.mdb.Select) {
         new mdb.Select(select)
+      }
+    })
+
+    // Initialize tooltips if any exist
+    const tooltips = this.containerTarget.querySelectorAll('[data-mdb-tooltip-init]')
+    tooltips.forEach(tooltip => {
+      if (window.mdb && window.mdb.Tooltip) {
+        new mdb.Tooltip(tooltip)
       }
     })
   }

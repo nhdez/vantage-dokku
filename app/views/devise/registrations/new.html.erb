@@ -8,37 +8,37 @@
             Sign Up
           </h3>
         </div>
-        <div class="card-body p-4" data-controller="mdb-init">
+        <div class="card-body p-4">
           <%= form_for(resource, as: resource_name, url: registration_path(resource_name), local: true) do |f| %>
             <%= render "devise/shared/error_messages", resource: resource %>
 
             <!-- Email Input -->
-            <div class="mb-4" data-mdb-input-init>
+            <div class="mb-4">
+              <%= f.label :email, "Email Address", class: "form-label", for: "user_email" %>
               <%= f.email_field :email, autofocus: true, autocomplete: "email", 
                   class: "form-control form-control-lg", 
                   id: "user_email" %>
-              <%= f.label :email, "Email Address", class: "form-label", for: "user_email" %>
             </div>
 
             <!-- Password Input -->
-            <div class="mb-4" data-mdb-input-init>
-              <%= f.password_field :password, autocomplete: "new-password", 
-                  class: "form-control form-control-lg", 
-                  id: "user_password" %>
+            <div class="mb-4">
               <%= f.label :password, class: "form-label", for: "user_password" do %>
                 Password 
                 <% if @minimum_password_length %>
                   <small class="text-muted">(<%= @minimum_password_length %> characters minimum)</small>
                 <% end %>
               <% end %>
+              <%= f.password_field :password, autocomplete: "new-password", 
+                  class: "form-control form-control-lg", 
+                  id: "user_password" %>
             </div>
 
             <!-- Password Confirmation Input -->
-            <div class="mb-4" data-mdb-input-init>
+            <div class="mb-4">
+              <%= f.label :password_confirmation, "Confirm Password", class: "form-label", for: "user_password_confirmation" %>
               <%= f.password_field :password_confirmation, autocomplete: "new-password", 
                   class: "form-control form-control-lg", 
                   id: "user_password_confirmation" %>
-              <%= f.label :password_confirmation, "Confirm Password", class: "form-label", for: "user_password_confirmation" %>
             </div>
 
             <!-- Submit Button -->

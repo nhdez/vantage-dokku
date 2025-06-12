@@ -46,33 +46,24 @@
       // Initialize MDB components on page load and after Turbo navigation
       function initializeMDB() {
         if (typeof mdb !== 'undefined') {
-          // Initialize all form outlines
-          const formOutlines = document.querySelectorAll('.form-outline');
-          formOutlines.forEach((outline) => {
-            const input = outline.querySelector('input, textarea');
-            if (input) {
-              new mdb.Input(input);
-              // Handle pre-filled inputs
-              if (input.value && input.value.trim() !== '') {
-                const label = outline.querySelector('.form-label');
-                if (label) label.classList.add('active');
-              }
-            }
-          });
-
-          // Initialize selects
-          document.querySelectorAll('.form-select').forEach((select) => {
-            if (mdb.Select) new mdb.Select(select);
-          });
-
           // Initialize tooltips
           document.querySelectorAll('[data-mdb-tooltip-init]').forEach((tooltip) => {
             if (mdb.Tooltip) new mdb.Tooltip(tooltip);
           });
 
-          // Initialize toasts
+          // Initialize toasts (for notification system)
           document.querySelectorAll('.toast').forEach((toast) => {
             if (mdb.Toast) new mdb.Toast(toast);
+          });
+
+          // Initialize dropdowns
+          document.querySelectorAll('[data-mdb-dropdown-init]').forEach((dropdown) => {
+            if (mdb.Dropdown) new mdb.Dropdown(dropdown);
+          });
+
+          // Initialize modals
+          document.querySelectorAll('[data-mdb-modal-init]').forEach((modal) => {
+            if (mdb.Modal) new mdb.Modal(modal);
           });
         }
       }
