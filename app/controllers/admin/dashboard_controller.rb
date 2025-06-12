@@ -45,17 +45,19 @@ class Admin::DashboardController < ApplicationController
   end
 
   def update_smtp_settings
+    updated_keys = []
     smtp_params.each do |key, value|
       setting = AppSetting.find_by(key: key)
-      if setting
+      if setting && setting.value != value.to_s
         setting.update!(value: value.to_s)
+        updated_keys << key
       end
     end
     
     # Update mailer configuration dynamically
     update_mailer_configuration
     
-    log_smtp_settings_update(current_user)
+    log_smtp_settings_update(current_user) if updated_keys.any?
     
     toast_smtp_updated
     redirect_to admin_smtp_settings_path
@@ -123,7 +125,7 @@ class Admin::DashboardController < ApplicationController
   end
 
   def smtp_params
-    params.require(:smtp).permit(:smtp_enabled, :smtp_address, :smtp_port, :smtp_domain, :smtp_username, :smtp_password, :smtp_authentication, :mail_from)
+    params.permit(:smtp_enabled, :smtp_address, :smtp_port, :smtp_domain, :smtp_username, :smtp_password, :smtp_authentication, :mail_from)
   end
 
   def oauth_params

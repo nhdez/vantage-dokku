@@ -54,7 +54,7 @@
                           <%= f.label "settings_#{setting.key}", setting.key.humanize, class: "form-check-label" %>
                         </div>
                       <% when 'integer' %>
-                        <div class="form-outline">
+                        <div class="">
                           <%= f.number_field "settings[#{setting.key}]", 
                               value: setting.typed_value, 
                               class: "form-control",
@@ -67,7 +67,7 @@
                               options_from_collection_for_select(Role.all, :name, :name, setting.value), 
                               {}, { class: "form-select" } %>
                         <% else %>
-                          <div class="form-outline">
+                          <div class="">
                             <%= f.text_field "settings[#{setting.key}]", 
                                 value: setting.value, 
                                 class: "form-control" %>

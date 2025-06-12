@@ -8,12 +8,12 @@
             Sign Up
           </h3>
         </div>
-        <div class="card-body p-4">
+        <div class="card-body p-4" data-controller="mdb-init">
           <%= form_for(resource, as: resource_name, url: registration_path(resource_name), local: true) do |f| %>
             <%= render "devise/shared/error_messages", resource: resource %>
 
             <!-- Email Input -->
-            <div class="form-outline mb-4">
+            <div class="mb-4" data-mdb-input-init>
               <%= f.email_field :email, autofocus: true, autocomplete: "email", 
                   class: "form-control form-control-lg", 
                   id: "user_email" %>
@@ -21,11 +21,11 @@
             </div>
 
             <!-- Password Input -->
-            <div class="form-outline mb-4">
+            <div class="mb-4" data-mdb-input-init>
               <%= f.password_field :password, autocomplete: "new-password", 
                   class: "form-control form-control-lg", 
                   id: "user_password" %>
-              <%= f.label :password do %>
+              <%= f.label :password, class: "form-label", for: "user_password" do %>
                 Password 
                 <% if @minimum_password_length %>
                   <small class="text-muted">(<%= @minimum_password_length %> characters minimum)</small>
@@ -34,7 +34,7 @@
             </div>
 
             <!-- Password Confirmation Input -->
-            <div class="form-outline mb-4">
+            <div class="mb-4" data-mdb-input-init>
               <%= f.password_field :password_confirmation, autocomplete: "new-password", 
                   class: "form-control form-control-lg", 
                   id: "user_password_confirmation" %>
