@@ -12,6 +12,7 @@ test:
   database: vantage_dokku_test
 
 production:
+  adapter: postgresql
   primary: &primary_production
     <<: *default
   url: <%= ENV['DATABASE_URL'] %>
