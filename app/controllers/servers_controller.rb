@@ -10,6 +10,7 @@ class ServersController < ApplicationController
   end
 
   def show
+    @deployments = @server.deployments.includes(:domains, :application_healths).order(:name)
     log_activity('server_viewed', details: "Viewed server: #{@server.display_name}")
   end
 

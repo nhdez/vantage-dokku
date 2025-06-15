@@ -11,6 +11,7 @@ Rails.application.routes.draw do
       post :update_database_configuration
       delete :delete_database_configuration
       post :create_dokku_app
+      post :check_ssl_status
     end
   end
   resources :ssh_keys
