@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #dc3545; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+    .content { background: #f8f9fa; padding: 20px; border: 1px solid #dee2e6; }
+    .footer { background: #6c757d; color: white; padding: 15px; text-align: center; border-radius: 0 0 5px 5px; font-size: 14px; }
+    .status-info { background: white; padding: 15px; border: 1px solid #dee2e6; border-radius: 5px; margin: 15px 0; }
+    .btn { display: inline-block; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; margin: 10px 5px; }
+    .btn-danger { background: #dc3545; }
+    .status-badge { padding: 5px 10px; border-radius: 3px; color: white; font-weight: bold; }
+    .status-unhealthy { background: #dc3545; }
+    .status-timeout { background: #ffc107; color: #212529; }
+    .status-error { background: #dc3545; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚨 Application Health Alert</h1>
+      <p>Your application <strong><%= @deployment.name %></strong> <%= @status_message %></p>
+    </div>
+    
+    <div class="content">
+      <h2>Alert Details</h2>
+      <div class="status-info">
+        <p><strong>Application:</strong> <%= @deployment.name %></p>
+        <p><strong>Server:</strong> <%= @server.name %> (<%= @server.ip %>)</p>
+        <p><strong>URL:</strong> <%= @deployment.dokku_url %></p>
+        <p><strong>Status:</strong> <span class="status-badge status-<%= @health_result[:status] %>"><%= @health_result[:status].upcase %></span></p>
+        <p><strong>Checked At:</strong> <%= @health_result[:checked_at].strftime("%B %d, %Y at %I:%M %p %Z") %></p>
+        
+        <% if @health_result[:response_code] %>
+          <p><strong>Response Code:</strong> <%= @health_result[:response_code] %></p>
+        <% end %>
+        
+        <% if @health_result[:response_time] %>
+          <p><strong>Response Time:</strong> <%= @health_result[:response_time] %>ms</p>
+        <% end %>
+        
+        <% if @health_result[:response_body].present? %>
+          <p><strong>Error Details:</strong></p>
+          <div style="background: #f8f9fa; padding: 10px; border-left: 4px solid #dc3545; font-family: monospace; font-size: 12px;">
+            <%= simple_format(h(@health_result[:response_body])) %>
+          </div>
+        <% end %>
+      </div>
+      
+      <h3>What to do next:</h3>
+      <ul>
+        <li>Check your application logs on the server</li>
+        <li>Verify server resources (CPU, memory, disk space)</li>
+        <li>Test your application URL manually</li>
+        <li>Review recent deployments or configuration changes</li>
+      </ul>
+      
+      <div style="text-align: center; margin: 20px 0;">
+        <%= link_to "View Dashboard", @dashboard_url, class: "btn" %>
+        <%= link_to "Manage Application", @deployment_url, class: "btn btn-danger" %>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>This alert was sent by Vantage Dokku Health Monitoring</p>
+      <p>You received this email because you own the application '<%= @deployment.name %>'</p>
+    </div>
+  </div>
+</body>
+</html>

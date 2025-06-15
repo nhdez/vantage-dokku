@@ -4,39 +4,300 @@
     <div class="col">
       <div class="d-flex justify-content-between align-items-center">
         <div>
-          <h1 class="h3 mb-0 text-gray-800">Dashboard</h1>
+          <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-tachometer-alt me-2 text-primary"></i>
+            Dashboard
+          </h1>
           <p class="text-muted mb-0">Welcome back, <%= current_user.email.split('@').first.titleize %>!</p>
         </div>
         <div>
-          <button type="button" class="btn btn-primary">
-            <i class="fas fa-plus me-2"></i>New Project
-          </button>
+          <%= link_to new_deployment_path, class: "btn btn-primary" do %>
+            <i class="fas fa-plus me-2"></i>New Application
+          <% end %>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Analytics Cards -->
+  <!-- Statistics Cards -->
   <div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-primary shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Applications</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800"><%= @total_deployments %></div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-rocket fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-success shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Healthy Apps</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800">
+                <%= @healthy_deployments %>
+                <% if @monitored_deployments.any? %>
+                  <small class="text-muted">/ <%= @monitored_deployments.count %></small>
+                <% end %>
+              </div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-warning shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Overall Uptime</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800"><%= @overall_uptime %>%</div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-heartbeat fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-info shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Connected Servers</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800">
+                <%= @connected_servers %>
+                <% if @total_servers > 0 %>
+                  <small class="text-muted">/ <%= @total_servers %></small>
+                <% end %>
+              </div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-server fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <!-- Content Row -->
-  <div class="row">
+  <!-- Application Health Status -->
+  <% if @deployment_health_status.any? %>
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card shadow">
+          <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+              <i class="fas fa-heartbeat me-2"></i>Application Health Status
+              <span class="badge bg-info ms-2"><%= @monitored_deployments.count %> monitored</span>
+            </h6>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <% @deployment_health_status.each do |app_status| %>
+                <div class="col-lg-6 col-xl-4 mb-4">
+                  <div class="card border h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center py-2">
+                      <div class="d-flex align-items-center">
+                        <i class="<%= app_status[:deployment].health_status_icon %> me-2 text-<%= app_status[:deployment].health_status_color %>"></i>
+                        <strong><%= link_to app_status[:deployment].name, app_status[:deployment], class: "text-decoration-none" %></strong>
+                      </div>
+                      <span class="badge bg-<%= app_status[:deployment].health_status_color %> fs-7">
+                        <%= app_status[:current_status].upcase %>
+                      </span>
+                    </div>
+                    <div class="card-body p-2">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <small class="text-muted">Last 20 checks</small>
+                        <small class="text-muted"><%= app_status[:uptime_percentage] %>% uptime</small>
+                      </div>
+                      <div class="health-status-grid">
+                        <% app_status[:health_checks].each do |check| %>
+                          <div class="health-dot bg-<%= check.status_color %>" 
+                               title="<%= check.checked_at.strftime('%b %d, %H:%M') %> - <%= check.status.humanize %>
+                               <% if check.response_code %>Response: <%= check.response_code %><% end %>
+                               <% if check.response_time %>Time: <%= check.response_time %>ms<% end %>"></div>
+                        <% end %>
+                        <% (20 - app_status[:health_checks].count).times do %>
+                          <div class="health-dot bg-light" title="No data"></div>
+                        <% end %>
+                      </div>
+                      <div class="mt-2">
+                        <small class="text-muted">
+                          <i class="fas fa-globe me-1"></i>
+                          <%= link_to app_status[:deployment].dokku_url, app_status[:deployment].dokku_url, 
+                              target: "_blank", class: "text-decoration-none", rel: "noopener" %>
+                        </small>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% end %>
 
-    <!-- Notifications & Activity -->
-    <div class="col-lg-4 mb-4">
-      <!-- Quick Actions -->
+  <!-- Main Content Row -->
+  <div class="row">
+    <!-- Applications Overview -->
+    <div class="col-lg-8 mb-4">
       <div class="card shadow">
         <div class="card-header py-3">
-          <h6 class="m-0 font-weight-bold text-primary">Quick Actions</h6>
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-rocket me-2"></i>Your Applications
+          </h6>
+        </div>
+        <div class="card-body">
+          <% if @user_deployments.any? %>
+            <div class="table-responsive">
+              <table class="table table-borderless">
+                <thead class="table-light">
+                  <tr>
+                    <th>Application</th>
+                    <th>Server</th>
+                    <th>Health</th>
+                    <th>Last Check</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% @user_deployments.each do |deployment| %>
+                    <tr>
+                      <td>
+                        <div class="d-flex align-items-center">
+                          <i class="fas fa-rocket text-primary me-2"></i>
+                          <div>
+                            <strong><%= link_to deployment.name, deployment, class: "text-decoration-none" %></strong>
+                            <br><small class="text-muted"><%= deployment.dokku_app_name %></small>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="d-flex align-items-center">
+                          <i class="fas fa-server text-secondary me-2"></i>
+                          <%= link_to deployment.server.name, deployment.server, class: "text-decoration-none" %>
+                        </div>
+                      </td>
+                      <td>
+                        <% if deployment.latest_health_check %>
+                          <span class="badge bg-<%= deployment.health_status_color %> fs-7">
+                            <i class="<%= deployment.health_status_icon %> me-1"></i>
+                            <%= deployment.current_health_status.humanize %>
+                          </span>
+                        <% else %>
+                          <span class="badge bg-secondary fs-7">
+                            <i class="fas fa-question-circle me-1"></i>
+                            Unknown
+                          </span>
+                        <% end %>
+                      </td>
+                      <td>
+                        <% if deployment.latest_health_check %>
+                          <small class="text-muted">
+                            <%= time_ago_in_words(deployment.latest_health_check.checked_at) %> ago
+                          </small>
+                        <% else %>
+                          <small class="text-muted">Never</small>
+                        <% end %>
+                      </td>
+                      <td>
+                        <%= link_to deployment, class: "btn btn-sm btn-outline-primary" do %>
+                          <i class="fas fa-cog"></i>
+                        <% end %>
+                      </td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          <% else %>
+            <div class="text-center py-4">
+              <i class="fas fa-rocket fa-3x text-muted mb-3"></i>
+              <h5 class="text-muted">No Applications Yet</h5>
+              <p class="text-muted">Create your first application to get started with Dokku deployments.</p>
+              <%= link_to new_deployment_path, class: "btn btn-primary" do %>
+                <i class="fas fa-plus me-2"></i>Create First Application
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+      <!-- Quick Actions -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-bolt me-2"></i>Quick Actions
+          </h6>
         </div>
         <div class="card-body">
           <div class="d-grid gap-2">
-            <%= link_to settings_path, class: "btn btn-outline-secondary btn-sm" do %>
+            <%= link_to new_deployment_path, class: "btn btn-primary" do %>
+              <i class="fas fa-plus me-2"></i>New Application
+            <% end %>
+            <%= link_to new_server_path, class: "btn btn-outline-secondary" do %>
+              <i class="fas fa-server me-2"></i>Add Server
+            <% end %>
+            <%= link_to new_ssh_key_path, class: "btn btn-outline-secondary" do %>
+              <i class="fas fa-key me-2"></i>Add SSH Key
+            <% end %>
+            <%= link_to settings_path, class: "btn btn-outline-secondary" do %>
               <i class="fas fa-cog me-2"></i>Settings
             <% end %>
           </div>
+        </div>
+      </div>
+
+      <!-- Recent Activity -->
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-history me-2"></i>Recent Activity
+          </h6>
+        </div>
+        <div class="card-body">
+          <% if @recent_activity.any? %>
+            <% @recent_activity.each do |activity| %>
+              <div class="d-flex align-items-center mb-3">
+                <div class="me-3">
+                  <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                    <i class="fas fa-circle text-white" style="font-size: 8px;"></i>
+                  </div>
+                </div>
+                <div class="flex-grow-1">
+                  <div class="small font-weight-bold"><%= activity.action.humanize.titleize %></div>
+                  <div class="text-muted small"><%= truncate(activity.details, length: 50) %></div>
+                  <div class="text-muted small"><%= time_ago_in_words(activity.occurred_at) %> ago</div>
+                </div>
+              </div>
+            <% end %>
+          <% else %>
+            <div class="text-center text-muted py-3">
+              <i class="fas fa-history fa-2x mb-2"></i>
+              <p class="mb-0">No recent activity</p>
+            </div>
+          <% end %>
         </div>
       </div>
     </div>
@@ -64,5 +325,77 @@
 }
 .card {
   box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+
+/* Health Status Grid */
+.health-status-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.health-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.health-dot:hover {
+  transform: scale(1.5);
+  z-index: 10;
+}
+
+.health-dot.bg-success {
+  background-color: #28a745 !important;
+}
+
+.health-dot.bg-danger {
+  background-color: #dc3545 !important;
+}
+
+.health-dot.bg-warning {
+  background-color: #ffc107 !important;
+}
+
+.health-dot.bg-light {
+  background-color: #e9ecef !important;
+  border: 1px solid #dee2e6;
+}
+
+/* Smaller font size for badges */
+.fs-7 {
+  font-size: 0.75rem !important;
+}
+
+/* Animation for health status updates */
+@keyframes pulse-health {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+.health-status-card {
+  transition: all 0.3s ease;
+}
+
+.health-status-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Responsive grid for health status */
+@media (max-width: 768px) {
+  .health-status-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+  
+  .health-dot {
+    width: 12px;
+    height: 12px;
+  }
 }
 </style>

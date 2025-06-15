@@ -1,4 +1,4 @@
-class ServerPolicy < ApplicationPolicy
+class LinkedAccountPolicy < ApplicationPolicy
   def index?
     user.present?
   end
@@ -28,22 +28,6 @@ class ServerPolicy < ApplicationPolicy
   end
 
   def test_connection?
-    user.present? && (record.user == user || user.admin?)
-  end
-
-  def update_server?
-    user.present? && (record.user == user || user.admin?)
-  end
-
-  def install_dokku?
-    user.present? && (record.user == user || user.admin?)
-  end
-
-  def restart_server?
-    user.present? && (record.user == user || user.admin?)
-  end
-
-  def logs?
     user.present? && (record.user == user || user.admin?)
   end
 

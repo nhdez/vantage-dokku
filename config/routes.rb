@@ -1,4 +1,9 @@
 Rails.application.routes.draw do
+  resources :linked_accounts do
+    member do
+      post :test_connection
+    end
+  end
   resources :deployments, param: :uuid do
     member do
       get :configure_domain
@@ -11,6 +16,7 @@ Rails.application.routes.draw do
       post :update_database_configuration
       delete :delete_database_configuration
       post :create_dokku_app
+      post :check_ssl_status
     end
   end
   resources :ssh_keys
@@ -20,6 +26,7 @@ Rails.application.routes.draw do
       post :update_server
       post :install_dokku
       post :restart_server
+      get :logs
     end
   end
   patch "themes/update", to: "themes#update", as: :update_theme

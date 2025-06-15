@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_06_15_155004) do
+ActiveRecord::Schema[8.0].define(version: 2025_06_15_224022) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -68,6 +68,20 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_15_155004) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["key"], name: "index_app_settings_on_key", unique: true
+  end
+
+  create_table "application_healths", force: :cascade do |t|
+    t.bigint "deployment_id", null: false
+    t.integer "response_code"
+    t.float "response_time"
+    t.string "status"
+    t.datetime "checked_at"
+    t.text "response_body"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["checked_at"], name: "index_application_healths_on_checked_at"
+    t.index ["deployment_id", "checked_at"], name: "index_application_healths_on_deployment_id_and_checked_at"
+    t.index ["deployment_id"], name: "index_application_healths_on_deployment_id"
   end
 
   create_table "database_configurations", force: :cascade do |t|
@@ -137,6 +151,24 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_15_155004) do
     t.datetime "updated_at", null: false
     t.index ["deployment_id", "key"], name: "index_environment_variables_on_deployment_id_and_key", unique: true
     t.index ["deployment_id"], name: "index_environment_variables_on_deployment_id"
+  end
+
+  create_table "linked_accounts", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "provider", null: false
+    t.string "account_username"
+    t.string "account_email"
+    t.text "access_token", null: false
+    t.text "refresh_token"
+    t.datetime "token_expires_at"
+    t.boolean "active", default: true, null: false
+    t.text "metadata"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_linked_accounts_on_active"
+    t.index ["provider"], name: "index_linked_accounts_on_provider"
+    t.index ["user_id", "provider"], name: "index_linked_accounts_on_user_id_and_provider", unique: true
+    t.index ["user_id"], name: "index_linked_accounts_on_user_id"
   end
 
   create_table "oauth_settings", force: :cascade do |t|
@@ -229,6 +261,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_15_155004) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "activity_logs", "users"
+  add_foreign_key "application_healths", "deployments"
   add_foreign_key "database_configurations", "deployments"
   add_foreign_key "deployment_ssh_keys", "deployments"
   add_foreign_key "deployment_ssh_keys", "ssh_keys"
@@ -236,6 +269,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_15_155004) do
   add_foreign_key "deployments", "users"
   add_foreign_key "domains", "deployments"
   add_foreign_key "environment_variables", "deployments"
+  add_foreign_key "linked_accounts", "users"
   add_foreign_key "servers", "users"
   add_foreign_key "ssh_keys", "users"
 end

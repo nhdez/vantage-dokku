@@ -108,15 +108,22 @@
                               id: "domain_default_#{index}" %>
                           <%= label_tag "domain_default_#{index}", "Default Domain", class: "form-check-label" %>
                         </div>
-                        <% if domain.ssl_enabled? %>
-                          <small class="text-success">
-                            <i class="fas fa-lock me-1"></i>SSL Enabled
+                        <div class="ssl-status-check" data-domain="<%= domain.name %>">
+                          <small class="text-<%= domain.real_ssl_status_color %>">
+                            <i class="<%= domain.real_ssl_status_icon %> me-1"></i>
+                            <span class="ssl-status-text"><%= domain.real_ssl_status_text %></span>
                           </small>
-                        <% elsif domain.ssl_error_message.present? %>
-                          <small class="text-danger">
-                            <i class="fas fa-exclamation-triangle me-1"></i>SSL Error
-                          </small>
-                        <% end %>
+                          <% if domain.ssl_response_time %>
+                            <small class="text-muted d-block">
+                              Response: <%= domain.ssl_response_time %>ms
+                            </small>
+                          <% end %>
+                          <% if domain.ssl_verification_error %>
+                            <small class="text-danger d-block" title="<%= domain.ssl_verification_error %>">
+                              <i class="fas fa-info-circle me-1"></i>Error details
+                            </small>
+                          <% end %>
+                        </div>
                       </div>
                       <div class="col-md-2">
                         <label class="form-label">&nbsp;</label>
@@ -192,25 +199,36 @@
                       <small class="badge bg-primary ms-1">Default</small>
                     <% end %>
                   </strong>
-                  <small class="text-muted d-block">
-                    <% if domain.ssl_enabled? %>
-                      <i class="fas fa-lock text-success me-1"></i>SSL Active
-                    <% elsif domain.ssl_error_message.present? %>
-                      <i class="fas fa-exclamation-triangle text-danger me-1"></i>SSL Failed
-                    <% else %>
-                      <i class="fas fa-clock text-warning me-1"></i>SSL Pending
-                    <% end %>
-                  </small>
-                  <% if domain.ssl_enabled? %>
-                    <small class="text-success d-block">
-                      <%= link_to domain.full_url, domain.full_url, target: "_blank", class: "text-success" %>
+                  <div class="ssl-status-display" data-domain="<%= domain.name %>">
+                    <small class="text-<%= domain.real_ssl_status_color %> d-block">
+                      <i class="<%= domain.real_ssl_status_icon %> me-1"></i>
+                      <span class="ssl-status-text"><%= domain.real_ssl_status_text %></span>
                     </small>
-                  <% end %>
+                    <% if domain.ssl_actually_working? %>
+                      <small class="text-success d-block">
+                        <%= link_to domain.full_url, domain.full_url, target: "_blank", class: "text-success", rel: "noopener" %>
+                      </small>
+                    <% elsif domain.verify_ssl_status[:http_accessible] %>
+                      <small class="text-warning d-block">
+                        <%= link_to "http://#{domain.name}", "http://#{domain.name}", target: "_blank", class: "text-warning", rel: "noopener" %>
+                        <span class="text-muted">(HTTP only)</span>
+                      </small>
+                    <% end %>
+                    <% if domain.ssl_certificate_info %>
+                      <small class="text-muted d-block">
+                        Expires: <%= domain.ssl_certificate_info[:not_after].strftime("%b %d, %Y") %>
+                        <% if domain.ssl_certificate_info[:days_until_expiry] < 30 %>
+                          <span class="text-warning">(expires soon)</span>
+                        <% end %>
+                      </small>
+                    <% end %>
+                  </div>
                 </div>
-                <div>
-                  <span class="badge <%= domain.domain_status_class %>">
-                    <%= domain.domain_status_text %>
-                  </span>
+                <div class="d-flex flex-column align-items-end">
+                  <button type="button" class="btn btn-sm btn-outline-info check-ssl-btn" 
+                          data-domain="<%= domain.name %>" title="Check SSL Status">
+                    <i class="fas fa-sync"></i>
+                  </button>
                 </div>
               </div>
             <% end %>
@@ -451,6 +469,164 @@ document.addEventListener('DOMContentLoaded', function() {
     if (checkedBoxes.length === 0 && checkboxes.length > 0) {
       checkboxes[0].checked = true;
     }
+  }
+  
+  // SSL Status Checking
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('.check-ssl-btn')) {
+      const button = e.target.closest('.check-ssl-btn');
+      const domain = button.getAttribute('data-domain');
+      checkSslStatus(domain, button);
+    }
+  });
+  
+  // Auto-refresh SSL status every 30 seconds for active domains
+  setInterval(function() {
+    document.querySelectorAll('.ssl-status-display').forEach(function(element) {
+      const domain = element.getAttribute('data-domain');
+      if (domain) {
+        refreshSslStatusDisplay(domain, element);
+      }
+    });
+  }, 30000);
+  
+  function checkSslStatus(domain, button) {
+    const originalContent = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    
+    console.log('Checking SSL status for domain:', domain);
+    
+    fetch(`/deployments/<%= @deployment.uuid %>/check_ssl_status`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ domain: domain })
+    })
+    .then(response => {
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+      
+      // Check if response is actually JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('Response is not JSON. Content-Type:', contentType);
+        return response.text().then(text => {
+          console.error('Response body:', text);
+          throw new Error('Server returned non-JSON response: ' + text.substring(0, 200));
+        });
+      }
+      
+      if (!response.ok) {
+        return response.json().then(data => {
+          throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
+        });
+      }
+      
+      return response.json();
+    })
+    .then(data => {
+      console.log('SSL check response:', data);
+      
+      if (data.success) {
+        updateSslStatusDisplay(domain, data.ssl_status);
+        
+        // Show toast notification
+        showSslStatusToast(domain, data.ssl_status);
+      } else {
+        console.error('SSL check failed:', data.error);
+        alert('SSL check failed: ' + data.error);
+      }
+    })
+    .catch(error => {
+      console.error('Error checking SSL status:', error);
+      alert('Error checking SSL status: ' + error.message);
+    })
+    .finally(() => {
+      button.disabled = false;
+      button.innerHTML = originalContent;
+    });
+  }
+  
+  function refreshSslStatusDisplay(domain, element) {
+    // Quiet refresh without button feedback
+    fetch(`/deployments/<%= @deployment.uuid %>/check_ssl_status`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ domain: domain })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned non-JSON response');
+      }
+      
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        updateSslStatusDisplay(domain, data.ssl_status);
+      } else {
+        console.warn('Background SSL refresh failed:', data.error);
+      }
+    })
+    .catch(error => {
+      console.error('Background SSL refresh failed:', error);
+    });
+  }
+  
+  function updateSslStatusDisplay(domain, sslStatus) {
+    // Update all SSL status displays for this domain
+    document.querySelectorAll(`[data-domain="${domain}"]`).forEach(function(element) {
+      const statusText = element.querySelector('.ssl-status-text');
+      if (statusText) {
+        statusText.textContent = sslStatus.status_text;
+        
+        // Update parent element classes
+        const parent = statusText.closest('small');
+        if (parent) {
+          parent.className = `text-${sslStatus.status_color} d-block`;
+        }
+        
+        // Update icon
+        const icon = parent.querySelector('i');
+        if (icon) {
+          icon.className = `${sslStatus.status_icon} me-1`;
+        }
+      }
+    });
+  }
+  
+  function showSslStatusToast(domain, sslStatus) {
+    // Create a simple toast notification
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${sslStatus.status_color} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+      <i class="${sslStatus.status_icon} me-2"></i>
+      <strong>${domain}:</strong> ${sslStatus.status_text}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(function() {
+      if (toast.parentNode) {
+        toast.parentNode.removeChild(toast);
+      }
+    }, 5000);
   }
 });
 

@@ -1,0 +1,337 @@
+<% content_for :title, @linked_account.display_name %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="<%= @linked_account.provider_icon %> me-2 text-<%= @linked_account.provider_color %>"></i>
+            <%= @linked_account.display_name %>
+          </h1>
+          <p class="text-muted mb-0"><%= @linked_account.provider.capitalize %> account details and management</p>
+        </div>
+        <div>
+          <%= link_to edit_linked_account_path(@linked_account), class: "btn btn-primary me-2" do %>
+            <i class="fas fa-edit me-2"></i>Edit Account
+          <% end %>
+          <%= link_to linked_accounts_path, class: "btn btn-outline-secondary" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to Accounts
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Account Information -->
+    <div class="col-md-8">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-info-circle me-2"></i>Account Information
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Provider</h6>
+              <p class="h5 mb-0">
+                <span class="badge bg-<%= @linked_account.provider_color %> fs-6">
+                  <i class="<%= @linked_account.provider_icon %> me-1"></i>
+                  <%= @linked_account.provider.capitalize %>
+                </span>
+              </p>
+            </div>
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Status</h6>
+              <p class="h5 mb-0">
+                <span class="badge bg-<%= @linked_account.connection_status_color %> fs-6">
+                  <i class="<%= @linked_account.connection_status_icon %> me-1"></i>
+                  <%= @linked_account.connection_status.humanize %>
+                </span>
+              </p>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Username</h6>
+              <p class="h5 mb-0">
+                <% if @linked_account.account_username.present? %>
+                  <code class="text-info fs-6">@<%= @linked_account.account_username %></code>
+                <% else %>
+                  <span class="text-muted">Not specified</span>
+                <% end %>
+              </p>
+            </div>
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Email</h6>
+              <p class="h5 mb-0">
+                <% if @linked_account.account_email.present? %>
+                  <code class="text-secondary fs-6"><%= @linked_account.account_email %></code>
+                <% else %>
+                  <span class="text-muted">Not specified</span>
+                <% end %>
+              </p>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Added</h6>
+              <p class="mb-0">
+                <%= @linked_account.created_at.strftime("%B %d, %Y at %I:%M %p") %>
+                <small class="text-muted d-block"><%= time_ago_in_words(@linked_account.created_at) %> ago</small>
+              </p>
+            </div>
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Last Connected</h6>
+              <p class="mb-0">
+                <% if @linked_account.last_connected_at.present? %>
+                  <%= @linked_account.last_connected_at.strftime("%B %d, %Y at %I:%M %p") %>
+                  <small class="text-muted d-block"><%= time_ago_in_words(@linked_account.last_connected_at) %> ago</small>
+                <% else %>
+                  <span class="text-muted">Never connected</span>
+                <% end %>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Account Metadata (GitHub specific) -->
+      <% if @linked_account.github? && @linked_account.metadata.present? %>
+        <div class="card shadow mb-4">
+          <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+              <i class="fab fa-github me-2"></i>GitHub Profile Information
+            </h6>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <% if @linked_account.metadata['name'] %>
+                <div class="col-md-6 mb-3">
+                  <h6 class="text-muted">Full Name</h6>
+                  <p class="mb-0"><%= @linked_account.metadata['name'] %></p>
+                </div>
+              <% end %>
+              <% if @linked_account.metadata['company'] %>
+                <div class="col-md-6 mb-3">
+                  <h6 class="text-muted">Company</h6>
+                  <p class="mb-0"><%= @linked_account.metadata['company'] %></p>
+                </div>
+              <% end %>
+            </div>
+            
+            <% if @linked_account.metadata['bio'] %>
+              <div class="row">
+                <div class="col-12 mb-3">
+                  <h6 class="text-muted">Bio</h6>
+                  <p class="mb-0"><%= @linked_account.metadata['bio'] %></p>
+                </div>
+              </div>
+            <% end %>
+            
+            <div class="row">
+              <% if @linked_account.metadata['location'] %>
+                <div class="col-md-6 mb-3">
+                  <h6 class="text-muted">Location</h6>
+                  <p class="mb-0"><i class="fas fa-map-marker-alt me-2 text-muted"></i><%= @linked_account.metadata['location'] %></p>
+                </div>
+              <% end %>
+              <% if @linked_account.metadata['blog'] %>
+                <div class="col-md-6 mb-3">
+                  <h6 class="text-muted">Website</h6>
+                  <p class="mb-0">
+                    <a href="<%= @linked_account.metadata['blog'] %>" target="_blank" rel="noopener">
+                      <i class="fas fa-external-link-alt me-2 text-muted"></i><%= @linked_account.metadata['blog'] %>
+                    </a>
+                  </p>
+                </div>
+              <% end %>
+            </div>
+            
+            <div class="row">
+              <% %w[public_repos public_gists followers following].each do |stat| %>
+                <% if @linked_account.metadata[stat] %>
+                  <div class="col-md-3 mb-3">
+                    <h6 class="text-muted"><%= stat.humanize %></h6>
+                    <p class="h5 mb-0 text-primary"><%= number_with_delimiter(@linked_account.metadata[stat]) %></p>
+                  </div>
+                <% end %>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
+    <!-- Actions Sidebar -->
+    <div class="col-md-4">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-cogs me-2"></i>Account Actions
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <button id="test-connection-btn" class="btn btn-outline-success" onclick="testConnection('<%= test_connection_linked_account_path(@linked_account) %>')">
+              <i class="fas fa-plug me-2"></i>Test Connection
+            </button>
+            
+            <% if @linked_account.github? %>
+              <button class="btn btn-outline-info" onclick="viewRepositories()">
+                <i class="fas fa-code-branch me-2"></i>View Repositories
+              </button>
+            <% end %>
+            
+            <%= link_to edit_linked_account_path(@linked_account), class: "btn btn-outline-primary" do %>
+              <i class="fas fa-edit me-2"></i>Edit Configuration
+            <% end %>
+            
+            <% if @linked_account.active? %>
+              <button class="btn btn-outline-warning" onclick="deactivateAccount()">
+                <i class="fas fa-pause me-2"></i>Deactivate Account
+              </button>
+            <% else %>
+              <button class="btn btn-outline-success" onclick="activateAccount()">
+                <i class="fas fa-play me-2"></i>Activate Account
+              </button>
+            <% end %>
+            
+            <%= link_to linked_account_path(@linked_account), method: :delete, 
+                class: "btn btn-outline-danger",
+                data: { 
+                  confirm: "Are you sure you want to unlink this #{@linked_account.provider.capitalize} account? This action cannot be undone.",
+                  turbo_method: :delete
+                } do %>
+              <i class="fas fa-unlink me-2"></i>Unlink Account
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Connection Status -->
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-wifi me-2"></i>Connection Status
+          </h6>
+        </div>
+        <div class="card-body" id="connection-status-section">
+          <div class="text-center mb-3">
+            <span class="badge bg-<%= @linked_account.connection_status_color %> fs-6 px-3 py-2">
+              <i class="<%= @linked_account.connection_status_icon %> me-2"></i><%= @linked_account.connection_status.humanize %>
+            </span>
+          </div>
+          
+          <div class="row text-center">
+            <div class="col-12">
+              <h6 class="text-muted mb-1">Last Test</h6>
+              <% if @linked_account.last_connected_at.present? %>
+                <p class="mb-0">
+                  <%= @linked_account.last_connected_at.strftime("%B %d, %Y") %>
+                  <br><small class="text-muted"><%= @linked_account.last_connected_at.strftime("%I:%M %p") %></small>
+                </p>
+              <% else %>
+                <p class="text-muted mb-0">Never tested</p>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function testConnection(url) {
+  const btn = document.getElementById('test-connection-btn');
+  const originalText = btn.innerHTML;
+  
+  // Show loading state
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Testing Connection...';
+  
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+      'Content-Type': 'application/json',
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    // Reset button
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    
+    if (data.success) {
+      showToast('success', data.message, 'Connection Successful');
+      
+      // Reload page to show updated connection status
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } else {
+      showToast('error', data.message, 'Connection Failed');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    showToast('error', 'An unexpected error occurred while testing the connection.', 'Connection Error');
+  });
+}
+
+function viewRepositories() {
+  alert('Repository viewing will be implemented in the next phase.');
+}
+
+function deactivateAccount() {
+  alert('Account deactivation will be implemented in the next phase.');
+}
+
+function activateAccount() {
+  alert('Account activation will be implemented in the next phase.');
+}
+
+function showToast(type, message, title) {
+  // This function integrates with the app's existing toast system
+  const toastHtml = `
+    <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">
+          <strong>${title}:</strong> ${message}
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-mdb-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  `;
+  
+  const toastContainer = document.querySelector('.toast-container') || document.body;
+  toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+  
+  const toastElement = toastContainer.lastElementChild;
+  const toast = new mdb.Toast(toastElement);
+  toast.show();
+  
+  // Remove toast element after it's hidden
+  toastElement.addEventListener('hidden.mdb.toast', () => {
+    toastElement.remove();
+  });
+}
+</script>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+</style>

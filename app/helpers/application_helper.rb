@@ -87,6 +87,9 @@ module ApplicationHelper
       elsif action_name == 'edit' && @server
         add_breadcrumb @server.name, server_path(@server)
         add_breadcrumb 'Edit'
+      elsif action_name == 'logs' && @server
+        add_breadcrumb @server.name, server_path(@server)
+        add_breadcrumb 'Activity Logs'
       end
     when 'ssh_keys'
       add_breadcrumb 'Dashboard', dashboard_path
@@ -100,6 +103,21 @@ module ApplicationHelper
         add_breadcrumb @ssh_key.name, ssh_key_path(@ssh_key)
         add_breadcrumb 'Edit'
       end
+    when 'linked_accounts'
+      add_breadcrumb 'Dashboard', dashboard_path
+      add_breadcrumb 'Linked Accounts', linked_accounts_path, icon: 'fas fa-link'
+      
+      if action_name == 'show' && @linked_account
+        add_breadcrumb @linked_account.display_name
+      elsif action_name == 'new'
+        add_breadcrumb 'Link New Account'
+      elsif action_name == 'edit' && @linked_account
+        add_breadcrumb @linked_account.display_name, linked_account_path(@linked_account)
+        add_breadcrumb 'Edit'
+      end
+    when 'registrations'
+      add_breadcrumb 'Dashboard', dashboard_path
+      add_breadcrumb 'Account Settings', edit_user_registration_path, icon: 'fas fa-user-cog'
     when 'dashboard'
       if namespace == 'admin'
         add_breadcrumb 'Dashboard', dashboard_path
@@ -121,9 +139,9 @@ module ApplicationHelper
         add_breadcrumb 'Users', admin_users_path
         
         if action_name == 'show' && @user
-          add_breadcrumb @user.display_name
+          add_breadcrumb @user.full_name
         elsif action_name == 'edit' && @user
-          add_breadcrumb @user.display_name, admin_user_path(@user)
+          add_breadcrumb @user.full_name, admin_user_path(@user)
           add_breadcrumb 'Edit'
         end
       end

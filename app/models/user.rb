@@ -20,6 +20,9 @@ class User < ApplicationRecord
   
   # Deployment management
   has_many :deployments, dependent: :destroy
+  
+  # Linked accounts management
+  has_many :linked_accounts, dependent: :destroy
 
   # Validations
   validates :first_name, :last_name, length: { maximum: 50 }, allow_blank: true
@@ -113,5 +116,22 @@ class User < ApplicationRecord
   
   def has_google_avatar?
     google_avatar_url.present?
+  end
+  
+  # Linked accounts helper methods
+  def github_account
+    linked_accounts.github.active.first
+  end
+  
+  def has_github_account?
+    github_account.present?
+  end
+  
+  def linked_account_for(provider)
+    linked_accounts.for_provider(provider).active.first
+  end
+  
+  def has_linked_account?(provider)
+    linked_account_for(provider).present?
   end
 end

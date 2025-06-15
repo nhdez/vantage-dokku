@@ -16,7 +16,7 @@
   <div class="row">
     <!-- Server Name -->
     <div class="col-md-6 mb-3">
-      <div class="form-outline">
+      <div class="form">
         <%= f.text_field :name, class: "form-control", id: "server_name", required: true %>
         <%= f.label :name, "Server Name", class: "form-label", for: "server_name" %>
       </div>
@@ -25,18 +25,42 @@
 
     <!-- Service Provider -->
     <div class="col-md-6 mb-3">
-      <div class="form-outline">
-        <%= f.text_field :service_provider, class: "form-control", id: "server_service_provider" %>
+      <div class="form">
+        <%= f.select :service_provider, 
+            options_for_select([
+              ['Select a provider', ''],
+              ['Amazon Web Services (AWS)', 'AWS'],
+              ['Microsoft Azure', 'Azure'],
+              ['Google Cloud Platform', 'Google Cloud'],
+              ['DigitalOcean', 'DigitalOcean'],
+              ['Linode', 'Linode'],
+              ['Vultr', 'Vultr'],
+              ['Hetzner', 'Hetzner'],
+              ['UpCloud', 'UpCloud'],
+              ['Contabo', 'Contabo'],
+              ['OVH', 'OVH'],
+              ['Scaleway', 'Scaleway'],
+              ['Other', 'Other'],
+              ['Custom/Self-hosted', 'Custom']
+            ], @server.service_provider), 
+            {}, 
+            { class: "form-select", id: "server_service_provider", onchange: "toggleCustomProvider()" } %>
         <%= f.label :service_provider, "Service Provider", class: "form-label", for: "server_service_provider" %>
       </div>
-      <div class="form-text">Optional - e.g., DigitalOcean, AWS, Linode</div>
+      <div class="form-text">Select your cloud/hosting provider</div>
+      
+      <!-- Custom Provider Input (hidden by default) -->
+      <div id="custom_provider_field" class="mt-2" style="display: none;">
+        <input type="text" class="form-control" id="custom_service_provider" placeholder="Enter custom provider name" />
+        <div class="form-text">Specify your custom hosting provider</div>
+      </div>
     </div>
   </div>
 
   <div class="row">
     <!-- IP Address -->
     <div class="col-md-6 mb-3">
-      <div class="form-outline">
+      <div class="form">
         <%= f.text_field :ip, class: "form-control", id: "server_ip", required: true, placeholder: "192.168.1.100" %>
         <%= f.label :ip, "IP Address", class: "form-label", for: "server_ip" %>
       </div>
@@ -45,7 +69,7 @@
 
     <!-- Internal IP Address -->
     <div class="col-md-6 mb-3">
-      <div class="form-outline">
+      <div class="form">
         <%= f.text_field :internal_ip, class: "form-control", id: "server_internal_ip", placeholder: "10.0.0.1" %>
         <%= f.label :internal_ip, "Internal IP Address", class: "form-label", for: "server_internal_ip" %>
       </div>
@@ -56,7 +80,7 @@
   <div class="row">
     <!-- Username -->
     <div class="col-md-6 mb-3">
-      <div class="form-outline">
+      <div class="form">
         <%= f.text_field :username, class: "form-control", id: "server_username", required: true %>
         <%= f.label :username, "SSH Username", class: "form-label", for: "server_username" %>
       </div>
@@ -65,7 +89,7 @@
 
     <!-- Port -->
     <div class="col-md-6 mb-3">
-      <div class="form-outline">
+      <div class="form">
         <%= f.number_field :port, class: "form-control", id: "server_port", required: true, min: 1, max: 65535 %>
         <%= f.label :port, "SSH Port", class: "form-label", for: "server_port" %>
       </div>
@@ -76,7 +100,7 @@
   <div class="row">
     <!-- Password -->
     <div class="col-md-12 mb-3">
-      <div class="form-outline">
+      <div class="form">
         <%= f.password_field :password, class: "form-control", id: "server_password", autocomplete: "new-password" %>
         <%= f.label :password, "Root Password (Optional)", class: "form-label", for: "server_password" %>
       </div>
@@ -159,6 +183,58 @@
 <% end %>
 
 <script>
+function toggleCustomProvider() {
+  const select = document.getElementById('server_service_provider');
+  const customField = document.getElementById('custom_provider_field');
+  const customInput = document.getElementById('custom_service_provider');
+  
+  if (select.value === 'Other') {
+    customField.style.display = 'block';
+    customInput.required = true;
+    customInput.focus();
+  } else {
+    customField.style.display = 'none';
+    customInput.required = false;
+    customInput.value = '';
+  }
+}
+
+// Handle form submission to use custom value when "Other" is selected
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.querySelector('form');
+  const select = document.getElementById('server_service_provider');
+  const customInput = document.getElementById('custom_service_provider');
+  
+  if (form) {
+    form.addEventListener('submit', function() {
+      if (select.value === 'Other' && customInput.value.trim()) {
+        // Create a hidden input to submit the custom value
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = 'server[service_provider]';
+        hiddenInput.value = customInput.value.trim();
+        form.appendChild(hiddenInput);
+        
+        // Disable the select to prevent it from being submitted
+        select.disabled = true;
+      }
+    });
+  }
+  
+  // Initialize and handle existing custom values
+  const currentValue = select.value;
+  const predefinedValues = ['AWS', 'Azure', 'Google Cloud', 'DigitalOcean', 'Linode', 'Vultr', 'Hetzner', 'UpCloud', 'Contabo', 'OVH', 'Scaleway', 'Custom'];
+  
+  if (currentValue && !predefinedValues.includes(currentValue) && currentValue !== '') {
+    // This is a custom value, set select to "Other" and show custom field
+    select.value = 'Other';
+    toggleCustomProvider();
+    customInput.value = currentValue;
+  } else {
+    toggleCustomProvider();
+  }
+});
+
 function testConnection(url) {
   if (!url) {
     alert('Please save the server first before testing the connection.');
