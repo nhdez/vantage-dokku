@@ -1,69 +1,816 @@
-<div class="container">
-  <div class="row justify-content-center">
-    <div class="col-lg-8">
-      <!-- Hero Section -->
-      <div class="text-center mb-5">
-        <h1 class="display-4 fw-bold text-primary mb-4">Welcome to Vantage</h1>
-        <p class="lead text-muted mb-4">
-          A modern Rails 8 application built with MDBootstrap Material Design, featuring 
-          authentication, authorization, and all the tools you need for rapid development.
-        </p>
-        
-        <% unless user_signed_in? %>
-          <div class="d-grid gap-2 d-md-block">
-            <%= link_to "Get Started", new_user_registration_path, class: "btn btn-primary btn-lg me-2" %>
-            <%= link_to "Sign In", new_user_session_path, class: "btn btn-outline-primary btn-lg" %>
+<!-- Hero Section -->
+<section class="hero-section">
+  <div class="hero-background"></div>
+  <div class="hero-overlay"></div>
+  <div class="container position-relative">
+    <div class="row min-vh-100 align-items-center">
+      <div class="col-lg-6">
+        <div class="hero-content animate-on-scroll">
+          <div class="hero-badge">
+            <i class="fas fa-rocket me-2"></i>
+            Dokku Visual Management Platform
           </div>
-        <% else %>
-          <div class="alert alert-success" role="alert">
-            <i class="fas fa-check-circle me-2"></i>
-            Welcome back, <%= current_user.email %>! You're successfully signed in.
+          <h1 class="hero-title">
+            Deploy with <span class="text-gradient">Confidence</span>
+            <br>Manage with <span class="text-gradient">Clarity</span>
+          </h1>
+          <p class="hero-subtitle">
+            Transform your Dokku deployment experience with Vantage - the modern visual interface 
+            that makes container orchestration simple, powerful, and collaborative for teams.
+          </p>
+          
+          <div class="hero-stats">
+            <div class="stat-item">
+              <div class="stat-number" data-count="99">0</div>
+              <div class="stat-label">Deployment Success</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number" data-count="60">0</div>
+              <div class="stat-label">Faster Setup</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number" data-count="100">0</div>
+              <div class="stat-label">Team Productivity</div>
+            </div>
           </div>
-        <% end %>
+          
+          <div class="hero-actions">
+            <% unless user_signed_in? %>
+              <%= link_to new_user_registration_path, class: "btn btn-primary btn-lg me-3 pulse-btn" do %>
+                <i class="fas fa-rocket me-2"></i>Start Free Trial
+              <% end %>
+              <%= link_to new_user_session_path, class: "btn btn-outline-light btn-lg" do %>
+                <i class="fas fa-sign-in-alt me-2"></i>Sign In
+              <% end %>
+            <% else %>
+              <%= link_to dashboard_path, class: "btn btn-primary btn-lg me-3 pulse-btn" do %>
+                <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
+              <% end %>
+              <div class="hero-welcome">
+                <i class="fas fa-check-circle text-success me-2"></i>
+                Welcome back, <strong><%= current_user.email %></strong>!
+              </div>
+            <% end %>
+          </div>
+        </div>
       </div>
-
-      <!-- Features Section -->
-      <div class="row g-4 mb-5">
-        <div class="col-md-6">
-          <div class="card h-100">
-            <div class="card-body text-center">
-              <i class="fas fa-shield-alt fa-3x text-primary mb-3"></i>
-              <h5 class="card-title">Secure Authentication</h5>
-              <p class="card-text">Built-in user authentication with Devise, featuring secure password handling and user management.</p>
+      <div class="col-lg-6">
+        <div class="hero-image animate-on-scroll" data-delay="200">
+          <div class="dashboard-mockup">
+            <div class="mockup-header">
+              <div class="mockup-controls">
+                <span class="control red"></span>
+                <span class="control yellow"></span>
+                <span class="control green"></span>
+              </div>
+              <div class="mockup-title">Vantage Dokku Dashboard</div>
             </div>
-          </div>
-        </div>
-        
-        <div class="col-md-6">
-          <div class="card h-100">
-            <div class="card-body text-center">
-              <i class="fas fa-users-cog fa-3x text-primary mb-3"></i>
-              <h5 class="card-title">Role-Based Access</h5>
-              <p class="card-text">Integrated Pundit and Rolify for granular authorization and role management.</p>
-            </div>
-          </div>
-        </div>
-        
-        <div class="col-md-6">
-          <div class="card h-100">
-            <div class="card-body text-center">
-              <i class="fas fa-mobile-alt fa-3x text-primary mb-3"></i>
-              <h5 class="card-title">Material Design</h5>
-              <p class="card-text">Beautiful, responsive UI with MDBootstrap Material Design components.</p>
-            </div>
-          </div>
-        </div>
-        
-        <div class="col-md-6">
-          <div class="card h-100">
-            <div class="card-body text-center">
-              <i class="fas fa-rocket fa-3x text-primary mb-3"></i>
-              <h5 class="card-title">Rails 8 Ready</h5>
-              <p class="card-text">Latest Rails 8 features with solid gems for caching, queueing, and real-time features.</p>
+            <div class="mockup-content">
+              <!-- Image placeholder for dashboard screenshot -->
+              <div class="image-placeholder">
+                <i class="fas fa-image fa-3x text-muted"></i>
+                <p class="text-muted mt-2">Dashboard Screenshot</p>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
   </div>
-</div>
+  
+  <!-- Scroll Indicator -->
+  <div class="scroll-indicator">
+    <div class="scroll-arrow"></div>
+  </div>
+</section>
+
+<!-- Features Section -->
+<section class="features-section" id="features">
+  <div class="container">
+    <div class="row mb-5">
+      <div class="col-lg-8 mx-auto text-center">
+        <h2 class="section-title animate-on-scroll">
+          Why Teams Choose <span class="text-gradient">Vantage Dokku</span>
+        </h2>
+        <p class="section-subtitle animate-on-scroll" data-delay="100">
+          Stop wrestling with command lines. Start deploying with confidence.
+        </p>
+      </div>
+    </div>
+    
+    <div class="row g-4">
+      <div class="col-lg-4 col-md-6">
+        <div class="feature-card animate-on-scroll" data-delay="0">
+          <div class="feature-icon">
+            <i class="fas fa-eye"></i>
+          </div>
+          <h4>Visual Dashboard</h4>
+          <p>Intuitive interface that transforms complex Dokku operations into simple point-and-click actions.</p>
+          <div class="feature-image-placeholder">
+            <div class="image-placeholder small">
+              <i class="fas fa-image fa-2x"></i>
+              <small>Dashboard UI</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-4 col-md-6">
+        <div class="feature-card animate-on-scroll" data-delay="100">
+          <div class="feature-icon">
+            <i class="fas fa-users"></i>
+          </div>
+          <h4>Team Collaboration</h4>
+          <p>Role-based access control and activity logging keep your team synchronized and secure.</p>
+          <div class="feature-image-placeholder">
+            <div class="image-placeholder small">
+              <i class="fas fa-image fa-2x"></i>
+              <small>Team Management</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-4 col-md-6">
+        <div class="feature-card animate-on-scroll" data-delay="200">
+          <div class="feature-icon">
+            <i class="fas fa-database"></i>
+          </div>
+          <h4>Database Management</h4>
+          <p>One-click database creation and configuration with PostgreSQL, Redis, and more.</p>
+          <div class="feature-image-placeholder">
+            <div class="image-placeholder small">
+              <i class="fas fa-image fa-2x"></i>
+              <small>Database Config</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-4 col-md-6">
+        <div class="feature-card animate-on-scroll" data-delay="300">
+          <div class="feature-icon">
+            <i class="fas fa-globe"></i>
+          </div>
+          <h4>Domain & SSL</h4>
+          <p>Automated domain configuration and SSL certificate management with Let's Encrypt integration.</p>
+          <div class="feature-image-placeholder">
+            <div class="image-placeholder small">
+              <i class="fas fa-image fa-2x"></i>
+              <small>SSL Setup</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-4 col-md-6">
+        <div class="feature-card animate-on-scroll" data-delay="400">
+          <div class="feature-icon">
+            <i class="fas fa-cogs"></i>
+          </div>
+          <h4>Environment Variables</h4>
+          <p>Secure environment variable management with conflict detection and team-friendly interfaces.</p>
+          <div class="feature-image-placeholder">
+            <div class="image-placeholder small">
+              <i class="fas fa-image fa-2x"></i>
+              <small>Env Variables</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-4 col-md-6">
+        <div class="feature-card animate-on-scroll" data-delay="500">
+          <div class="feature-icon">
+            <i class="fas fa-history"></i>
+          </div>
+          <h4>Activity Tracking</h4>
+          <p>Complete audit trail of all deployment activities with detailed logs and user attribution.</p>
+          <div class="feature-image-placeholder">
+            <div class="image-placeholder small">
+              <i class="fas fa-image fa-2x"></i>
+              <small>Activity Logs</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- How It Works Section -->
+<section class="how-it-works-section">
+  <div class="container">
+    <div class="row mb-5">
+      <div class="col-lg-8 mx-auto text-center">
+        <h2 class="section-title animate-on-scroll">
+          From Zero to <span class="text-gradient">Production</span> in Minutes
+        </h2>
+        <p class="section-subtitle animate-on-scroll" data-delay="100">
+          Vantage streamlines your entire deployment workflow
+        </p>
+      </div>
+    </div>
+    
+    <div class="timeline">
+      <div class="timeline-item animate-on-scroll">
+        <div class="timeline-marker">1</div>
+        <div class="timeline-content">
+          <h4>Connect Your Server</h4>
+          <p>Add your server credentials and let Vantage handle the connection testing and Dokku installation.</p>
+          <div class="timeline-image">
+            <div class="image-placeholder">
+              <i class="fas fa-image fa-2x"></i>
+              <small>Server Setup</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="timeline-item animate-on-scroll" data-delay="200">
+        <div class="timeline-marker">2</div>
+        <div class="timeline-content">
+          <h4>Configure Your App</h4>
+          <p>Set up domains, databases, environment variables, and SSH keys through our intuitive interface.</p>
+          <div class="timeline-image">
+            <div class="image-placeholder">
+              <i class="fas fa-image fa-2x"></i>
+              <small>App Configuration</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="timeline-item animate-on-scroll" data-delay="400">
+        <div class="timeline-marker">3</div>
+        <div class="timeline-content">
+          <h4>Deploy & Monitor</h4>
+          <p>Push your code and monitor deployments with real-time feedback and comprehensive logging.</p>
+          <div class="timeline-image">
+            <div class="image-placeholder">
+              <i class="fas fa-image fa-2x"></i>
+              <small>Deployment Monitor</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA Section -->
+<section class="cta-section">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-8 text-center">
+        <div class="cta-content animate-on-scroll">
+          <h2 class="cta-title">Ready to Transform Your Deployment Experience?</h2>
+          <p class="cta-subtitle">
+            Join thousands of developers who've made the switch from command-line chaos to visual clarity.
+          </p>
+          
+          <div class="cta-actions">
+            <% unless user_signed_in? %>
+              <%= link_to new_user_registration_path, class: "btn btn-primary btn-lg me-3 pulse-btn" do %>
+                <i class="fas fa-rocket me-2"></i>Get Started Free
+              <% end %>
+              <%= link_to new_user_session_path, class: "btn btn-outline-primary btn-lg" do %>
+                <i class="fas fa-sign-in-alt me-2"></i>Sign In
+              <% end %>
+            <% else %>
+              <%= link_to dashboard_path, class: "btn btn-primary btn-lg pulse-btn" do %>
+                <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
+              <% end %>
+            <% end %>
+          </div>
+          
+          <div class="cta-note">
+            <i class="fas fa-shield-alt me-2"></i>
+            Free forever for small teams • No credit card required
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+/* Hero Section Styles */
+.hero-section {
+  position: relative;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  overflow: hidden;
+}
+
+.hero-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><defs><pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M 50 0 L 0 0 0 50" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grid)"/></svg>');
+  animation: backgroundMove 20s ease-in-out infinite;
+}
+
+.hero-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.hero-content {
+  color: white;
+  z-index: 2;
+}
+
+.hero-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50px;
+  padding: 8px 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 2rem;
+  animation: fadeInUp 1s ease-out 0.2s both;
+}
+
+.hero-title {
+  font-size: 3.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 1.5rem;
+  animation: fadeInUp 1s ease-out 0.4s both;
+}
+
+.text-gradient {
+  background: linear-gradient(45deg, #ffd700, #ff6b6b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-subtitle {
+  font-size: 1.25rem;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+  opacity: 0.9;
+  animation: fadeInUp 1s ease-out 0.6s both;
+}
+
+.hero-stats {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 2.5rem;
+  animation: fadeInUp 1s ease-out 0.8s both;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-number {
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #ffd700;
+}
+
+.stat-number::after {
+  content: '%';
+  font-size: 1.5rem;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  opacity: 0.8;
+  margin-top: 0.5rem;
+}
+
+.hero-actions {
+  animation: fadeInUp 1s ease-out 1s both;
+}
+
+.hero-welcome {
+  color: rgba(255, 255, 255, 0.9);
+  margin-top: 1rem;
+  font-size: 1.1rem;
+}
+
+.pulse-btn {
+  animation: pulse 2s infinite;
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* Dashboard Mockup */
+.dashboard-mockup {
+  background: #1a1a1a;
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  transform: perspective(1000px) rotateY(-15deg) rotateX(5deg);
+  animation: float 6s ease-in-out infinite;
+}
+
+.mockup-header {
+  background: #2d2d2d;
+  padding: 15px 20px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.mockup-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.control {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.control.red { background: #ff5f57; }
+.control.yellow { background: #ffbd2e; }
+.control.green { background: #28ca42; }
+
+.mockup-title {
+  color: #8e8e93;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.mockup-content {
+  height: 400px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@keyframes float {
+  0%, 100% { transform: perspective(1000px) rotateY(-15deg) rotateX(5deg) translateY(0px); }
+  50% { transform: perspective(1000px) rotateY(-15deg) rotateX(5deg) translateY(-20px); }
+}
+
+/* Scroll Indicator */
+.scroll-indicator {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: bounce 2s infinite;
+}
+
+.scroll-arrow {
+  width: 20px;
+  height: 20px;
+  border-right: 2px solid white;
+  border-bottom: 2px solid white;
+  transform: rotate(45deg);
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% { transform: translateX(-50%) translateY(0); }
+  40% { transform: translateX(-50%) translateY(-10px); }
+  60% { transform: translateX(-50%) translateY(-5px); }
+}
+
+/* Features Section */
+.features-section {
+  padding: 100px 0;
+  background: #f8f9fa;
+}
+
+.section-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  color: #2c3e50;
+}
+
+.section-subtitle {
+  font-size: 1.2rem;
+  color: #6c757d;
+  margin-bottom: 0;
+}
+
+.feature-card {
+  background: white;
+  border-radius: 20px;
+  padding: 2.5rem;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  height: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.feature-card:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+.feature-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+  font-size: 2rem;
+  color: white;
+}
+
+.feature-card h4 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #2c3e50;
+}
+
+.feature-card p {
+  color: #6c757d;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.feature-image-placeholder {
+  margin-top: 1.5rem;
+}
+
+/* How It Works Section */
+.how-it-works-section {
+  padding: 100px 0;
+  background: white;
+}
+
+.timeline {
+  position: relative;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(to bottom, #667eea, #764ba2);
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 4rem;
+  display: flex;
+  align-items: center;
+}
+
+.timeline-item:nth-child(odd) {
+  flex-direction: row;
+}
+
+.timeline-item:nth-child(even) {
+  flex-direction: row-reverse;
+}
+
+.timeline-marker {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: white;
+  z-index: 2;
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+
+.timeline-content {
+  width: 45%;
+  background: white;
+  padding: 2rem;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.timeline-content h4 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #2c3e50;
+}
+
+.timeline-content p {
+  color: #6c757d;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.timeline-image {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* CTA Section */
+.cta-section {
+  padding: 100px 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.cta-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+}
+
+.cta-subtitle {
+  font-size: 1.2rem;
+  opacity: 0.9;
+  margin-bottom: 2.5rem;
+}
+
+.cta-actions {
+  margin-bottom: 2rem;
+}
+
+.cta-note {
+  opacity: 0.8;
+  font-size: 0.9rem;
+}
+
+/* Image Placeholders */
+.image-placeholder {
+  background: #f8f9fa;
+  border: 2px dashed #dee2e6;
+  border-radius: 10px;
+  padding: 3rem 2rem;
+  text-align: center;
+  color: #6c757d;
+}
+
+.image-placeholder.small {
+  padding: 2rem 1rem;
+}
+
+.image-placeholder i {
+  opacity: 0.5;
+}
+
+.image-placeholder p,
+.image-placeholder small {
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Animations */
+.animate-on-scroll {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.6s ease;
+}
+
+.animate-on-scroll.animated {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes backgroundMove {
+  0%, 100% { transform: translateX(0) translateY(0); }
+  25% { transform: translateX(-10px) translateY(-10px); }
+  50% { transform: translateX(10px) translateY(10px); }
+  75% { transform: translateX(-5px) translateY(5px); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 2.5rem;
+  }
+  
+  .hero-stats {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .dashboard-mockup {
+    transform: none;
+    margin-top: 2rem;
+  }
+  
+  .timeline::before {
+    left: 30px;
+  }
+  
+  .timeline-marker {
+    left: 30px;
+  }
+  
+  .timeline-content {
+    width: calc(100% - 80px);
+    margin-left: 80px;
+  }
+  
+  .timeline-item:nth-child(even) .timeline-content {
+    margin-left: 80px;
+  }
+}
+</style>
+
+<script>
+// Counter Animation
+function animateCounter(element) {
+  const target = parseInt(element.getAttribute('data-count'));
+  const increment = target / 50;
+  let current = 0;
+  
+  const timer = setInterval(() => {
+    current += increment;
+    if (current >= target) {
+      current = target;
+      clearInterval(timer);
+    }
+    element.textContent = Math.floor(current);
+  }, 40);
+}
+
+// Scroll Animation Observer
+const observerOptions = {
+  threshold: 0.1,
+  rootMargin: '0px 0px -50px 0px'
+};
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const delay = entry.target.getAttribute('data-delay') || 0;
+      setTimeout(() => {
+        entry.target.classList.add('animated');
+        
+        // Animate counters
+        const counters = entry.target.querySelectorAll('[data-count]');
+        counters.forEach(counter => animateCounter(counter));
+      }, delay);
+    }
+  });
+}, observerOptions);
+
+// Initialize animations
+document.addEventListener('DOMContentLoaded', function() {
+  // Observe all animate-on-scroll elements
+  document.querySelectorAll('.animate-on-scroll').forEach(el => {
+    observer.observe(el);
+  });
+  
+  // Smooth scrolling for scroll indicator
+  document.querySelector('.scroll-indicator')?.addEventListener('click', () => {
+    document.getElementById('features').scrollIntoView({ 
+      behavior: 'smooth' 
+    });
+  });
+  
+  // Add parallax effect to hero background
+  window.addEventListener('scroll', () => {
+    const scrolled = window.pageYOffset;
+    const parallax = document.querySelector('.hero-background');
+    if (parallax) {
+      parallax.style.transform = `translateY(${scrolled * 0.5}px)`;
+    }
+  });
+});
+</script>

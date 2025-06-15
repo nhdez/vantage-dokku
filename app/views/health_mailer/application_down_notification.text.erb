@@ -1,0 +1,35 @@
+🚨 APPLICATION HEALTH ALERT
+
+Your application "<%= @deployment.name %>" <%= @status_message %>.
+
+ALERT DETAILS:
+================
+Application: <%= @deployment.name %>
+Server: <%= @server.name %> (<%= @server.ip %>)
+URL: <%= @deployment.dokku_url %>
+Status: <%= @health_result[:status].upcase %>
+Checked At: <%= @health_result[:checked_at].strftime("%B %d, %Y at %I:%M %p %Z") %>
+
+<% if @health_result[:response_code] %>Response Code: <%= @health_result[:response_code] %><% end %>
+<% if @health_result[:response_time] %>Response Time: <%= @health_result[:response_time] %>ms<% end %>
+
+<% if @health_result[:response_body].present? %>
+Error Details:
+<%= @health_result[:response_body] %>
+<% end %>
+
+WHAT TO DO NEXT:
+================
+- Check your application logs on the server
+- Verify server resources (CPU, memory, disk space)  
+- Test your application URL manually
+- Review recent deployments or configuration changes
+
+QUICK ACTIONS:
+==============
+View Dashboard: <%= @dashboard_url %>
+Manage Application: <%= @deployment_url %>
+
+---
+This alert was sent by Vantage Dokku Health Monitoring.
+You received this email because you own the application '<%= @deployment.name %>'.

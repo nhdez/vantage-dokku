@@ -107,7 +107,7 @@
               </li>
               <% if current_user.admin? %>
                 <li class="nav-item">
-                  <%= link_to "Administration", admin_root_path, class: "nav-link #{'active' if params[:controller]&.starts_with?('admin/')}" %>
+                  <%= link_to "Administration", admin_root_path, class: "#{'active' if params[:controller]&.starts_with?('admin/')} nav-link btn-outline-secondary" %>
                 </li>
               <% end %>
             <% else %>

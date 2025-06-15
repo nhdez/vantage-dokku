@@ -7,6 +7,7 @@ class Deployment < ApplicationRecord
   has_many :environment_variables, dependent: :destroy
   has_many :domains, dependent: :destroy
   has_one :database_configuration, dependent: :destroy
+  has_many :application_healths, dependent: :destroy
   
   validates :name, presence: true, length: { maximum: 100 }
   validates :name, uniqueness: { scope: :user_id, message: "has already been used for another deployment" }
@@ -135,6 +136,52 @@ class Deployment < ApplicationRecord
     else
       'fas fa-clock'
     end
+  end
+  
+  def latest_health_check
+    application_healths.recent.first
+  end
+  
+  def last_20_health_checks
+    application_healths.last_20
+  end
+  
+  def current_health_status
+    latest_health_check&.status || 'unknown'
+  end
+  
+  def health_status_color
+    latest_health_check&.status_color || 'secondary'
+  end
+  
+  def health_status_icon
+    latest_health_check&.status_icon || 'fas fa-question-circle'
+  end
+  
+  def is_healthy?
+    latest_health_check&.healthy? || false
+  end
+  
+  def is_unhealthy?
+    latest_health_check&.unhealthy? || false
+  end
+  
+  def health_uptime_percentage
+    checks = last_20_health_checks
+    return 0 if checks.empty?
+    
+    healthy_count = checks.count(&:healthy?)
+    ((healthy_count.to_f / checks.count) * 100).round(1)
+  end
+  
+  def last_downtime
+    application_healths.unhealthy.recent.first&.checked_at
+  end
+  
+  def needs_health_notification?
+    # Send notification if app has been down for more than 1 check
+    recent_checks = application_healths.recent.limit(2)
+    recent_checks.count >= 2 && recent_checks.all?(&:unhealthy?)
   end
   
   private
