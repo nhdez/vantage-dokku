@@ -105,11 +105,6 @@
               <li class="nav-item">
                 <%= link_to "SSH Keys", ssh_keys_path, class: "nav-link #{'active' if controller_name == 'ssh_keys'}" %>
               </li>
-              <% if current_user.admin? %>
-                <li class="nav-item">
-                  <%= link_to "Administration", admin_root_path, class: "#{'active' if params[:controller]&.starts_with?('admin/')} nav-link btn-outline-secondary" %>
-                </li>
-              <% end %>
             <% else %>
               <li class="nav-item">
                 <%= link_to "Home", root_path, class: "nav-link" %>
@@ -164,6 +159,12 @@
               </li>
               
               <!-- User Menu -->
+              <% if current_user.admin? %>
+                <li class="nav-item">
+                  <%= link_to "Administration", admin_root_path, class: "#{'active' if params[:controller]&.starts_with?('admin/')} nav-link btn-outline-secondary" %>
+                </li>
+              <% end %>
+
               <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button" data-mdb-toggle="dropdown" aria-expanded="false">
                   <% if current_user.profile_picture.attached? %>
@@ -210,7 +211,7 @@
     </nav>
 
     <!-- Main Content -->
-    <main class="container-fluid py-4">
+    <main class="container-fluid <%= 'py-4' if controller_name != 'home' %>" style="<%= '--mdb-gutter-x: 0rem !important;' if controller_name == 'home' %>">
       <%= render 'shared/breadcrumbs' if user_signed_in? %>
       <%= yield %>
     </main>
