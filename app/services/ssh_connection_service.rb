@@ -316,6 +316,43 @@ class SshConnectionService
     result
   end
 
+  def delete_database_configuration(app_name, database_config)
+    result = {
+      success: false,
+      error: nil,
+      output: ''
+    }
+    
+    begin
+      Timeout::timeout(ENV_TIMEOUT) do # Use environment timeout for database operations
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options
+        ) do |ssh|
+          # Delete database configuration
+          result[:output] = perform_database_deletion(ssh, app_name, database_config)
+          result[:success] = true
+          
+          # Update last connected timestamp
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue Net::SSH::AuthenticationFailed => e
+      result[:error] = "Authentication failed. Please check your SSH key or password."
+    rescue Net::SSH::ConnectionTimeout, Timeout::Error => e
+      result[:error] = "Operation timeout. Database deletion may take several minutes."
+    rescue Errno::ECONNREFUSED => e
+      result[:error] = "Connection refused. Check if SSH service is running on port #{@connection_details[:port]}."
+    rescue Errno::EHOSTUNREACH => e
+      result[:error] = "Host unreachable. Check the IP address and network connectivity."
+    rescue StandardError => e
+      result[:error] = "Database deletion failed: #{e.message}"
+    end
+    
+    result
+  end
+
   def test_connection_and_gather_info
     result = {
       success: false,
@@ -1033,6 +1070,22 @@ class SshConnectionService
       config_output += link_result if link_result
       config_output += "\n"
       
+      # Ensure DATABASE_URL environment variable is set
+      config_output += "=== Setting Database Environment Variable ===\n"
+      db_url_result = execute_command(ssh, "sudo dokku #{db_type}:info #{db_name} --dsn 2>&1")
+      if db_url_result && !db_url_result.include?('ERROR') && !db_url_result.strip.empty?
+        database_url = db_url_result.strip
+        config_output += "Retrieved database URL: #{database_url[0..20]}...\n"
+        
+        # Set the DATABASE_URL environment variable
+        set_env_result = execute_command(ssh, "sudo dokku config:set #{app_name} DATABASE_URL='#{database_url}' 2>&1")
+        config_output += set_env_result if set_env_result
+        config_output += "DATABASE_URL environment variable set successfully.\n"
+      else
+        config_output += "Warning: Could not retrieve database URL automatically. Link command should have set it.\n"
+      end
+      config_output += "\n"
+      
       # Configure Redis if enabled
       if database_config.redis_enabled?
         redis_name = database_config.redis_name
@@ -1064,6 +1117,22 @@ class SshConnectionService
         redis_link_result = execute_command(ssh, "sudo dokku redis:link #{redis_name} #{app_name} 2>&1")
         config_output += redis_link_result if redis_link_result
         config_output += "\n"
+        
+        # Ensure REDIS_URL environment variable is set
+        config_output += "=== Setting Redis Environment Variable ===\n"
+        redis_url_result = execute_command(ssh, "sudo dokku redis:info #{redis_name} --dsn 2>&1")
+        if redis_url_result && !redis_url_result.include?('ERROR') && !redis_url_result.strip.empty?
+          redis_url = redis_url_result.strip
+          config_output += "Retrieved Redis URL: #{redis_url[0..20]}...\n"
+          
+          # Set the REDIS_URL environment variable
+          set_redis_env_result = execute_command(ssh, "sudo dokku config:set #{app_name} REDIS_URL='#{redis_url}' 2>&1")
+          config_output += set_redis_env_result if set_redis_env_result
+          config_output += "REDIS_URL environment variable set successfully.\n"
+        else
+          config_output += "Warning: Could not retrieve Redis URL automatically. Link command should have set it.\n"
+        end
+        config_output += "\n"
       end
       
       # Show final configuration
@@ -1090,6 +1159,95 @@ class SshConnectionService
     end
     
     config_output
+  end
+  
+  def perform_database_deletion(ssh, app_name, database_config)
+    deletion_output = ""
+    
+    begin
+      Rails.logger.info "Deleting database configuration for Dokku app '#{app_name}' on #{@server.name}"
+      deletion_output += "=== Deleting Database Configuration for Dokku App: #{app_name} ===\n"
+      
+      db_type = database_config.database_type
+      db_name = database_config.database_name
+      
+      # Remove environment variables first
+      deletion_output += "\n=== Removing Environment Variables ===\n"
+      
+      # Remove DATABASE_URL
+      env_var_name = database_config.environment_variable_name
+      if env_var_name
+        deletion_output += "Removing #{env_var_name} environment variable...\n"
+        unset_result = execute_command(ssh, "sudo dokku config:unset #{app_name} #{env_var_name} 2>&1")
+        deletion_output += unset_result if unset_result
+      end
+      
+      # Remove REDIS_URL if Redis is enabled
+      if database_config.redis_enabled?
+        redis_env_var = database_config.redis_environment_variable_name
+        if redis_env_var
+          deletion_output += "Removing #{redis_env_var} environment variable...\n"
+          unset_redis_result = execute_command(ssh, "sudo dokku config:unset #{app_name} #{redis_env_var} 2>&1")
+          deletion_output += unset_redis_result if unset_redis_result
+        end
+      end
+      deletion_output += "\n"
+      
+      # Detach and delete Redis if enabled
+      if database_config.redis_enabled?
+        redis_name = database_config.redis_name
+        deletion_output += "=== Detaching and Deleting Redis Instance: #{redis_name} ===\n"
+        
+        # Unlink Redis from app
+        deletion_output += "Unlinking Redis from app...\n"
+        redis_unlink_result = execute_command(ssh, "sudo dokku redis:unlink #{redis_name} #{app_name} 2>&1")
+        deletion_output += redis_unlink_result if redis_unlink_result
+        
+        # Delete Redis instance
+        deletion_output += "Deleting Redis instance...\n"
+        redis_delete_result = execute_command(ssh, "sudo dokku redis:destroy #{redis_name} --force 2>&1")
+        deletion_output += redis_delete_result if redis_delete_result
+        deletion_output += "\n"
+      end
+      
+      # Detach and delete database
+      deletion_output += "=== Detaching and Deleting #{database_config.display_name} Database: #{db_name} ===\n"
+      
+      # Unlink database from app
+      deletion_output += "Unlinking database from app...\n"
+      unlink_result = execute_command(ssh, "sudo dokku #{db_type}:unlink #{db_name} #{app_name} 2>&1")
+      deletion_output += unlink_result if unlink_result
+      
+      # Delete database
+      deletion_output += "Deleting database...\n"
+      delete_result = execute_command(ssh, "sudo dokku #{db_type}:destroy #{db_name} --force 2>&1")
+      deletion_output += delete_result if delete_result
+      deletion_output += "\n"
+      
+      # Show final configuration
+      deletion_output += "=== Final Configuration ===\n"
+      env_result = execute_command(ssh, "sudo dokku config:show #{app_name}")
+      if env_result
+        deletion_output += "Remaining environment variables:\n#{env_result}\n"
+      end
+      
+      deletion_output += "\n✅ Database configuration deleted successfully!\n"
+      deletion_output += "#{database_config.display_name} database '#{db_name}' has been detached and deleted.\n"
+      if database_config.redis_enabled?
+        deletion_output += "Redis instance '#{database_config.redis_name}' has also been detached and deleted.\n"
+      end
+      deletion_output += "All related environment variables have been removed.\n"
+      
+      Rails.logger.info "Database configuration deleted successfully for Dokku app '#{app_name}' on #{@server.name}"
+      
+    rescue StandardError => e
+      Rails.logger.error "Database deletion failed on #{@server.name}: #{e.message}"
+      deletion_output += "\n=== ERROR ===\n"
+      deletion_output += "Database deletion encountered an error: #{e.message}\n"
+      raise e
+    end
+    
+    deletion_output
   end
   
   def shell_escape(value)

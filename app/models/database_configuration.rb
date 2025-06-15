@@ -123,6 +123,26 @@ class DatabaseConfiguration < ApplicationRecord
     end
   end
   
+  def can_be_deleted?
+    # Can delete if it's configured or if there was an error
+    configured? || error_message.present?
+  end
+  
+  def deletion_warning_message
+    message = "This will permanently:"
+    message += "\n• Detach the #{display_name} database (#{database_name}) from your app"
+    message += "\n• Delete the database and all its data"
+    message += "\n• Remove DATABASE_URL environment variable"
+    
+    if redis_enabled?
+      message += "\n• Detach and delete the Redis instance (#{redis_name})"
+      message += "\n• Remove REDIS_URL environment variable"
+    end
+    
+    message += "\n\n⚠️ This action cannot be undone!"
+    message
+  end
+  
   private
   
   def generate_database_name

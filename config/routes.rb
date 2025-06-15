@@ -9,6 +9,7 @@ Rails.application.routes.draw do
       post :update_environment
       get :configure_databases
       post :update_database_configuration
+      delete :delete_database_configuration
       post :create_dokku_app
     end
   end

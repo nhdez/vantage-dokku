@@ -1,8 +1,8 @@
 class DeploymentsController < ApplicationController
   include ActivityTrackable
   
-  before_action :set_deployment, only: [:show, :edit, :update, :destroy, :configure_domain, :update_domains, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :create_dokku_app, :manage_environment, :update_environment]
-  before_action :authorize_deployment, only: [:show, :edit, :update, :destroy, :configure_domain, :update_domains, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :create_dokku_app, :manage_environment, :update_environment]
+  before_action :set_deployment, only: [:show, :edit, :update, :destroy, :configure_domain, :update_domains, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment]
+  before_action :authorize_deployment, only: [:show, :edit, :update, :destroy, :configure_domain, :update_domains, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment]
   
   def index
     @pagy, @deployments = pagy(current_user.deployments.includes(:server).recent, limit: 15)
@@ -258,6 +258,56 @@ class DeploymentsController < ApplicationController
     rescue StandardError => e
       Rails.logger.error "Database configuration failed: #{e.message}"
       toast_error("An unexpected error occurred: #{e.message}", title: "Configuration Error")
+    end
+    
+    redirect_to configure_databases_deployment_path(@deployment)
+  end
+
+  def delete_database_configuration
+    begin
+      @database_configuration = @deployment.database_configuration
+      
+      if @database_configuration.nil?
+        toast_error("No database configuration found to delete", title: "Not Found")
+        redirect_to configure_databases_deployment_path(@deployment)
+        return
+      end
+      
+      unless @database_configuration.can_be_deleted?
+        toast_error("Database configuration cannot be deleted in its current state", title: "Cannot Delete")
+        redirect_to configure_databases_deployment_path(@deployment)
+        return
+      end
+      
+      # Detach and delete database on server
+      service = SshConnectionService.new(@deployment.server)
+      result = service.delete_database_configuration(@deployment.dokku_app_name, @database_configuration)
+      
+      if result[:success]
+        # Delete the database configuration record
+        db_name = @database_configuration.database_name
+        redis_name = @database_configuration.redis_name if @database_configuration.redis_enabled?
+        display_name = @database_configuration.display_name
+        
+        @database_configuration.destroy!
+        
+        log_activity('database_deleted', 
+                    details: "Deleted #{display_name} database configuration for deployment: #{@deployment.display_name}")
+        
+        success_message = "Database configuration deleted successfully! "
+        success_message += "#{display_name} database (#{db_name})"
+        success_message += " and Redis instance (#{redis_name})" if redis_name
+        success_message += " have been detached and deleted."
+        
+        toast_success(success_message, title: "Database Deleted")
+      else
+        log_activity('database_deletion_failed', 
+                    details: "Failed to delete database configuration for deployment: #{@deployment.display_name} - #{result[:error]}")
+        toast_error("Failed to delete database: #{result[:error]}", title: "Deletion Failed")
+      end
+    rescue StandardError => e
+      Rails.logger.error "Database deletion failed: #{e.message}"
+      toast_error("An unexpected error occurred: #{e.message}", title: "Deletion Error")
     end
     
     redirect_to configure_databases_deployment_path(@deployment)

@@ -258,6 +258,14 @@
                 <strong>Error:</strong> <%= @database_configuration.error_message %>
               </div>
             <% end %>
+            
+            <% if @database_configuration.can_be_deleted? %>
+              <div class="mt-3">
+                <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteDatabaseModal">
+                  <i class="fas fa-trash me-2"></i>Delete Database Configuration
+                </button>
+              </div>
+            <% end %>
           <% else %>
             <div class="text-center py-3">
               <i class="fas fa-database fa-2x text-muted mb-2"></i>
@@ -326,6 +334,61 @@
   </div>
 </div>
 
+<!-- Delete Database Confirmation Modal -->
+<% if @database_configuration&.persisted? && @database_configuration.can_be_deleted? %>
+  <div class="modal fade" id="deleteDatabaseModal" tabindex="-1" aria-labelledby="deleteDatabaseModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title" id="deleteDatabaseModalLabel">
+            <i class="fas fa-exclamation-triangle me-2"></i>Delete Database Configuration
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Warning:</strong> This action will permanently delete your database and all its data!
+          </div>
+          
+          <p class="mb-3">You are about to delete the database configuration for <strong><%= @deployment.name %></strong>.</p>
+          
+          <div class="bg-light p-3 rounded mb-3">
+            <h6 class="text-danger mb-2">
+              <i class="fas fa-list me-2"></i>This action will:
+            </h6>
+            <div style="white-space: pre-line; font-family: monospace; font-size: 0.9em;">
+<%= @database_configuration.deletion_warning_message %>
+            </div>
+          </div>
+          
+          <div class="alert alert-warning">
+            <i class="fas fa-clock me-2"></i>
+            <strong>Processing Time:</strong> This operation may take 2-3 minutes to complete.
+          </div>
+          
+          <p class="mb-0">
+            <strong>Are you sure you want to proceed?</strong> Type <code>DELETE</code> below to confirm:
+          </p>
+          
+          <%= form_with url: delete_database_configuration_deployment_path(@deployment), method: :delete, local: true, id: "delete-database-form", class: "mt-3" do |form| %>
+            <div class="mb-3">
+              <input type="text" class="form-control" id="deleteConfirmation" placeholder="Type DELETE to confirm" autocomplete="off">
+            </div>
+            
+            <div class="d-flex justify-content-end gap-2">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-danger" id="confirmDeleteBtn" disabled>
+                <i class="fas fa-trash me-2"></i>Delete Database Configuration
+              </button>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+<% end %>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   // Handle form submission loading state
@@ -388,6 +451,65 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
   });
+  
+  // Handle delete confirmation
+  const deleteConfirmation = document.getElementById('deleteConfirmation');
+  const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+  const deleteForm = document.getElementById('delete-database-form');
+  
+  console.log('Delete elements found:', {
+    deleteConfirmation: !!deleteConfirmation,
+    confirmDeleteBtn: !!confirmDeleteBtn,
+    deleteForm: !!deleteForm
+  });
+  
+  if (deleteConfirmation && confirmDeleteBtn) {
+    deleteConfirmation.addEventListener('input', function(e) {
+      console.log('Input value:', e.target.value);
+      if (e.target.value.toUpperCase() === 'DELETE') {
+        confirmDeleteBtn.disabled = false;
+        confirmDeleteBtn.classList.remove('btn-danger');
+        confirmDeleteBtn.classList.add('btn-danger');
+        console.log('Delete button enabled');
+      } else {
+        confirmDeleteBtn.disabled = true;
+        console.log('Delete button disabled');
+      }
+    });
+  }
+  
+  if (deleteForm) {
+    deleteForm.addEventListener('submit', function(e) {
+      console.log('Form submitted, button disabled:', confirmDeleteBtn.disabled);
+      if (confirmDeleteBtn.disabled) {
+        console.log('Preventing submission - button disabled');
+        e.preventDefault();
+        return false;
+      }
+      
+      console.log('Proceeding with deletion');
+      
+      // Show loading state
+      confirmDeleteBtn.disabled = true;
+      confirmDeleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Deleting Database...';
+      
+      // Show loading message
+      const modalBody = document.querySelector('#deleteDatabaseModal .modal-body');
+      const loadingDiv = document.createElement('div');
+      loadingDiv.className = 'alert alert-info mt-3';
+      loadingDiv.innerHTML = `
+        <i class="fas fa-spinner fa-spin me-2"></i>
+        <strong>Deleting database configuration...</strong> This process includes:
+        <ul class="mb-0 mt-2">
+          <li>Removing environment variables</li>
+          <li>Detaching databases from your application</li>
+          <li>Permanently deleting database instances</li>
+        </ul>
+        <small class="d-block mt-2">Please do not close this page or navigate away.</small>
+      `;
+      modalBody.appendChild(loadingDiv);
+    });
+  }
 });
 </script>
 
