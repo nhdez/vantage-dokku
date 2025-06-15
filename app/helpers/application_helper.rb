@@ -121,9 +121,9 @@ module ApplicationHelper
         add_breadcrumb 'Users', admin_users_path
         
         if action_name == 'show' && @user
-          add_breadcrumb @user.display_name
+          add_breadcrumb @user.full_name
         elsif action_name == 'edit' && @user
-          add_breadcrumb @user.display_name, admin_user_path(@user)
+          add_breadcrumb @user.full_name, admin_user_path(@user)
           add_breadcrumb 'Edit'
         end
       end
