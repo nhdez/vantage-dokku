@@ -211,6 +211,7 @@
 
     <!-- Main Content -->
     <main class="container-fluid py-4">
+      <%= render 'shared/breadcrumbs' if user_signed_in? %>
       <%= yield %>
     </main>
 

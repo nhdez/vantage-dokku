@@ -232,6 +232,9 @@ class DeploymentsController < ApplicationController
             error_message: nil
           )
           
+          # Create environment variable records for database URLs
+          create_database_environment_variables(@database_configuration, result[:database_urls])
+          
           log_activity('database_configured', 
                       details: "Configured #{@database_configuration.display_name} database for deployment: #{@deployment.display_name}")
           
@@ -284,10 +287,13 @@ class DeploymentsController < ApplicationController
       result = service.delete_database_configuration(@deployment.dokku_app_name, @database_configuration)
       
       if result[:success]
-        # Delete the database configuration record
+        # Delete the database configuration record and environment variables
         db_name = @database_configuration.database_name
         redis_name = @database_configuration.redis_name if @database_configuration.redis_enabled?
         display_name = @database_configuration.display_name
+        
+        # Remove managed environment variables
+        remove_database_environment_variables(@database_configuration)
         
         @database_configuration.destroy!
         
@@ -387,5 +393,49 @@ class DeploymentsController < ApplicationController
 
   def deployment_params
     params.require(:deployment).permit(:name, :description, :server_id)
+  end
+
+  def create_database_environment_variables(database_config, database_urls)
+    return unless database_urls.is_a?(Hash)
+    
+    # Create or update DATABASE_URL environment variable
+    if database_urls[:database_url].present?
+      env_var = @deployment.environment_variables.find_or_initialize_by(
+        key: database_config.environment_variable_name
+      )
+      env_var.assign_attributes(
+        value: database_urls[:database_url],
+        description: "Managed #{database_config.display_name} database connection"
+      )
+      env_var.save!
+    end
+    
+    # Create or update REDIS_URL environment variable if Redis is enabled
+    if database_config.redis_enabled? && database_urls[:redis_url].present?
+      redis_env_var = @deployment.environment_variables.find_or_initialize_by(
+        key: database_config.redis_environment_variable_name
+      )
+      redis_env_var.assign_attributes(
+        value: database_urls[:redis_url],
+        description: "Managed Redis cache connection"
+      )
+      redis_env_var.save!
+    end
+  end
+
+  def remove_database_environment_variables(database_config)
+    # Remove DATABASE_URL environment variable
+    database_env_var = @deployment.environment_variables.find_by(
+      key: database_config.environment_variable_name
+    )
+    database_env_var&.destroy!
+    
+    # Remove REDIS_URL environment variable if Redis was enabled
+    if database_config.redis_enabled?
+      redis_env_var = @deployment.environment_variables.find_by(
+        key: database_config.redis_environment_variable_name
+      )
+      redis_env_var&.destroy!
+    end
   end
 end
