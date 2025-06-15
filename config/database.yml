@@ -6,7 +6,7 @@ default: &default
 development:
   <<: *default
   database: vantage_dokku_development
-git add
+
 test:
   <<: *default
   database: vantage_dokku_test
