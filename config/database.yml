@@ -18,18 +18,15 @@ production:
   # ---------- SOLID CACHE ----------
   cache:
     <<: *primary_production
-    url: <%= ENV.fetch("CACHE_DATABASE_URL",
-                       ENV.fetch("DATABASE_URL")) %>
+    url: <%= ENV["CACHE_DATABASE_URL"], ENV["DATABASE_URL"] %>
     migrations_paths: db/cache_migrate
   # ---------- SOLID QUEUE ----------
   queue:
     <<: *primary_production
-    url: <%= ENV.fetch("QUEUE_DATABASE_URL",
-                       ENV.fetch("DATABASE_URL")) %>
+    url: <%= ENV["QUEUE_DATABASE_URL"], ENV["DATABASE_URL"] %>
     migrations_paths: db/queue_migrate
   # ---------- ACTION CABLE ----------
   cable:
     <<: *primary_production
-    url: <%= ENV.fetch("CABLE_DATABASE_URL",
-                       ENV.fetch("DATABASE_URL")) %>
+    url: <%= ENV["CABLE_DATABASE_URL"], ENV["DATABASE_URL"] %>
     migrations_paths: db/cable_migrate
