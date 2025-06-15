@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_06_15_211241) do
+ActiveRecord::Schema[8.0].define(version: 2025_06_15_224022) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -153,6 +153,24 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_15_211241) do
     t.index ["deployment_id"], name: "index_environment_variables_on_deployment_id"
   end
 
+  create_table "linked_accounts", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "provider", null: false
+    t.string "account_username"
+    t.string "account_email"
+    t.text "access_token", null: false
+    t.text "refresh_token"
+    t.datetime "token_expires_at"
+    t.boolean "active", default: true, null: false
+    t.text "metadata"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_linked_accounts_on_active"
+    t.index ["provider"], name: "index_linked_accounts_on_provider"
+    t.index ["user_id", "provider"], name: "index_linked_accounts_on_user_id_and_provider", unique: true
+    t.index ["user_id"], name: "index_linked_accounts_on_user_id"
+  end
+
   create_table "oauth_settings", force: :cascade do |t|
     t.string "key", null: false
     t.text "value"
@@ -251,6 +269,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_15_211241) do
   add_foreign_key "deployments", "users"
   add_foreign_key "domains", "deployments"
   add_foreign_key "environment_variables", "deployments"
+  add_foreign_key "linked_accounts", "users"
   add_foreign_key "servers", "users"
   add_foreign_key "ssh_keys", "users"
 end

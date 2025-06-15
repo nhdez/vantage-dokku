@@ -1,4 +1,9 @@
 Rails.application.routes.draw do
+  resources :linked_accounts do
+    member do
+      post :test_connection
+    end
+  end
   resources :deployments, param: :uuid do
     member do
       get :configure_domain

@@ -103,6 +103,21 @@ module ApplicationHelper
         add_breadcrumb @ssh_key.name, ssh_key_path(@ssh_key)
         add_breadcrumb 'Edit'
       end
+    when 'linked_accounts'
+      add_breadcrumb 'Dashboard', dashboard_path
+      add_breadcrumb 'Linked Accounts', linked_accounts_path, icon: 'fas fa-link'
+      
+      if action_name == 'show' && @linked_account
+        add_breadcrumb @linked_account.display_name
+      elsif action_name == 'new'
+        add_breadcrumb 'Link New Account'
+      elsif action_name == 'edit' && @linked_account
+        add_breadcrumb @linked_account.display_name, linked_account_path(@linked_account)
+        add_breadcrumb 'Edit'
+      end
+    when 'registrations'
+      add_breadcrumb 'Dashboard', dashboard_path
+      add_breadcrumb 'Account Settings', edit_user_registration_path, icon: 'fas fa-user-cog'
     when 'dashboard'
       if namespace == 'admin'
         add_breadcrumb 'Dashboard', dashboard_path

@@ -24,8 +24,10 @@
       rel="stylesheet"
       />
     <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
       rel="stylesheet"
       />
     <!-- MDB:  -->
@@ -159,11 +161,7 @@
               </li>
               
               <!-- User Menu -->
-              <% if current_user.admin? %>
-                <li class="nav-item">
-                  <%= link_to "Administration", admin_root_path, class: "#{'active' if params[:controller]&.starts_with?('admin/')} nav-link btn-outline-secondary" %>
-                </li>
-              <% end %>
+
 
               <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button" data-mdb-toggle="dropdown" aria-expanded="false">
@@ -185,10 +183,18 @@
                     <% end %>
                   </li>
                   <li>
-                    <%= link_to settings_path, class: "dropdown-item" do %>
-                      <i class="fas fa-cog me-2"></i>Preferences
+                    <%= link_to linked_accounts_path, class: "dropdown-item" do %>
+                      <i class="fas fa-link me-2"></i>Linked Accounts
                     <% end %>
                   </li>
+                  <% if current_user.admin? %>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                      <%= link_to admin_root_path, class: "dropdown-item" do %>
+                        <i class="fas fa-lock me-2"></i>Administration
+                      <% end %>
+                    </li>
+                  <% end %>
                   <li><hr class="dropdown-divider"></li>
                   <li>
                     <%= link_to destroy_user_session_path, data: { turbo_method: :delete }, class: "dropdown-item text-danger" do %>

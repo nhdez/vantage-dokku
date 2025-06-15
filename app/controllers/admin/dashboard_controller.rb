@@ -41,10 +41,48 @@ class Admin::DashboardController < ApplicationController
   end
 
   def smtp_settings
-    @smtp_settings = AppSetting.where(key: %w[smtp_enabled smtp_address smtp_port smtp_domain smtp_username smtp_password smtp_authentication mail_from]).order(:key)
+    # Define required SMTP environment variables
+    required_env_vars = %w[USE_REAL_EMAIL SMTP_ADDRESS SMTP_PORT SMTP_DOMAIN SMTP_USERNAME SMTP_PASSWORD SMTP_AUTHENTICATION MAIL_FROM]
+    
+    # Check which variables are present and missing
+    @present_env_vars = {}
+    @missing_env_vars = []
+    
+    required_env_vars.each do |var|
+      if ENV[var].present?
+        @present_env_vars[var] = ENV[var]
+      else
+        @missing_env_vars << var
+      end
+    end
+    
+    # Add optional variables that are present
+    if ENV['SMTP_ENABLE_STARTTLS_AUTO'].present?
+      @present_env_vars['SMTP_ENABLE_STARTTLS_AUTO'] = ENV['SMTP_ENABLE_STARTTLS_AUTO']
+    end
+    
+    @env_fully_configured = @missing_env_vars.empty?
+    @using_env_variables = @present_env_vars.any?
+    
+    # Only load database settings if environment is not fully configured
+    unless @env_fully_configured
+      @smtp_settings = AppSetting.where(key: %w[smtp_enabled smtp_address smtp_port smtp_domain smtp_username smtp_password smtp_authentication mail_from]).order(:key)
+    end
   end
 
   def update_smtp_settings
+    # Check if environment variables are fully configured
+    required_env_vars = %w[USE_REAL_EMAIL SMTP_ADDRESS SMTP_PORT SMTP_DOMAIN SMTP_USERNAME SMTP_PASSWORD SMTP_AUTHENTICATION MAIL_FROM]
+    env_fully_configured = required_env_vars.all? { |var| ENV[var].present? }
+    
+    if env_fully_configured
+      # Environment variables are fully configured - no database updates needed
+      toast_info("SMTP is configured via environment variables. No changes made to database settings.", title: "Environment Configuration Active")
+      redirect_to admin_smtp_settings_path
+      return
+    end
+    
+    # Environment variables not fully configured, update database settings
     updated_keys = []
     smtp_params.each do |key, value|
       setting = AppSetting.find_by(key: key)
@@ -54,12 +92,15 @@ class Admin::DashboardController < ApplicationController
       end
     end
     
-    # Update mailer configuration dynamically
-    update_mailer_configuration
+    if updated_keys.any?
+      log_smtp_settings_update(current_user)
+      # Update mailer configuration dynamically
+      update_mailer_configuration
+      toast_smtp_updated
+    else
+      toast_info("No changes were made to SMTP settings.", title: "No Changes")
+    end
     
-    log_smtp_settings_update(current_user) if updated_keys.any?
-    
-    toast_smtp_updated
     redirect_to admin_smtp_settings_path
   rescue => e
     toast_error("Failed to update SMTP settings: #{e.message}", title: "SMTP Update Failed")
@@ -106,10 +147,10 @@ class Admin::DashboardController < ApplicationController
         details: 'Updated OAuth settings configuration'
       )
       
-      toast_success("OAuth settings updated successfully!", "Settings Updated")
+      toast_success("OAuth settings updated successfully!", title: "Settings Updated")
       redirect_to admin_oauth_settings_path
     rescue => e
-      toast_error("Error updating OAuth settings: #{e.message}", "Update Failed")
+      toast_error("Error updating OAuth settings: #{e.message}", title: "Update Failed")
       redirect_to admin_oauth_settings_path
     end
   end
@@ -133,25 +174,49 @@ class Admin::DashboardController < ApplicationController
   end
 
   def update_mailer_configuration
-    if AppSetting.get('smtp_enabled', false)
-      # Use SMTP configuration
-      ActionMailer::Base.delivery_method = :smtp
-      ActionMailer::Base.smtp_settings = {
-        address: AppSetting.get('smtp_address'),
-        port: AppSetting.get('smtp_port', 587),
-        domain: AppSetting.get('smtp_domain'),
-        user_name: AppSetting.get('smtp_username'),
-        password: AppSetting.get('smtp_password'),
-        authentication: AppSetting.get('smtp_authentication', 'plain').to_sym,
-        enable_starttls_auto: true
-      }
-    else
-      # Use letter_opener for development
-      ActionMailer::Base.delivery_method = :letter_opener if Rails.env.development?
-    end
+    # Check if environment variables are fully configured
+    required_env_vars = %w[USE_REAL_EMAIL SMTP_ADDRESS SMTP_PORT SMTP_DOMAIN SMTP_USERNAME SMTP_PASSWORD SMTP_AUTHENTICATION MAIL_FROM]
+    env_fully_configured = required_env_vars.all? { |var| ENV[var].present? }
     
-    # Set default from address
-    ActionMailer::Base.default_options = { from: AppSetting.get('mail_from', 'no-reply@example.com') }
+    if env_fully_configured
+      # Use environment variables exclusively
+      smtp_enabled = ENV['USE_REAL_EMAIL']&.downcase == 'true'
+      
+      if smtp_enabled
+        ActionMailer::Base.delivery_method = :smtp
+        ActionMailer::Base.smtp_settings = {
+          address: ENV['SMTP_ADDRESS'],
+          port: ENV['SMTP_PORT'].to_i,
+          domain: ENV['SMTP_DOMAIN'],
+          user_name: ENV['SMTP_USERNAME'],
+          password: ENV['SMTP_PASSWORD'],
+          authentication: ENV['SMTP_AUTHENTICATION'].to_sym,
+          enable_starttls_auto: (ENV['SMTP_ENABLE_STARTTLS_AUTO']&.downcase == 'true') || true
+        }
+        ActionMailer::Base.default_options = { from: ENV['MAIL_FROM'] }
+      else
+        ActionMailer::Base.delivery_method = :letter_opener if Rails.env.development?
+      end
+    else
+      # Use database settings
+      smtp_enabled = AppSetting.get('smtp_enabled', false)
+      
+      if smtp_enabled
+        ActionMailer::Base.delivery_method = :smtp
+        ActionMailer::Base.smtp_settings = {
+          address: AppSetting.get('smtp_address'),
+          port: AppSetting.get('smtp_port', 587).to_i,
+          domain: AppSetting.get('smtp_domain'),
+          user_name: AppSetting.get('smtp_username'),
+          password: AppSetting.get('smtp_password'),
+          authentication: AppSetting.get('smtp_authentication', 'plain').to_sym,
+          enable_starttls_auto: true
+        }
+        ActionMailer::Base.default_options = { from: AppSetting.get('mail_from', 'no-reply@example.com') }
+      else
+        ActionMailer::Base.delivery_method = :letter_opener if Rails.env.development?
+      end
+    end
   end
 
   def log_admin_access_activity

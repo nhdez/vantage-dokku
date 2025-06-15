@@ -1,0 +1,222 @@
+<% content_for :title, "Linked Accounts" %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-link me-2 text-primary"></i>
+            Linked Accounts
+          </h1>
+          <p class="text-muted mb-0">Connect external services to enhance your workflow</p>
+        </div>
+        <div>
+          <%= link_to new_linked_account_path, class: "btn btn-primary" do %>
+            <i class="fas fa-plus me-2"></i>Link New Account
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-12">
+      <% if @linked_accounts.any? %>
+        <!-- Linked Accounts Grid -->
+        <div class="row">
+          <% @linked_accounts.each do |account| %>
+            <div class="col-md-6 col-lg-4 mb-4">
+              <div class="card shadow h-100">
+                <div class="card-body">
+                  <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                      <div class="text-xs font-weight-bold text-uppercase mb-1 text-<%= account.provider_color %>">
+                        <i class="<%= account.provider_icon %> me-1"></i>
+                        <%= account.provider.capitalize %>
+                      </div>
+                      <div class="h5 mb-0 font-weight-bold text-gray-800">
+                        <%= link_to account.display_name, linked_account_path(account), class: "text-decoration-none" %>
+                      </div>
+                      
+                      <% if account.account_email.present? %>
+                        <div class="text-muted small mb-2">
+                          <i class="fas fa-envelope me-1"></i>
+                          <%= account.account_email %>
+                        </div>
+                      <% end %>
+                      
+                      <!-- Connection Status -->
+                      <div class="mb-3">
+                        <span class="badge bg-<%= account.connection_status_color %> me-2">
+                          <i class="<%= account.connection_status_icon %> me-1"></i>
+                          <%= account.connection_status.humanize %>
+                        </span>
+                        <% if account.last_connected_at.present? %>
+                          <small class="text-muted">
+                            Last connected <%= time_ago_in_words(account.last_connected_at) %> ago
+                          </small>
+                        <% end %>
+                      </div>
+                      
+                      <!-- Quick Actions -->
+                      <div class="btn-group btn-group-sm w-100" role="group">
+                        <%= link_to linked_account_path(account), class: "btn btn-outline-primary btn-sm flex-fill" do %>
+                          <i class="fas fa-eye me-1"></i>View
+                        <% end %>
+                        <button class="btn btn-outline-success btn-sm flex-fill" onclick="testConnection('<%= test_connection_linked_account_path(account) %>', '<%= account.id %>')">
+                          <i class="fas fa-plug me-1"></i>Test
+                        </button>
+                        <%= link_to edit_linked_account_path(account), class: "btn btn-outline-secondary btn-sm flex-fill" do %>
+                          <i class="fas fa-edit me-1"></i>Edit
+                        <% end %>
+                      </div>
+                    </div>
+                    <div class="col-auto">
+                      <i class="<%= account.provider_icon %> fa-2x text-gray-300"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+        
+        <!-- Summary Info -->
+        <div class="row mt-4">
+          <div class="col-12">
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle me-2"></i>
+              You have <strong><%= @linked_accounts.count %></strong> linked account<%= 's' unless @linked_accounts.count == 1 %>.
+              <% active_count = @linked_accounts.count { |a| a.active? } %>
+              <% if active_count != @linked_accounts.count %>
+                <strong><%= active_count %></strong> of them are currently active.
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% else %>
+        <!-- Empty State -->
+        <div class="card shadow">
+          <div class="card-body text-center py-5">
+            <i class="fas fa-link fa-4x text-gray-300 mb-4"></i>
+            <h4 class="text-gray-600 mb-3">No Linked Accounts</h4>
+            <p class="text-muted mb-4">
+              Connect your external accounts to access repositories, deploy applications, and streamline your workflow.
+            </p>
+            
+            <!-- Available Providers -->
+            <div class="row justify-content-center">
+              <div class="col-md-8">
+                <h6 class="text-muted mb-3">Available Providers:</h6>
+                <div class="row">
+                  <% LinkedAccount::SUPPORTED_PROVIDERS.each do |provider| %>
+                    <div class="col-md-4 mb-3">
+                      <div class="card border-left-primary h-100">
+                        <div class="card-body text-center py-3">
+                          <i class="fab fa-<%= provider %> fa-2x text-<%= provider == 'github' ? 'dark' : 'primary' %> mb-2"></i>
+                          <h6 class="mb-1"><%= provider.capitalize %></h6>
+                          <small class="text-muted">
+                            <% case provider %>
+                            <% when 'github' %>
+                              Access your repositories and manage deployments
+                            <% end %>
+                          </small>
+                        </div>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+            
+            <%= link_to new_linked_account_path, class: "btn btn-primary btn-lg mt-3" do %>
+              <i class="fas fa-plus me-2"></i>Link Your First Account
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<script>
+function testConnection(url, accountId) {
+  const btn = event.target.closest('button');
+  const originalText = btn.innerHTML;
+  
+  // Show loading state
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Testing...';
+  
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+      'Content-Type': 'application/json',
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    // Reset button
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    
+    if (data.success) {
+      showToast('success', data.message, 'Connection Successful');
+      
+      // Reload page to show updated connection status
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } else {
+      showToast('error', data.message, 'Connection Failed');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    showToast('error', 'An unexpected error occurred while testing the connection.', 'Connection Error');
+  });
+}
+
+function showToast(type, message, title) {
+  // This function integrates with the app's existing toast system
+  const toastHtml = `
+    <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">
+          <strong>${title}:</strong> ${message}
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-mdb-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  `;
+  
+  const toastContainer = document.querySelector('.toast-container') || document.body;
+  toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+  
+  const toastElement = toastContainer.lastElementChild;
+  const toast = new mdb.Toast(toastElement);
+  toast.show();
+  
+  // Remove toast element after it's hidden
+  toastElement.addEventListener('hidden.mdb.toast', () => {
+    toastElement.remove();
+  });
+}
+</script>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+.border-left-primary {
+  border-left: 0.25rem solid #4e73df !important;
+}
+</style>

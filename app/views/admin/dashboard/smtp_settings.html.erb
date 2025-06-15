@@ -30,6 +30,12 @@
         </div>
         <div class="card-body">
           <%= form_with url: admin_smtp_settings_path, method: :patch, local: true, data: { controller: "smtp-settings" } do |f| %>
+            <% if @env_fully_configured %>
+              <div class="alert alert-info">
+                <i class="fas fa-lock me-2"></i>
+                Form is disabled because SMTP is fully configured via environment variables.
+              </div>
+            <% end %>
             <!-- Email Delivery Toggle -->
             <div class="row mb-4">
               <div class="col-12">
@@ -43,7 +49,7 @@
                       <div class="form-check form-switch">
                         <% smtp_enabled = AppSetting.get('smtp_enabled', false) %>
                         <%= f.check_box "smtp_enabled", 
-                            { checked: smtp_enabled, class: "form-check-input", id: "smtp_toggle", data: { "smtp-settings-target": "toggle", action: "change->smtp-settings#toggleSettings" } }, 
+                            { checked: smtp_enabled, class: "form-check-input", id: "smtp_toggle", data: { "smtp-settings-target": "toggle", action: "change->smtp-settings#toggleSettings" }, disabled: @env_fully_configured }, 
                             "true", "false" %>
                         <label for="smtp_toggle" class="form-check-label">
                           <span class="text-danger">Letter Opener</span> / <span class="text-success">SMTP</span>
@@ -62,10 +68,89 @@
               </div>
             </div>
 
+            <!-- Environment Variables Status -->
+            <% if @env_fully_configured %>
+              <!-- Fully Configured via Environment Variables -->
+              <div class="row mb-4">
+                <div class="col-12">
+                  <div class="alert alert-success">
+                    <h6><i class="fas fa-check-circle me-2"></i>SMTP Fully Configured via Environment Variables</h6>
+                    <p class="mb-3">All required SMTP settings are configured via environment variables. The form below is disabled.</p>
+                    <div class="row">
+                      <% @present_env_vars.each do |key, value| %>
+                        <div class="col-md-6 mb-2">
+                          <small>
+                            <i class="fas fa-check text-success me-1"></i>
+                            <code><%= key %></code>: 
+                            <% if key.include?('PASSWORD') %>
+                              <span class="text-muted">[HIDDEN]</span>
+                            <% else %>
+                              <code><%= value %></code>
+                            <% end %>
+                          </small>
+                        </div>
+                      <% end %>
+                    </div>
+                    <div class="mt-3 p-3 bg-light rounded">
+                      <h6 class="mb-2"><i class="fas fa-cog me-1"></i>Current Configuration:</h6>
+                      <p class="mb-1">
+                        <strong>Status:</strong> 
+                        <% if ENV['USE_REAL_EMAIL']&.downcase == 'true' %>
+                          <span class="text-success">SMTP Enabled</span> - Real emails will be sent via <%= ENV['SMTP_ADDRESS'] %>
+                        <% else %>
+                          <span class="text-warning">Letter Opener</span> - Emails will open in browser (development mode)
+                        <% end %>
+                      </p>
+                      <p class="mb-0"><strong>From Address:</strong> <code><%= ENV['MAIL_FROM'] %></code></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            <% elsif @using_env_variables %>
+              <!-- Partially Configured via Environment Variables -->
+              <div class="row mb-4">
+                <div class="col-12">
+                  <div class="alert alert-warning">
+                    <h6><i class="fas fa-exclamation-triangle me-2"></i>Incomplete Environment Variable Configuration</h6>
+                    <p class="mb-3">Some SMTP environment variables are set, but the configuration is incomplete. Please set all required variables or use the form below.</p>
+                    
+                    <div class="row mb-3">
+                      <div class="col-md-6">
+                        <h6 class="text-success">✅ Present Variables:</h6>
+                        <% @present_env_vars.each do |key, value| %>
+                          <small class="d-block">
+                            <i class="fas fa-check text-success me-1"></i>
+                            <code><%= key %></code>
+                          </small>
+                        <% end %>
+                      </div>
+                      <div class="col-md-6">
+                        <h6 class="text-danger">❌ Missing Variables:</h6>
+                        <% @missing_env_vars.each do |key| %>
+                          <small class="d-block">
+                            <i class="fas fa-times text-danger me-1"></i>
+                            <code><%= key %></code>
+                          </small>
+                        <% end %>
+                      </div>
+                    </div>
+                    
+                    <div class="alert alert-info mb-0">
+                      <small>
+                        <i class="fas fa-info-circle me-1"></i>
+                        To use environment variables exclusively, set all missing variables and restart the application.
+                        Otherwise, the form below will be used for missing settings.
+                      </small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+
             <!-- SMTP Settings (shown when enabled) -->
             <div id="smtp-settings" data-smtp-settings-target="container" style="<%= smtp_enabled ? '' : 'display: none;' %>">
               <div class="row">
-                <% @smtp_settings.reject { |s| s.key == 'smtp_enabled' }.each do |setting| %>
+                <% (@smtp_settings || []).reject { |s| s.key == 'smtp_enabled' }.each do |setting| %>
                   <div class="col-md-6 mb-4">
                     <div class="border rounded p-3 bg-light">
                       <div class="d-flex justify-content-between align-items-start mb-2">
@@ -86,7 +171,8 @@
                                 value: setting.typed_value, 
                                 class: "form-control",
                                 min: 0,
-                                id: "smtp_#{setting.key}" %>
+                                id: "smtp_#{setting.key}",
+                                disabled: @env_fully_configured %>
                             <label for="smtp_<%= setting.key %>" class="form-label"><%= setting.key.humanize %></label>
                           </div>
                         <% when 'string' %>
@@ -96,19 +182,21 @@
                                   value: setting.value, 
                                   class: "form-control",
                                   placeholder: "Enter SMTP password/secret key",
-                                  id: "smtp_#{setting.key}" %>
+                                  id: "smtp_#{setting.key}",
+                                  disabled: @env_fully_configured %>
                               <label for="smtp_<%= setting.key %>" class="form-label"><%= setting.key.humanize %></label>
                             </div>
                           <% elsif setting.key == 'smtp_authentication' %>
                             <%= f.select setting.key, 
                                 options_for_select([['Plain', 'plain'], ['Login', 'login'], ['CRAM-MD5', 'cram_md5']], setting.value), 
-                                {}, { class: "form-select", id: "smtp_#{setting.key}" } %>
+                                {}, { class: "form-select", id: "smtp_#{setting.key}", disabled: @env_fully_configured } %>
                           <% else %>
                             <div class="">
                               <%= f.text_field setting.key, 
                                   value: setting.value, 
                                   class: "form-control",
-                                  id: "smtp_#{setting.key}" %>
+                                  id: "smtp_#{setting.key}",
+                                  disabled: @env_fully_configured %>
                               <label for="smtp_<%= setting.key %>" class="form-label"><%= setting.key.humanize %></label>
                             </div>
                           <% end %>
@@ -121,7 +209,7 @@
             </div>
 
             <div class="d-flex justify-content-end mt-4">
-              <%= f.submit "Save SMTP Settings", class: "btn btn-primary btn-lg" %>
+              <%= f.submit "Save SMTP Settings", class: "btn btn-primary btn-lg", disabled: @env_fully_configured %>
             </div>
           <% end %>
         </div>

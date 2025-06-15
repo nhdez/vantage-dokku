@@ -9,6 +9,39 @@
  * Consider organizing styles into separate files for maintainability.
  */
 
+/* Global font settings - Inter font family */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+/* Improve Inter font rendering */
+.font-inter {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Override MDB default font for specific elements */
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+}
+
+.navbar-brand {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+}
+
+.btn {
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+}
+
+.form-label {
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+}
+
 /* OAuth Divider Styles */
 .divider {
   position: relative;

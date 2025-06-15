@@ -1,0 +1,221 @@
+<% content_for :title, "Edit #{@linked_account.display_name}" %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-edit me-2 text-primary"></i>
+            Edit <%= @linked_account.display_name %>
+          </h1>
+          <p class="text-muted mb-0">Update your <%= @linked_account.provider.capitalize %> account configuration</p>
+        </div>
+        <div>
+          <%= link_to linked_account_path(@linked_account), class: "btn btn-outline-secondary" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to Account
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="<%= @linked_account.provider_icon %> me-2"></i>Account Configuration
+          </h6>
+        </div>
+        <div class="card-body">
+          <%= form_with model: @linked_account, local: true, class: "needs-validation", novalidate: true do |form| %>
+            <% if @linked_account.errors.any? %>
+              <div class="alert alert-danger">
+                <h6><i class="fas fa-exclamation-triangle me-2"></i>Please fix the following errors:</h6>
+                <ul class="mb-0">
+                  <% @linked_account.errors.full_messages.each do |message| %>
+                    <li><%= message %></li>
+                  <% end %>
+                </ul>
+              </div>
+            <% end %>
+
+            <!-- Current Provider (readonly) -->
+            <div class="mb-4">
+              <label class="form-label fw-bold">Provider</label>
+              <div class="form-control-plaintext">
+                <span class="badge bg-<%= @linked_account.provider_color %> fs-6">
+                  <i class="<%= @linked_account.provider_icon %> me-1"></i>
+                  <%= @linked_account.provider.capitalize %>
+                </span>
+              </div>
+              <div class="form-text">Provider cannot be changed after account creation</div>
+            </div>
+
+            <!-- Access Token -->
+            <div class="mb-4">
+              <%= form.label :access_token, class: "form-label fw-bold" %>
+              <%= form.text_area :access_token, 
+                  class: "form-control", 
+                  required: true,
+                  rows: 3,
+                  placeholder: "Paste your updated access token here...",
+                  style: "font-family: monospace;" %>
+              <div class="form-text">
+                <i class="fas fa-info-circle me-1"></i>
+                Your access token is encrypted and stored securely. Only update if you've regenerated your token.
+              </div>
+            </div>
+
+            <!-- Optional Fields -->
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <%= form.label :account_username, "Username (Optional)", class: "form-label" %>
+                <%= form.text_field :account_username, 
+                    class: "form-control",
+                    placeholder: "e.g. your-username" %>
+                <div class="form-text">This is auto-detected but can be overridden</div>
+              </div>
+              <div class="col-md-6 mb-3">
+                <%= form.label :account_email, "Email (Optional)", class: "form-label" %>
+                <%= form.email_field :account_email, 
+                    class: "form-control",
+                    placeholder: "e.g. user@example.com" %>
+                <div class="form-text">This is auto-detected but can be overridden</div>
+              </div>
+            </div>
+
+            <!-- Active Toggle -->
+            <div class="mb-4">
+              <div class="form-check">
+                <%= form.check_box :active, class: "form-check-input" %>
+                <%= form.label :active, "Active", class: "form-check-label" %>
+              </div>
+              <div class="form-text">Inactive accounts won't be used for API calls</div>
+            </div>
+
+            <!-- Current Status Display -->
+            <div class="mb-4">
+              <label class="form-label fw-bold">Current Status</label>
+              <div class="form-control-plaintext">
+                <span class="badge bg-<%= @linked_account.connection_status_color %> me-2">
+                  <i class="<%= @linked_account.connection_status_icon %> me-1"></i>
+                  <%= @linked_account.connection_status.humanize %>
+                </span>
+                <% if @linked_account.last_connected_at.present? %>
+                  <small class="text-muted">
+                    Last connected <%= time_ago_in_words(@linked_account.last_connected_at) %> ago
+                  </small>
+                <% else %>
+                  <small class="text-muted">Never connected</small>
+                <% end %>
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+              <%= link_to linked_account_path(@linked_account), class: "btn btn-outline-secondary me-md-2" do %>
+                <i class="fas fa-times me-2"></i>Cancel
+              <% end %>
+              <%= form.submit "Update Account", class: "btn btn-primary" do %>
+                <i class="fas fa-save me-2"></i>Update Account
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+      
+      <!-- Test Connection After Update -->
+      <div class="card shadow mt-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>After Updating
+          </h6>
+        </div>
+        <div class="card-body">
+          <p class="mb-3">
+            <i class="fas fa-info-circle text-info me-2"></i>
+            After updating your access token, it's recommended to test the connection to ensure everything is working properly.
+          </p>
+          <button id="test-connection-btn" class="btn btn-outline-success" onclick="testConnection('<%= test_connection_linked_account_path(@linked_account) %>')">
+            <i class="fas fa-plug me-2"></i>Test Connection After Update
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function testConnection(url) {
+  const btn = document.getElementById('test-connection-btn');
+  const originalText = btn.innerHTML;
+  
+  // Show loading state
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Testing Connection...';
+  
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+      'Content-Type': 'application/json',
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    // Reset button
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    
+    if (data.success) {
+      showToast('success', data.message, 'Connection Successful');
+    } else {
+      showToast('error', data.message, 'Connection Failed');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    showToast('error', 'An unexpected error occurred while testing the connection.', 'Connection Error');
+  });
+}
+
+function showToast(type, message, title) {
+  // This function integrates with the app's existing toast system
+  const toastHtml = `
+    <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">
+          <strong>${title}:</strong> ${message}
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-mdb-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  `;
+  
+  const toastContainer = document.querySelector('.toast-container') || document.body;
+  toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+  
+  const toastElement = toastContainer.lastElementChild;
+  const toast = new mdb.Toast(toastElement);
+  toast.show();
+  
+  // Remove toast element after it's hidden
+  toastElement.addEventListener('hidden.mdb.toast', () => {
+    toastElement.remove();
+  });
+}
+</script>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+</style>
