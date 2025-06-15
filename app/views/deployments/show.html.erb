@@ -1,0 +1,384 @@
+<% content_for :title, @deployment.name %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-rocket me-2 text-primary"></i>
+            <%= @deployment.name %>
+          </h1>
+          <p class="text-muted mb-0">
+            Dokku application: <code class="text-info"><%= @deployment.dokku_app_name %></code>
+          </p>
+        </div>
+        <div>
+          <%= link_to edit_deployment_path(@deployment), class: "btn btn-primary me-2" do %>
+            <i class="fas fa-edit me-2"></i>Edit App
+          <% end %>
+          <%= link_to deployments_path, class: "btn btn-outline-secondary" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to Apps
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Application Information -->
+    <div class="col-md-8">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-info-circle me-2"></i>Application Information
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Application Name</h6>
+              <p class="h5 mb-0"><%= @deployment.name %></p>
+            </div>
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Dokku App Name</h6>
+              <p class="h5 mb-0">
+                <code class="text-info fs-6"><%= @deployment.dokku_app_name %></code>
+              </p>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Status</h6>
+              <p class="h5 mb-0">
+                <span class="badge <%= @deployment.status_badge_class %> fs-6">
+                  <i class="<%= @deployment.status_icon %> me-1"></i>
+                  <%= @deployment.status_text %>
+                </span>
+              </p>
+            </div>
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Target Server</h6>
+              <p class="h5 mb-0">
+                <div class="d-flex align-items-center">
+                  <i class="fas fa-server text-secondary me-2"></i>
+                  <%= link_to @deployment.server_name, @deployment.server, class: "text-decoration-none" %>
+                  <% if @deployment.server.dokku_installed? %>
+                    <span class="badge bg-success ms-2">Dokku Installed</span>
+                  <% else %>
+                    <span class="badge bg-warning text-dark ms-2">No Dokku</span>
+                  <% end %>
+                </div>
+              </p>
+            </div>
+          </div>
+          
+          <% if @deployment.description.present? %>
+            <div class="row">
+              <div class="col-md-12 mb-3">
+                <h6 class="text-muted">Description</h6>
+                <p class="mb-0"><%= @deployment.description %></p>
+              </div>
+            </div>
+          <% end %>
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Created</h6>
+              <p class="mb-0">
+                <%= @deployment.created_at.strftime("%B %d, %Y at %I:%M %p") %>
+                <small class="text-muted d-block"><%= time_ago_in_words(@deployment.created_at) %> ago</small>
+              </p>
+            </div>
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Last Updated</h6>
+              <p class="mb-0">
+                <%= @deployment.updated_at.strftime("%B %d, %Y at %I:%M %p") %>
+                <small class="text-muted d-block"><%= time_ago_in_words(@deployment.updated_at) %> ago</small>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deployment URL -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-globe me-2"></i>Application URL
+          </h6>
+        </div>
+        <div class="card-body">
+          <% if @deployment.dokku_url.present? %>
+            <div class="bg-dark text-white p-3 rounded position-relative">
+              <pre class="text-white mb-0" style="font-size: 0.875rem;"><%= @deployment.dokku_url %></pre>
+              <button class="btn btn-sm btn-outline-light position-absolute top-0 end-0 mt-2 me-2" 
+                      onclick="copyToClipboard(this)" 
+                      data-text="<%= @deployment.dokku_url %>">
+                <i class="fas fa-copy"></i> Copy
+              </button>
+            </div>
+            <div class="form-text mt-2 d-flex justify-content-between align-items-center">
+              <span>
+                <i class="fas fa-info-circle me-1"></i>
+                This is your application's public URL
+              </span>
+              <%= link_to root_path,
+                  target: "_blank", rel: "noopener", 
+                  class: "btn btn-sm btn-outline-primary" do %>
+                <i class="fas fa-external-link-alt me-1"></i>Visit App
+              <% end %>
+            </div>
+          <% else %>
+            <div class="text-center py-3">
+              <i class="fas fa-globe fa-2x text-muted mb-3"></i>
+              <h6 class="text-muted">URL Not Available</h6>
+              <p class="text-muted small mb-0">
+                The application URL will be available after deployment
+              </p>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- Deployment Instructions -->
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-terminal me-2"></i>Deployment Instructions
+          </h6>
+        </div>
+        <div class="card-body">
+          <p class="text-muted mb-3">
+            Deploy your application to Dokku using Git. Make sure you have SSH access to the server.
+          </p>
+          
+          <h6>1. Add Dokku remote to your Git repository:</h6>
+          <div class="bg-dark text-white p-3 rounded mb-3 position-relative">
+            <code class="text-white">git remote add dokku dokku@<%= @deployment.server.ip %>:<%= @deployment.dokku_app_name %></code>
+            <button class="btn btn-sm btn-outline-light position-absolute top-0 end-0 mt-2 me-2" 
+                    onclick="copyToClipboard(this)" 
+                    data-text="git remote add dokku dokku@<%= @deployment.server.ip %>:<%= @deployment.dokku_app_name %>">
+              <i class="fas fa-copy"></i>
+            </button>
+          </div>
+          
+          <h6>2. Deploy your application:</h6>
+          <div class="bg-dark text-white p-3 rounded mb-3 position-relative">
+            <code class="text-white">git push dokku main</code>
+            <button class="btn btn-sm btn-outline-light position-absolute top-0 end-0 mt-2 me-2" 
+                    onclick="copyToClipboard(this)" 
+                    data-text="git push dokku main">
+              <i class="fas fa-copy"></i>
+            </button>
+          </div>
+          
+          <% unless @deployment.can_deploy? %>
+            <div class="alert alert-warning">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              <strong>Deployment Requirements:</strong>
+              <% unless @deployment.server.dokku_installed? %>
+                Server must have Dokku installed.
+              <% end %>
+              <% unless @deployment.server.connection_status == 'connected' %>
+                Server connection must be verified.
+              <% end %>
+            </div>
+          <% end %>
+          
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>First Deployment:</strong> Dokku will automatically detect your application type and create the necessary containers.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions Sidebar -->
+    <div class="col-md-4">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-cogs me-2"></i>Quick Actions
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <% if @deployment.dokku_url.present? %>
+              <%= link_to @deployment.dokku_url, target: "_blank", rel: "noopener", class: "btn btn-outline-success" do %>
+                <i class="fas fa-external-link-alt me-2"></i>Visit Application
+              <% end %>
+            <% end %>
+            
+            <%= link_to create_dokku_app_deployment_path(@deployment), method: :post, 
+                class: "btn btn-primary",
+                data: { 
+                  confirm: "This will create the Dokku app '#{@deployment.dokku_app_name}' on the server. Continue?",
+                  turbo_method: :post
+                } do %>
+              <i class="fas fa-plus me-2"></i>Create Dokku App
+            <% end %>
+            
+            <%= link_to edit_deployment_path(@deployment), class: "btn btn-outline-primary" do %>
+              <i class="fas fa-edit me-2"></i>Edit Application
+            <% end %>
+            
+            <button class="btn btn-outline-secondary" onclick="copyToClipboard(this)" data-text="git remote add dokku dokku@<%= @deployment.server.ip %>:<%= @deployment.dokku_app_name %>">
+              <i class="fas fa-copy me-2"></i>Copy Git Remote
+            </button>
+            
+            <%= link_to deployment_path(@deployment), method: :delete, 
+                class: "btn btn-outline-danger",
+                data: { 
+                  confirm: "Are you sure you want to delete '#{@deployment.name}'? This action cannot be undone.",
+                  turbo_method: :delete
+                } do %>
+              <i class="fas fa-trash me-2"></i>Delete Application
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Configuration Menu -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-cog me-2"></i>Configuration
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <%= link_to configure_domain_deployment_path(@deployment), class: "btn btn-outline-primary" do %>
+              <i class="fas fa-globe me-2"></i>Configure Domain
+            <% end %>
+            
+            <%= link_to attach_ssh_keys_deployment_path(@deployment), class: "btn btn-outline-secondary" do %>
+              <i class="fas fa-key me-2"></i>Attach SSH Keys
+            <% end %>
+            
+            <%= link_to manage_environment_deployment_path(@deployment), class: "btn btn-outline-success" do %>
+              <i class="fas fa-cogs me-2"></i>Environment Variables
+            <% end %>
+            
+            <%= link_to configure_databases_deployment_path(@deployment), class: "btn btn-outline-info" do %>
+              <i class="fas fa-database me-2"></i>Configure Databases
+            <% end %>
+            
+            <%= link_to @deployment.server, class: "btn btn-outline-warning" do %>
+              <i class="fas fa-server me-2"></i>Manage Server
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Server Information -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-server me-2"></i>Server Details
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <h6 class="text-muted">Server Name</h6>
+            <p class="mb-0"><%= @deployment.server.name %></p>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-muted">IP Address</h6>
+            <code class="text-info"><%= @deployment.server.ip %></code>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-muted">Dokku Version</h6>
+            <% if @deployment.server.dokku_installed? %>
+              <span class="badge bg-success fs-6"><%= @deployment.server.formatted_dokku_version %></span>
+            <% else %>
+              <span class="text-muted">Not installed</span>
+            <% end %>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-muted">Connection Status</h6>
+            <span class="badge <%= @deployment.server.connection_status_badge_class %> fs-6">
+              <i class="<%= @deployment.server.connection_status_icon %> me-1"></i>
+              <%= @deployment.server.connection_status.titleize %>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deployment Status -->
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-chart-line me-2"></i>Deployment Status
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="text-center mb-3">
+            <span class="badge <%= @deployment.status_badge_class %> fs-6 px-3 py-2">
+              <i class="<%= @deployment.status_icon %> me-2"></i><%= @deployment.status_text %>
+            </span>
+          </div>
+          
+          <% if @deployment.can_deploy? %>
+            <div class="alert alert-success py-2">
+              <i class="fas fa-check-circle me-2"></i>
+              <strong>Ready to deploy!</strong> Server has Dokku installed and is connected.
+            </div>
+          <% else %>
+            <div class="alert alert-warning py-2">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              <strong>Deployment blocked:</strong> 
+              <% unless @deployment.server.dokku_installed? %>
+                Install Dokku on the server first.
+              <% end %>
+              <% unless @deployment.server.connection_status == 'connected' %>
+                Verify server connection.
+              <% end %>
+            </div>
+          <% end %>
+          
+          <div class="small text-muted mt-2">
+            <i class="fas fa-info-circle me-1"></i>
+            Deployment management features will be expanded in future updates.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function copyToClipboard(button) {
+  const text = button.getAttribute('data-text');
+  navigator.clipboard.writeText(text).then(function() {
+    const icon = button.querySelector('i');
+    const originalClasses = icon.className;
+    icon.className = 'fas fa-check';
+    
+    // Show success feedback
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-check me-2"></i>Copied!';
+    
+    setTimeout(() => {
+      button.innerHTML = originalText;
+    }, 2000);
+  }).catch(function(err) {
+    console.error('Failed to copy text: ', err);
+    alert('Failed to copy to clipboard');
+  });
+}
+</script>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+</style>

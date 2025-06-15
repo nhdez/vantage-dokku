@@ -11,6 +11,15 @@ class User < ApplicationRecord
   
   # Activity tracking
   has_many :activity_logs, dependent: :destroy
+  
+  # Server management
+  has_many :servers, dependent: :destroy
+  
+  # SSH key management
+  has_many :ssh_keys, dependent: :destroy
+  
+  # Deployment management
+  has_many :deployments, dependent: :destroy
 
   # Validations
   validates :first_name, :last_name, length: { maximum: 50 }, allow_blank: true

@@ -1,0 +1,385 @@
+<% content_for :title, "Environment Variables - #{@deployment.name}" %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-cogs me-2 text-primary"></i>
+            Environment Variables
+          </h1>
+          <p class="text-muted mb-0">Manage environment variables for <%= @deployment.name %></p>
+        </div>
+        <div>
+          <%= link_to @deployment, class: "btn btn-outline-secondary" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to App
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Environment Variables Form -->
+    <div class="col-md-8">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-cogs me-2"></i>Environment Variables Configuration
+          </h6>
+        </div>
+        <div class="card-body">
+          <%= form_with url: update_environment_deployment_path(@deployment), method: :post, local: true, id: "environment-form" do |form| %>
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle me-2"></i>
+              <strong>Important:</strong> Changes will be synced to the Dokku server immediately. 
+              Use uppercase letters, numbers, and underscores only for variable names.
+            </div>
+            
+            <div id="environment-variables-container">
+              <% if @environment_variables.any? %>
+                <% @environment_variables.each_with_index do |env_var, index| %>
+                  <div class="environment-variable-row mb-3 p-3 border rounded">
+                    <div class="row">
+                      <div class="col-md-3">
+                        <label class="form-label">Variable Name</label>
+                        <%= text_field_tag "environment_variables[#{index}][key]", env_var.key, 
+                            class: "form-control env-key-input", 
+                            placeholder: "e.g., DATABASE_URL",
+                            pattern: "[A-Z][A-Z0-9_]*",
+                            title: "Must start with a letter and contain only uppercase letters, numbers, and underscores" %>
+                      </div>
+                      <div class="col-md-4">
+                        <label class="form-label">Value</label>
+                        <div class="input-group">
+                          <%= text_area_tag "environment_variables[#{index}][value]", env_var.value, 
+                              class: "form-control env-value-input #{'sensitive-value' if env_var.sensitive?}", 
+                              rows: 1,
+                              placeholder: "Variable value" %>
+                          <% if env_var.sensitive? %>
+                            <button class="btn btn-outline-secondary toggle-visibility" type="button">
+                              <i class="fas fa-eye"></i>
+                            </button>
+                          <% end %>
+                        </div>
+                      </div>
+                      <div class="col-md-4">
+                        <label class="form-label">Description (Optional)</label>
+                        <%= text_field_tag "environment_variables[#{index}][description]", env_var.description, 
+                            class: "form-control", 
+                            placeholder: "Brief description" %>
+                      </div>
+                      <div class="col-md-1">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="button" class="btn btn-danger btn-sm d-block remove-env-var">
+                          <i class="fas fa-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                <% end %>
+              <% else %>
+                <div class="text-center py-4" id="no-variables-message">
+                  <i class="fas fa-cogs fa-3x text-muted mb-3"></i>
+                  <h5 class="text-muted">No Environment Variables</h5>
+                  <p class="text-muted mb-4">Add environment variables to configure your application.</p>
+                </div>
+              <% end %>
+            </div>
+            
+            <div class="d-flex gap-2 align-items-center mb-4">
+              <button type="button" id="add-env-var" class="btn btn-outline-primary">
+                <i class="fas fa-plus me-2"></i>Add Variable
+              </button>
+              <button type="button" id="add-common-vars" class="btn btn-outline-info">
+                <i class="fas fa-magic me-2"></i>Add Common Variables
+              </button>
+            </div>
+            
+            <div class="row">
+              <div class="col-12">
+                <div class="d-flex gap-2 align-items-center">
+                  <%= form.submit "Update Environment Variables", class: "btn btn-primary" %>
+                  <%= link_to "Cancel", @deployment, class: "btn btn-secondary" %>
+                  
+                  <div class="ms-auto">
+                    <small class="text-muted">
+                      <i class="fas fa-info-circle me-1"></i>
+                      Changes sync immediately to the server
+                    </small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Information Sidebar -->
+    <div class="col-md-4">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-info-circle me-2"></i>Current Variables
+          </h6>
+        </div>
+        <div class="card-body">
+          <% if @environment_variables.any? %>
+            <% @environment_variables.each do |env_var| %>
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="flex-grow-1">
+                  <strong class="d-block"><%= env_var.key %></strong>
+                  <% if env_var.description.present? %>
+                    <small class="text-muted"><%= env_var.description %></small>
+                  <% end %>
+                </div>
+                <div>
+                  <% if env_var.sensitive? %>
+                    <span class="badge bg-warning text-dark">
+                      <i class="fas fa-lock me-1"></i>Sensitive
+                    </span>
+                  <% else %>
+                    <span class="badge bg-success">Set</span>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+          <% else %>
+            <div class="text-center py-3">
+              <i class="fas fa-cogs fa-2x text-muted mb-2"></i>
+              <p class="text-muted mb-0">No variables configured</p>
+              <small class="text-muted">Add variables from the left</small>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-server me-2"></i>Deployment Info
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <h6 class="text-muted">Dokku App Name</h6>
+            <code class="text-info"><%= @deployment.dokku_app_name %></code>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-muted">Target Server</h6>
+            <div class="d-flex align-items-center">
+              <i class="fas fa-server text-secondary me-2"></i>
+              <%= @deployment.server_name %>
+            </div>
+            <small class="text-muted"><%= @deployment.server.ip %></small>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-lightbulb me-2"></i>Environment Variables Guide
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-success">
+            <i class="fas fa-check-circle me-2"></i>
+            <strong>Naming:</strong> Use UPPERCASE_WITH_UNDERSCORES format for variable names.
+          </div>
+          
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Common Variables:</strong> DATABASE_URL, REDIS_URL, SECRET_KEY, PORT, NODE_ENV
+          </div>
+          
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Security:</strong> Sensitive values like passwords and tokens are automatically detected and masked.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  let envVarIndex = <%= @environment_variables.count %>;
+  
+  // Add new environment variable
+  document.getElementById('add-env-var').addEventListener('click', function() {
+    addEnvironmentVariable('', '', '');
+  });
+  
+  // Add common environment variables
+  document.getElementById('add-common-vars').addEventListener('click', function() {
+    const commonVars = [
+      { key: 'NODE_ENV', value: 'production', description: 'Node.js environment' },
+      { key: 'PORT', value: '5000', description: 'Application port' },
+      { key: 'DATABASE_URL', value: '', description: 'Database connection string' },
+      { key: 'REDIS_URL', value: '', description: 'Redis connection string' },
+      { key: 'SECRET_KEY', value: '', description: 'Application secret key' }
+    ];
+    
+    commonVars.forEach(function(envVar) {
+      addEnvironmentVariable(envVar.key, envVar.value, envVar.description);
+    });
+  });
+  
+  // Remove environment variable
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('.remove-env-var')) {
+      e.target.closest('.environment-variable-row').remove();
+      updateNoVariablesMessage();
+    }
+  });
+  
+  // Toggle sensitive value visibility
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('.toggle-visibility')) {
+      const btn = e.target.closest('.toggle-visibility');
+      const input = btn.previousElementSibling;
+      const icon = btn.querySelector('i');
+      
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fas fa-eye-slash';
+      } else {
+        input.type = 'password';
+        icon.className = 'fas fa-eye';
+      }
+    }
+  });
+  
+  // Auto-detect sensitive variables and convert values to password type
+  document.addEventListener('input', function(e) {
+    if (e.target.classList.contains('env-key-input')) {
+      const key = e.target.value.toLowerCase();
+      const row = e.target.closest('.environment-variable-row');
+      const valueInput = row.querySelector('.env-value-input');
+      const inputGroup = valueInput.parentElement;
+      
+      if (key.includes('password') || key.includes('secret') || key.includes('token') || key.includes('key')) {
+        valueInput.classList.add('sensitive-value');
+        valueInput.type = 'password';
+        
+        // Add toggle button if not present
+        if (!inputGroup.querySelector('.toggle-visibility')) {
+          const toggleBtn = document.createElement('button');
+          toggleBtn.className = 'btn btn-outline-secondary toggle-visibility';
+          toggleBtn.type = 'button';
+          toggleBtn.innerHTML = '<i class="fas fa-eye"></i>';
+          inputGroup.appendChild(toggleBtn);
+        }
+      } else {
+        valueInput.classList.remove('sensitive-value');
+        valueInput.type = 'text';
+        
+        // Remove toggle button if present
+        const toggleBtn = inputGroup.querySelector('.toggle-visibility');
+        if (toggleBtn) {
+          toggleBtn.remove();
+        }
+      }
+    }
+  });
+  
+  function addEnvironmentVariable(key, value, description) {
+    const container = document.getElementById('environment-variables-container');
+    const noVarsMessage = document.getElementById('no-variables-message');
+    
+    if (noVarsMessage) {
+      noVarsMessage.remove();
+    }
+    
+    const isSensitive = key.toLowerCase().includes('password') || 
+                       key.toLowerCase().includes('secret') || 
+                       key.toLowerCase().includes('token') || 
+                       key.toLowerCase().includes('key');
+    
+    const html = `
+      <div class="environment-variable-row mb-3 p-3 border rounded">
+        <div class="row">
+          <div class="col-md-3">
+            <label class="form-label">Variable Name</label>
+            <input type="text" name="environment_variables[${envVarIndex}][key]" value="${key}" 
+                   class="form-control env-key-input" 
+                   placeholder="e.g., DATABASE_URL"
+                   pattern="[A-Z][A-Z0-9_]*"
+                   title="Must start with a letter and contain only uppercase letters, numbers, and underscores">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Value</label>
+            <div class="input-group">
+              <textarea name="environment_variables[${envVarIndex}][value]" 
+                        class="form-control env-value-input ${isSensitive ? 'sensitive-value' : ''}" 
+                        rows="1" placeholder="Variable value"
+                        ${isSensitive ? 'type="password"' : ''}>${value}</textarea>
+              ${isSensitive ? '<button class="btn btn-outline-secondary toggle-visibility" type="button"><i class="fas fa-eye"></i></button>' : ''}
+            </div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Description (Optional)</label>
+            <input type="text" name="environment_variables[${envVarIndex}][description]" value="${description}" 
+                   class="form-control" placeholder="Brief description">
+          </div>
+          <div class="col-md-1">
+            <label class="form-label">&nbsp;</label>
+            <button type="button" class="btn btn-danger btn-sm d-block remove-env-var">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', html);
+    envVarIndex++;
+  }
+  
+  function updateNoVariablesMessage() {
+    const container = document.getElementById('environment-variables-container');
+    const rows = container.querySelectorAll('.environment-variable-row');
+    
+    if (rows.length === 0) {
+      const html = `
+        <div class="text-center py-4" id="no-variables-message">
+          <i class="fas fa-cogs fa-3x text-muted mb-3"></i>
+          <h5 class="text-muted">No Environment Variables</h5>
+          <p class="text-muted mb-4">Add environment variables to configure your application.</p>
+        </div>
+      `;
+      container.innerHTML = html;
+    }
+  }
+});
+</script>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+.environment-variable-row {
+  transition: all 0.2s ease;
+}
+.environment-variable-row:hover {
+  background-color: #f8f9fc;
+}
+.sensitive-value {
+  font-family: monospace;
+}
+.input-group .toggle-visibility {
+  border-left: none;
+}
+.env-key-input {
+  text-transform: uppercase;
+}
+</style>

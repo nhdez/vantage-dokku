@@ -33,9 +33,6 @@ gem "pagy"
 # Search & Filtering
 gem "ransack"
 
-# Image Processing
-gem "image_processing", "~> 1.2"
-
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 # gem "bcrypt", "~> 3.1.7"
 
@@ -54,7 +51,11 @@ gem "bootsnap", require: false
 gem "thruster", require: false
 
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
-# gem "image_processing", "~> 1.2"
+gem "image_processing", "~> 1.2"
+
+gem "net-ssh", require: false
+gem "ed25519"
+gem "bcrypt_pbkdf"
 
 group :development do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
@@ -75,4 +76,6 @@ group :development do
   
   # Preview emails in browser during development
   gem "letter_opener"
+
+  gem "dotenv-rails"
 end

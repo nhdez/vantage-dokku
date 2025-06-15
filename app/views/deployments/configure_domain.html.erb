@@ -1,0 +1,476 @@
+<% content_for :title, "Domain Configuration - #{@deployment.name}" %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-globe me-2 text-primary"></i>
+            Domain Configuration
+          </h1>
+          <p class="text-muted mb-0">Manage custom domains for <%= @deployment.name %></p>
+        </div>
+        <div>
+          <%= link_to @deployment, class: "btn btn-outline-secondary" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to App
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Domain Configuration Form -->
+    <div class="col-md-8">
+      <!-- DNS Instructions Card -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-info text-white">
+          <h6 class="m-0 font-weight-bold">
+            <i class="fas fa-info-circle me-2"></i>Important: DNS Configuration Required
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-warning mb-3">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Before adding domains:</strong> You must create an A record in your DNS settings pointing to the server IP address.
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6">
+              <h6 class="text-muted">Required DNS Record</h6>
+              <div class="bg-dark text-white p-3 rounded">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <div><strong>Type:</strong> A</div>
+                    <div><strong>Name:</strong> @ (or your subdomain)</div>
+                    <div><strong>Value:</strong> <%= @deployment.server.ip %></div>
+                  </div>
+                  <button class="btn btn-sm btn-outline-light" 
+                          onclick="copyToClipboard(this)" 
+                          data-text="<%= @deployment.server.ip %>">
+                    <i class="fas fa-copy"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <h6 class="text-muted">Steps</h6>
+              <ol class="mb-0">
+                <li>Create A record in your DNS provider</li>
+                <li>Wait for DNS propagation (up to 24 hours)</li>
+                <li>Add domain below and save</li>
+                <li>SSL certificate will be automatically configured</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Domain Management Form -->
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-globe me-2"></i>Domain Names Configuration
+          </h6>
+        </div>
+        <div class="card-body">
+          <%= form_with url: update_domains_deployment_path(@deployment), method: :post, local: true, id: "domains-form" do |form| %>
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle me-2"></i>
+              <strong>SSL Certificates:</strong> Let's Encrypt SSL certificates will be automatically configured for all domains. 
+              The first domain will be set as the default domain for your application.
+            </div>
+            
+            <div class="alert alert-warning">
+              <i class="fas fa-clock me-2"></i>
+              <strong>Processing Time:</strong> Domain configuration and SSL certificate setup can take 5-10 minutes to complete. 
+              Please be patient while the system installs certificates and configures domains.
+            </div>
+            
+            <div id="domains-container">
+              <% if @domains.any? %>
+                <% @domains.each_with_index do |domain, index| %>
+                  <div class="domain-row mb-3 p-3 border rounded">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <label class="form-label">Domain Name</label>
+                        <%= text_field_tag "domains[#{index}][name]", domain.name, 
+                            class: "form-control domain-input", 
+                            placeholder: "e.g., example.com or app.example.com" %>
+                      </div>
+                      <div class="col-md-4">
+                        <label class="form-label">Settings</label>
+                        <div class="form-check">
+                          <%= check_box_tag "domains[#{index}][default_domain]", "1", domain.default_domain?, 
+                              class: "form-check-input default-domain-checkbox",
+                              id: "domain_default_#{index}" %>
+                          <%= label_tag "domain_default_#{index}", "Default Domain", class: "form-check-label" %>
+                        </div>
+                        <% if domain.ssl_enabled? %>
+                          <small class="text-success">
+                            <i class="fas fa-lock me-1"></i>SSL Enabled
+                          </small>
+                        <% elsif domain.ssl_error_message.present? %>
+                          <small class="text-danger">
+                            <i class="fas fa-exclamation-triangle me-1"></i>SSL Error
+                          </small>
+                        <% end %>
+                      </div>
+                      <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="button" class="btn btn-danger btn-sm d-block remove-domain">
+                          <i class="fas fa-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                <% end %>
+              <% else %>
+                <div class="text-center py-4" id="no-domains-message">
+                  <i class="fas fa-globe fa-3x text-muted mb-3"></i>
+                  <h5 class="text-muted">No Custom Domains</h5>
+                  <p class="text-muted mb-4">Your app is currently using the default Dokku domain.</p>
+                  <p class="text-info">
+                    <strong>Current URL:</strong> 
+                    <code><%= @deployment.dokku_url || "#{@deployment.dokku_app_name}.#{@deployment.server.ip}.nip.io" %></code>
+                  </p>
+                </div>
+              <% end %>
+            </div>
+            
+            <div class="d-flex gap-2 align-items-center mb-4">
+              <button type="button" id="add-domain" class="btn btn-outline-primary">
+                <i class="fas fa-plus me-2"></i>Add Domain
+              </button>
+              <button type="button" id="add-subdomain" class="btn btn-outline-info">
+                <i class="fas fa-magic me-2"></i>Add Common Subdomains
+              </button>
+            </div>
+            
+            <div class="row">
+              <div class="col-12">
+                <div class="d-flex gap-2 align-items-center">
+                  <%= form.submit "Update Domains & Configure SSL", class: "btn btn-primary", id: "domain-submit-btn", 
+                      data: { 
+                        loading_text: "Configuring domains... (this may take 5-10 minutes)",
+                        original_text: "Update Domains & Configure SSL"
+                      } %>
+                  <%= link_to "Cancel", @deployment, class: "btn btn-secondary" %>
+                  
+                  <div class="ms-auto">
+                    <small class="text-muted">
+                      <i class="fas fa-info-circle me-1"></i>
+                      Process may take 5-10 minutes
+                    </small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Information Sidebar -->
+    <div class="col-md-4">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-info-circle me-2"></i>Current Domains
+          </h6>
+        </div>
+        <div class="card-body">
+          <% if @domains.any? %>
+            <% @domains.each do |domain| %>
+              <div class="d-flex align-items-center justify-content-between mb-3">
+                <div class="flex-grow-1">
+                  <strong class="d-block">
+                    <%= domain.name %>
+                    <% if domain.default_domain? %>
+                      <small class="badge bg-primary ms-1">Default</small>
+                    <% end %>
+                  </strong>
+                  <small class="text-muted d-block">
+                    <% if domain.ssl_enabled? %>
+                      <i class="fas fa-lock text-success me-1"></i>SSL Active
+                    <% elsif domain.ssl_error_message.present? %>
+                      <i class="fas fa-exclamation-triangle text-danger me-1"></i>SSL Failed
+                    <% else %>
+                      <i class="fas fa-clock text-warning me-1"></i>SSL Pending
+                    <% end %>
+                  </small>
+                  <% if domain.ssl_enabled? %>
+                    <small class="text-success d-block">
+                      <%= link_to domain.full_url, domain.full_url, target: "_blank", class: "text-success" %>
+                    </small>
+                  <% end %>
+                </div>
+                <div>
+                  <span class="badge <%= domain.domain_status_class %>">
+                    <%= domain.domain_status_text %>
+                  </span>
+                </div>
+              </div>
+            <% end %>
+          <% else %>
+            <div class="text-center py-3">
+              <i class="fas fa-globe fa-2x text-muted mb-2"></i>
+              <p class="text-muted mb-0">No custom domains</p>
+              <small class="text-muted">Using default Dokku domain</small>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-server me-2"></i>Deployment Info
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <h6 class="text-muted">Dokku App Name</h6>
+            <code class="text-info"><%= @deployment.dokku_app_name %></code>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-muted">Target Server</h6>
+            <div class="d-flex align-items-center">
+              <i class="fas fa-server text-secondary me-2"></i>
+              <%= @deployment.server_name %>
+            </div>
+            <small class="text-muted"><%= @deployment.server.ip %></small>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-muted">Default URL</h6>
+            <div class="bg-dark text-white p-2 rounded small">
+              <code class="text-white"><%= @deployment.dokku_app_name %>.<%= @deployment.server.ip %>.nip.io</code>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-lightbulb me-2"></i>Domain Setup Guide
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-success">
+            <i class="fas fa-check-circle me-2"></i>
+            <strong>Automatic SSL:</strong> Let's Encrypt certificates are configured automatically for all domains.
+          </div>
+          
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>DNS Propagation:</strong> It may take up to 24 hours for DNS changes to take effect worldwide.
+          </div>
+          
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>SSL Requirements:</strong> Domain must be accessible via HTTP before SSL can be configured.
+          </div>
+          
+          <h6 class="mt-3">Popular DNS Providers:</h6>
+          <ul class="list-unstyled">
+            <li><i class="fas fa-external-link-alt me-2"></i><a href="https://www.cloudflare.com" target="_blank">Cloudflare</a></li>
+            <li><i class="fas fa-external-link-alt me-2"></i><a href="https://domains.google" target="_blank">Google Domains</a></li>
+            <li><i class="fas fa-external-link-alt me-2"></i><a href="https://www.namecheap.com" target="_blank">Namecheap</a></li>
+            <li><i class="fas fa-external-link-alt me-2"></i><a href="https://www.godaddy.com" target="_blank">GoDaddy</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  let domainIndex = <%= @domains.count %>;
+  
+  // Handle form submission loading state
+  document.getElementById('domains-form').addEventListener('submit', function(e) {
+    const submitBtn = document.getElementById('domain-submit-btn');
+    const loadingText = submitBtn.getAttribute('data-loading-text');
+    const originalText = submitBtn.getAttribute('data-original-text');
+    
+    submitBtn.value = loadingText;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>' + loadingText;
+    
+    // Show additional loading message
+    const form = e.target;
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'alert alert-info mt-3';
+    loadingDiv.innerHTML = `
+      <i class="fas fa-spinner fa-spin me-2"></i>
+      <strong>Processing domains...</strong> This process includes:
+      <ul class="mb-0 mt-2">
+        <li>Setting up domain configuration on Dokku</li>
+        <li>Installing Let's Encrypt plugin (if needed)</li>
+        <li>Requesting SSL certificates from Let's Encrypt</li>
+        <li>Validating domain ownership</li>
+      </ul>
+      <small class="d-block mt-2">Please do not close this page or navigate away.</small>
+    `;
+    form.appendChild(loadingDiv);
+  });
+  
+  // Add new domain
+  document.getElementById('add-domain').addEventListener('click', function() {
+    addDomain('', false);
+  });
+  
+  // Add common subdomains
+  document.getElementById('add-subdomain').addEventListener('click', function() {
+    const baseDomain = prompt('Enter your base domain (e.g., example.com):');
+    if (baseDomain && baseDomain.trim()) {
+      const subdomains = ['www', 'api', 'app', 'admin'];
+      subdomains.forEach(function(subdomain, index) {
+        const fullDomain = subdomain + '.' + baseDomain.trim();
+        const isDefault = index === 0; // Make www. the default
+        addDomain(fullDomain, isDefault);
+      });
+    }
+  });
+  
+  // Remove domain
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('.remove-domain')) {
+      e.target.closest('.domain-row').remove();
+      updateNoDomainsMessage();
+      updateDefaultDomainCheckboxes();
+    }
+  });
+  
+  // Handle default domain checkbox changes
+  document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('default-domain-checkbox')) {
+      if (e.target.checked) {
+        // Uncheck all other default domain checkboxes
+        document.querySelectorAll('.default-domain-checkbox').forEach(function(checkbox) {
+          if (checkbox !== e.target) {
+            checkbox.checked = false;
+          }
+        });
+      }
+    }
+  });
+  
+  // Validate domain names
+  document.addEventListener('input', function(e) {
+    if (e.target.classList.contains('domain-input')) {
+      const domain = e.target.value.toLowerCase().trim();
+      e.target.value = domain;
+      
+      // Basic domain validation
+      const domainRegex = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/;
+      if (domain && !domainRegex.test(domain)) {
+        e.target.classList.add('is-invalid');
+      } else {
+        e.target.classList.remove('is-invalid');
+      }
+    }
+  });
+  
+  function addDomain(domainName, isDefault) {
+    const container = document.getElementById('domains-container');
+    const noDomainsMessage = document.getElementById('no-domains-message');
+    
+    if (noDomainsMessage) {
+      noDomainsMessage.remove();
+    }
+    
+    const html = `
+      <div class="domain-row mb-3 p-3 border rounded">
+        <div class="row">
+          <div class="col-md-6">
+            <label class="form-label">Domain Name</label>
+            <input type="text" name="domains[${domainIndex}][name]" value="${domainName}" 
+                   class="form-control domain-input" 
+                   placeholder="e.g., example.com or app.example.com">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Settings</label>
+            <div class="form-check">
+              <input type="checkbox" name="domains[${domainIndex}][default_domain]" value="1" 
+                     class="form-check-input default-domain-checkbox"
+                     id="domain_default_${domainIndex}" ${isDefault ? 'checked' : ''}>
+              <label for="domain_default_${domainIndex}" class="form-check-label">Default Domain</label>
+            </div>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">&nbsp;</label>
+            <button type="button" class="btn btn-danger btn-sm d-block remove-domain">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', html);
+    domainIndex++;
+    
+    // If this is marked as default, uncheck others
+    if (isDefault) {
+      updateDefaultDomainCheckboxes();
+    }
+  }
+  
+  function updateNoDomainsMessage() {
+    const container = document.getElementById('domains-container');
+    const rows = container.querySelectorAll('.domain-row');
+    
+    if (rows.length === 0) {
+      const html = `
+        <div class="text-center py-4" id="no-domains-message">
+          <i class="fas fa-globe fa-3x text-muted mb-3"></i>
+          <h5 class="text-muted">No Custom Domains</h5>
+          <p class="text-muted mb-4">Your app is currently using the default Dokku domain.</p>
+          <p class="text-info">
+            <strong>Current URL:</strong> 
+            <code><%= @deployment.dokku_app_name %>.<%= @deployment.server.ip %>.nip.io</code>
+          </p>
+        </div>
+      `;
+      container.innerHTML = html;
+    }
+  }
+  
+  function updateDefaultDomainCheckboxes() {
+    const checkboxes = document.querySelectorAll('.default-domain-checkbox');
+    const checkedBoxes = document.querySelectorAll('.default-domain-checkbox:checked');
+    
+    // If no checkbox is checked and we have domains, check the first one
+    if (checkedBoxes.length === 0 && checkboxes.length > 0) {
+      checkboxes[0].checked = true;
+    }
+  }
+});
+
+function copyToClipboard(button) {
+  const text = button.getAttribute('data-text');
+  navigator.clipboard.writeText(text).then(function() {
+    const originalHtml = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-check"></i>';
+    setTimeout(function() {
+      button.innerHTML = originalHtml;
+    }, 2000);
+  });
+}
+</script>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+</style>

@@ -123,7 +123,32 @@
                   <%= AppSetting.get('maintenance_mode', false) ? 'Active' : 'Inactive' %>
                 </span>
               </li>
+              <li class="mb-2">
+                <strong>Dokku Install Version:</strong> 
+                <span class="badge bg-info">
+                  v<%= AppSetting.dokku_install_version %>
+                </span>
+              </li>
             </ul>
+          </div>
+
+          <div class="mb-4">
+            <h6 class="text-muted mb-2">Dokku Configuration</h6>
+            <div class="border rounded p-3 bg-light">
+              <div class="row">
+                <div class="col-6">
+                  <strong>Install Version:</strong><br>
+                  <span class="badge bg-info fs-6">v<%= AppSetting.dokku_install_version %></span>
+                </div>
+                <div class="col-6">
+                  <strong>Status:</strong><br>
+                  <span class="badge bg-success">Ready for Installation</span>
+                </div>
+              </div>
+              <small class="text-muted mt-2 d-block">
+                This version will be used when installing Dokku on new servers.
+              </small>
+            </div>
           </div>
 
           <div class="alert alert-warning">

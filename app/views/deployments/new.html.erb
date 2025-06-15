@@ -1,0 +1,186 @@
+<% content_for :title, "Create App" %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-plus me-2 text-primary"></i>
+            Create New App
+          </h1>
+          <p class="text-muted mb-0">Create a new Dokku application for deployment</p>
+        </div>
+        <div>
+          <%= link_to deployments_path, class: "btn btn-outline-secondary" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to Apps
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Form -->
+    <div class="col-md-8">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-rocket me-2"></i>Application Details
+          </h6>
+        </div>
+        <div class="card-body">
+          <%= form_with model: @deployment, local: true, class: "needs-validation", novalidate: true do |form| %>
+            <div class="row">
+              <div class="col-md-12 mb-3">
+                <%= form.label :name, "Application Name", class: "form-label" %>
+                <%= form.text_field :name, class: "form-control #{'is-invalid' if @deployment.errors[:name].any?}", 
+                    placeholder: "e.g., My Portfolio Website, Blog API, E-commerce Store" %>
+                <% if @deployment.errors[:name].any? %>
+                  <div class="invalid-feedback">
+                    <%= @deployment.errors[:name].first %>
+                  </div>
+                <% end %>
+                <div class="form-text">Choose a descriptive name for your application</div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-12 mb-3">
+                <%= form.label :server_id, "Target Server", class: "form-label" %>
+                <%= form.select :server_id, 
+                    options_from_collection_for_select(@available_servers, :id, :display_name, @deployment.server_id),
+                    { prompt: "Select a server with Dokku installed..." },
+                    { class: "form-select #{'is-invalid' if @deployment.errors[:server].any?}" } %>
+                <% if @deployment.errors[:server].any? %>
+                  <div class="invalid-feedback">
+                    <%= @deployment.errors[:server].first %>
+                  </div>
+                <% end %>
+                <div class="form-text">
+                  Choose which server will host this application. Only servers with Dokku installed are shown.
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-12 mb-3">
+                <%= form.label :description, "Description (Optional)", class: "form-label" %>
+                <%= form.text_area :description, rows: 3, class: "form-control #{'is-invalid' if @deployment.errors[:description].any?}", 
+                    placeholder: "Brief description of your application..." %>
+                <% if @deployment.errors[:description].any? %>
+                  <div class="invalid-feedback">
+                    <%= @deployment.errors[:description].first %>
+                  </div>
+                <% end %>
+                <div class="form-text">Optional description to help you identify this application</div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-12">
+                <div class="alert alert-info">
+                  <i class="fas fa-info-circle me-2"></i>
+                  <strong>Dokku App Name:</strong> A unique internal name will be automatically generated for this app 
+                  (e.g., "brave-butterfly-kingdom"). This will be used for deployments and URL generation.
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-12">
+                <div class="d-flex gap-2">
+                  <%= form.submit "Create Application", class: "btn btn-primary" %>
+                  <%= link_to "Cancel", deployments_path, class: "btn btn-secondary" %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Help Sidebar -->
+    <div class="col-md-4">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-question-circle me-2"></i>What is a Dokku App?
+          </h6>
+        </div>
+        <div class="card-body">
+          <p class="small">
+            A Dokku application is a containerized deployment that runs on your server. 
+            Each app gets its own isolated environment and can be deployed using Git.
+          </p>
+          
+          <h6 class="mt-3">Features:</h6>
+          <ul class="small">
+            <li>Automatic HTTPS with Let's Encrypt</li>
+            <li>Zero-downtime deployments</li>
+            <li>Built-in database support</li>
+            <li>Custom domain support</li>
+            <li>Environment variable management</li>
+          </ul>
+          
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Note:</strong> You need at least one server with Dokku installed to create applications.
+          </div>
+        </div>
+      </div>
+
+      <% if @available_servers.any? %>
+        <div class="card shadow">
+          <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+              <i class="fas fa-server me-2"></i>Available Servers
+            </h6>
+          </div>
+          <div class="card-body">
+            <% @available_servers.each do |server| %>
+              <div class="d-flex align-items-center mb-2">
+                <i class="fas fa-server text-success me-2"></i>
+                <div class="flex-grow-1">
+                  <strong><%= server.name %></strong>
+                  <br><small class="text-muted"><%= server.ip %></small>
+                </div>
+                <span class="badge bg-success fs-6">
+                  <i class="fas fa-check me-1"></i>Dokku
+                </span>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% else %>
+        <div class="card shadow">
+          <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+              <i class="fas fa-exclamation-triangle me-2"></i>No Servers Available
+            </h6>
+          </div>
+          <div class="card-body">
+            <p class="text-muted small">
+              You need to have at least one server with Dokku installed to create applications.
+            </p>
+            <div class="d-grid">
+              <%= link_to servers_path, class: "btn btn-outline-primary btn-sm" do %>
+                <i class="fas fa-server me-2"></i>Manage Servers
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+</style>

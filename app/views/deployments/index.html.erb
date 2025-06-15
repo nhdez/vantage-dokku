@@ -1,0 +1,151 @@
+<% content_for :title, "Apps" %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-rocket me-2 text-primary"></i>
+            Apps
+          </h1>
+          <p class="text-muted mb-0">Manage your Dokku application deployments</p>
+        </div>
+        <div>
+          <%= link_to new_deployment_path, class: "btn btn-primary" do %>
+            <i class="fas fa-plus me-2"></i>Create App
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Deployments List -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-list me-2"></i>Your Applications (<%= @deployments.count %>)
+          </h6>
+        </div>
+        <div class="card-body">
+          <% if @deployments.any? %>
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th scope="col">App Name</th>
+                    <th scope="col">Dokku Name</th>
+                    <th scope="col">Server</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">URL</th>
+                    <th scope="col">Created</th>
+                    <th scope="col" class="text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% @deployments.each do |deployment| %>
+                    <tr>
+                      <td>
+                        <div class="d-flex align-items-center">
+                          <i class="fas fa-rocket text-primary me-2"></i>
+                          <div>
+                            <strong><%= link_to deployment.name, deployment, class: "text-decoration-none" %></strong>
+                            <% if deployment.description.present? %>
+                              <br><small class="text-muted"><%= truncate(deployment.description, length: 50) %></small>
+                            <% end %>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <code class="text-info small"><%= deployment.dokku_app_name %></code>
+                      </td>
+                      <td>
+                        <div class="d-flex align-items-center">
+                          <i class="fas fa-server text-secondary me-1"></i>
+                          <%= link_to deployment.server_name, deployment.server, class: "text-decoration-none" %>
+                          <% unless deployment.server.dokku_installed? %>
+                            <br><small class="text-warning">
+                              <i class="fas fa-exclamation-triangle me-1"></i>No Dokku
+                            </small>
+                          <% end %>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="badge <%= deployment.status_badge_class %> fs-6">
+                          <i class="<%= deployment.status_icon %> me-1"></i>
+                          <%= deployment.status_text %>
+                        </span>
+                      </td>
+                      <td>
+                        <% if deployment.dokku_url.present? %>
+                          <%= link_to root_path,
+                              target: "_blank", rel: "noopener", 
+                              class: "text-decoration-none small" do %>
+                            <i class="fas fa-external-link-alt me-1"></i>
+                            <%= truncate(deployment.dokku_url, length: 30) %>
+                          <% end %>
+                        <% else %>
+                          <span class="text-muted small">Not available</span>
+                        <% end %>
+                      </td>
+                      <td>
+                        <%= deployment.created_at.strftime("%b %d, %Y") %>
+                        <br><small class="text-muted"><%= time_ago_in_words(deployment.created_at) %> ago</small>
+                      </td>
+                      <td class="text-center">
+                        <div class="btn-group" role="group">
+                          <%= link_to deployment, class: "btn btn-sm btn-outline-primary" do %>
+                            <i class="fas fa-eye"></i>
+                          <% end %>
+                          <%= link_to edit_deployment_path(deployment), class: "btn btn-sm btn-outline-secondary" do %>
+                            <i class="fas fa-edit"></i>
+                          <% end %>
+                          <%= link_to deployment_path(deployment), method: :delete,
+                              class: "btn btn-sm btn-outline-danger",
+                              data: { 
+                                confirm: "Are you sure you want to delete '#{deployment.name}'? This action cannot be undone.",
+                                turbo_method: :delete
+                              } do %>
+                            <i class="fas fa-trash"></i>
+                          <% end %>
+                        </div>
+                      </td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+            
+            <!-- Pagination -->
+            <% if respond_to?(:pagy_nav) && @pagy.pages > 1 %>
+              <div class="d-flex justify-content-center mt-4">
+                <%== pagy_nav(@pagy) %>
+              </div>
+            <% end %>
+          <% else %>
+            <div class="text-center py-5">
+              <i class="fas fa-rocket fa-3x text-muted mb-3"></i>
+              <h5 class="text-muted">No applications found</h5>
+              <p class="text-muted mb-4">Create your first Dokku application to get started with deployments.</p>
+              <%= link_to new_deployment_path, class: "btn btn-primary" do %>
+                <i class="fas fa-plus me-2"></i>Create Your First App
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+</style>

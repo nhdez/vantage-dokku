@@ -1,0 +1,198 @@
+<% content_for :title, "Edit #{@deployment.name}" %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-edit me-2 text-primary"></i>
+            Edit Application
+          </h1>
+          <p class="text-muted mb-0">Update application: <%= @deployment.name %></p>
+        </div>
+        <div>
+          <%= link_to @deployment, class: "btn btn-outline-secondary me-2" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to App
+          <% end %>
+          <%= link_to deployments_path, class: "btn btn-outline-secondary" do %>
+            <i class="fas fa-list me-2"></i>All Apps
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Form -->
+    <div class="col-md-8">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-rocket me-2"></i>Application Details
+          </h6>
+        </div>
+        <div class="card-body">
+          <%= form_with model: @deployment, local: true, class: "needs-validation", novalidate: true do |form| %>
+            <div class="row">
+              <div class="col-md-12 mb-3">
+                <%= form.label :name, "Application Name", class: "form-label" %>
+                <%= form.text_field :name, class: "form-control #{'is-invalid' if @deployment.errors[:name].any?}", 
+                    placeholder: "e.g., My Portfolio Website, Blog API, E-commerce Store" %>
+                <% if @deployment.errors[:name].any? %>
+                  <div class="invalid-feedback">
+                    <%= @deployment.errors[:name].first %>
+                  </div>
+                <% end %>
+                <div class="form-text">Choose a descriptive name for your application</div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-12 mb-3">
+                <%= form.label :server_id, "Target Server", class: "form-label" %>
+                <%= form.select :server_id, 
+                    options_from_collection_for_select(@available_servers, :id, :display_name, @deployment.server_id),
+                    { prompt: "Select a server with Dokku installed..." },
+                    { class: "form-select #{'is-invalid' if @deployment.errors[:server].any?}" } %>
+                <% if @deployment.errors[:server].any? %>
+                  <div class="invalid-feedback">
+                    <%= @deployment.errors[:server].first %>
+                  </div>
+                <% end %>
+                <div class="form-text">
+                  Choose which server will host this application.
+                  <% if @deployment.server_id.present? && !@deployment.server.dokku_installed? %>
+                    <br><span class="text-warning">
+                      <i class="fas fa-exclamation-triangle me-1"></i>
+                      Current server doesn't have Dokku installed.
+                    </span>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-12 mb-3">
+                <%= form.label :description, "Description (Optional)", class: "form-label" %>
+                <%= form.text_area :description, rows: 3, class: "form-control #{'is-invalid' if @deployment.errors[:description].any?}", 
+                    placeholder: "Brief description of your application..." %>
+                <% if @deployment.errors[:description].any? %>
+                  <div class="invalid-feedback">
+                    <%= @deployment.errors[:description].first %>
+                  </div>
+                <% end %>
+                <div class="form-text">Optional description to help you identify this application</div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-12">
+                <div class="alert alert-info">
+                  <i class="fas fa-info-circle me-2"></i>
+                  <strong>Dokku App Name:</strong> <%= @deployment.dokku_app_name %>
+                  <br><small>This internal name cannot be changed after creation.</small>
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-12">
+                <div class="d-flex gap-2">
+                  <%= form.submit "Update Application", class: "btn btn-primary" %>
+                  <%= link_to "Cancel", @deployment, class: "btn btn-secondary" %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Info Sidebar -->
+    <div class="col-md-4">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-info-circle me-2"></i>Current App Details
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <h6 class="text-muted">Dokku Name</h6>
+            <code class="text-info"><%= @deployment.dokku_app_name %></code>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-muted">Current Server</h6>
+            <div class="d-flex align-items-center">
+              <i class="fas fa-server text-secondary me-2"></i>
+              <%= @deployment.server_name %>
+              <% if @deployment.server.dokku_installed? %>
+                <span class="badge bg-success ms-2">Dokku</span>
+              <% else %>
+                <span class="badge bg-warning text-dark ms-2">No Dokku</span>
+              <% end %>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-muted">Status</h6>
+            <span class="badge <%= @deployment.status_badge_class %> fs-6">
+              <i class="<%= @deployment.status_icon %> me-1"></i>
+              <%= @deployment.status_text %>
+            </span>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-muted">URL</h6>
+            <% if @deployment.dokku_url.present? %>
+              <%= link_to @deployment.dokku_url, @deployment.dokku_url, 
+                  target: "_blank", rel: "noopener", 
+                  class: "text-decoration-none small" %>
+            <% else %>
+              <span class="text-muted">Not available</span>
+            <% end %>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-muted">Created</h6>
+            <p class="mb-0">
+              <%= @deployment.created_at.strftime("%B %d, %Y at %I:%M %p") %>
+              <small class="text-muted d-block"><%= time_ago_in_words(@deployment.created_at) %> ago</small>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-lightbulb me-2"></i>Editing Tips
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Server Changes:</strong> Changing the server will require redeploying your application.
+          </div>
+          
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Dokku Name:</strong> The internal Dokku app name cannot be changed after creation to maintain deployment consistency.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+</style>

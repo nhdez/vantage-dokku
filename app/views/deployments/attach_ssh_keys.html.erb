@@ -1,0 +1,212 @@
+<% content_for :title, "Attach SSH Keys - #{@deployment.name}" %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-key me-2 text-primary"></i>
+            Attach SSH Keys
+          </h1>
+          <p class="text-muted mb-0">Manage SSH key access for <%= @deployment.name %></p>
+        </div>
+        <div>
+          <%= link_to @deployment, class: "btn btn-outline-secondary" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to App
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- SSH Key Selection Form -->
+    <div class="col-md-8">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-key me-2"></i>Select SSH Keys for Deployment Access
+          </h6>
+        </div>
+        <div class="card-body">
+          <%= form_with url: update_ssh_keys_deployment_path(@deployment), method: :post, local: true do |form| %>
+            <% if @available_ssh_keys.any? %>
+              <p class="text-muted mb-3">
+                Select which SSH keys should have deployment access to this application. 
+                Selected keys will be added to <code>/home/dokku/.ssh/authorized_keys</code> on the server.
+              </p>
+              
+              <div class="row">
+                <% @available_ssh_keys.each do |ssh_key| %>
+                  <div class="col-md-6 mb-3">
+                    <div class="card border <%= @attached_ssh_keys.include?(ssh_key) ? 'border-success' : 'border-light' %>">
+                      <div class="card-body p-3">
+                        <div class="form-check">
+                          <%= form.check_box :ssh_key_ids, 
+                              { 
+                                multiple: true, 
+                                checked: @attached_ssh_keys.include?(ssh_key),
+                                class: "form-check-input",
+                                id: "ssh_key_#{ssh_key.id}"
+                              }, 
+                              ssh_key.id, 
+                              "" %>
+                          <%= form.label "ssh_key_#{ssh_key.id}", class: "form-check-label flex-grow-1" do %>
+                            <div class="d-flex align-items-center">
+                              <i class="fas fa-key text-primary me-2"></i>
+                              <div class="flex-grow-1">
+                                <strong><%= ssh_key.name %></strong>
+                                <br>
+                                <small class="text-muted">
+                                  <span class="badge bg-secondary"><%= ssh_key.key_type || 'Unknown' %></span>
+                                  <span class="badge <%= ssh_key.status_badge_class %> ms-1">
+                                    <%= ssh_key.status_text %>
+                                  </span>
+                                </small>
+                                <% if ssh_key.fingerprint.present? %>
+                                  <br><code class="text-muted small"><%= truncate(ssh_key.fingerprint, length: 25) %></code>
+                                <% end %>
+                              </div>
+                            </div>
+                          <% end %>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+              
+              <div class="row">
+                <div class="col-12">
+                  <div class="d-flex gap-2 align-items-center">
+                    <%= form.submit "Update SSH Keys", class: "btn btn-primary" %>
+                    <%= link_to "Cancel", @deployment, class: "btn btn-secondary" %>
+                    
+                    <div class="ms-auto">
+                      <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Changes will be synced to the server immediately
+                      </small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            <% else %>
+              <div class="text-center py-4">
+                <i class="fas fa-key fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No SSH Keys Available</h5>
+                <p class="text-muted mb-4">You need to add SSH keys before you can attach them to deployments.</p>
+                <%= link_to new_ssh_key_path, class: "btn btn-primary" do %>
+                  <i class="fas fa-plus me-2"></i>Add Your First SSH Key
+                <% end %>
+              </div>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Information Sidebar -->
+    <div class="col-md-4">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-info-circle me-2"></i>Currently Attached Keys
+          </h6>
+        </div>
+        <div class="card-body">
+          <% if @attached_ssh_keys.any? %>
+            <% @attached_ssh_keys.each do |ssh_key| %>
+              <div class="d-flex align-items-center mb-2">
+                <i class="fas fa-key text-success me-2"></i>
+                <div class="flex-grow-1">
+                  <strong><%= ssh_key.name %></strong>
+                  <br><small class="text-muted"><%= ssh_key.key_type %></small>
+                </div>
+                <span class="badge bg-success">Attached</span>
+              </div>
+            <% end %>
+          <% else %>
+            <div class="text-center py-3">
+              <i class="fas fa-key fa-2x text-muted mb-2"></i>
+              <p class="text-muted mb-0">No SSH keys attached</p>
+              <small class="text-muted">Select keys from the left to attach them</small>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-server me-2"></i>Deployment Info
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <h6 class="text-muted">Dokku App Name</h6>
+            <code class="text-info"><%= @deployment.dokku_app_name %></code>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-muted">Target Server</h6>
+            <div class="d-flex align-items-center">
+              <i class="fas fa-server text-secondary me-2"></i>
+              <%= @deployment.server_name %>
+            </div>
+            <small class="text-muted"><%= @deployment.server.ip %></small>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-muted">Git Remote</h6>
+            <div class="bg-dark text-white p-2 rounded small">
+              <code class="text-white">dokku@<%= @deployment.server.ip %>:<%= @deployment.dokku_app_name %></code>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-lightbulb me-2"></i>How SSH Keys Work
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Deployment Access:</strong> Attached SSH keys will be added to the Dokku server's authorized_keys file.
+          </div>
+          
+          <div class="alert alert-success">
+            <i class="fas fa-check-circle me-2"></i>
+            <strong>Security:</strong> Only users with the corresponding private keys can deploy to this application.
+          </div>
+          
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Important:</strong> Changes sync immediately to the server. Make sure you have at least one working key attached.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+.form-check-label {
+  cursor: pointer;
+  width: 100%;
+}
+.card.border-success {
+  border-color: #28a745 !important;
+}
+</style>

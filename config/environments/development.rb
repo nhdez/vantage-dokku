@@ -73,4 +73,11 @@ Rails.application.configure do
   # Better Errors configuration
   config.web_console.whitelisted_ips = '0.0.0.0/0' if defined?(BetterErrors)
   BetterErrors.application_root = __dir__ if defined?(BetterErrors)
+  
+  # Active Record Encryption configuration for development
+  if ENV['ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY'].present?
+    config.active_record.encryption.primary_key = ENV['ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY']
+    config.active_record.encryption.deterministic_key = ENV['ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY']
+    config.active_record.encryption.key_derivation_salt = ENV['ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT']
+  end
 end

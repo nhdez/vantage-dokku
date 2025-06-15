@@ -1,0 +1,140 @@
+<% content_for :title, "SSH Keys" %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-key me-2 text-primary"></i>
+            SSH Keys
+          </h1>
+          <p class="text-muted mb-0">Manage your SSH public keys for server access</p>
+        </div>
+        <div>
+          <%= link_to new_ssh_key_path, class: "btn btn-primary" do %>
+            <i class="fas fa-plus me-2"></i>Add SSH Key
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SSH Keys List -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-list me-2"></i>Your SSH Keys (<%= @ssh_keys.count %>)
+          </h6>
+        </div>
+        <div class="card-body">
+          <% if @ssh_keys.any? %>
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Key Type</th>
+                    <th scope="col">Fingerprint</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Added</th>
+                    <th scope="col" class="text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% @ssh_keys.each do |ssh_key| %>
+                    <tr>
+                      <td>
+                        <div class="d-flex align-items-center">
+                          <i class="fas fa-key text-primary me-2"></i>
+                          <div>
+                            <strong><%= link_to ssh_key.name, ssh_key, class: "text-decoration-none" %></strong>
+                            <% if ssh_key.comment.present? %>
+                              <br><small class="text-muted"><%= truncate(ssh_key.comment, length: 50) %></small>
+                            <% end %>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="badge bg-secondary fs-6"><%= ssh_key.key_type || 'Unknown' %></span>
+                      </td>
+                      <td>
+                        <% if ssh_key.fingerprint.present? %>
+                          <code class="text-muted small"><%= ssh_key.fingerprint %></code>
+                        <% else %>
+                          <span class="text-muted">-</span>
+                        <% end %>
+                      </td>
+                      <td>
+                        <span class="badge <%= ssh_key.status_badge_class %> fs-6">
+                          <% if ssh_key.expired? %>
+                            <i class="fas fa-times-circle me-1"></i>
+                          <% elsif ssh_key.expires_at.present? %>
+                            <i class="fas fa-clock me-1"></i>
+                          <% else %>
+                            <i class="fas fa-check-circle me-1"></i>
+                          <% end %>
+                          <%= ssh_key.status_text %>
+                        </span>
+                      </td>
+                      <td>
+                        <%= ssh_key.created_at.strftime("%b %d, %Y") %>
+                        <br><small class="text-muted"><%= time_ago_in_words(ssh_key.created_at) %> ago</small>
+                      </td>
+                      <td class="text-center">
+                        <div class="btn-group" role="group">
+                          <%= link_to ssh_key, class: "btn btn-sm btn-outline-primary" do %>
+                            <i class="fas fa-eye"></i>
+                          <% end %>
+                          <%= link_to edit_ssh_key_path(ssh_key), class: "btn btn-sm btn-outline-secondary" do %>
+                            <i class="fas fa-edit"></i>
+                          <% end %>
+                          <%= link_to ssh_key_path(ssh_key), method: :delete,
+                              class: "btn btn-sm btn-outline-danger",
+                              data: { 
+                                confirm: "Are you sure you want to delete '#{ssh_key.name}'? This action cannot be undone.",
+                                turbo_method: :delete
+                              } do %>
+                            <i class="fas fa-trash"></i>
+                          <% end %>
+                        </div>
+                      </td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+            
+            <!-- Pagination -->
+            <% if respond_to?(:pagy_nav) && @pagy.pages > 1 %>
+              <div class="d-flex justify-content-center mt-4">
+                <%== pagy_nav(@pagy) %>
+              </div>
+            <% end %>
+          <% else %>
+            <div class="text-center py-5">
+              <i class="fas fa-key fa-3x text-muted mb-3"></i>
+              <h5 class="text-muted">No SSH keys found</h5>
+              <p class="text-muted mb-4">Add your first SSH key to start managing server access.</p>
+              <%= link_to new_ssh_key_path, class: "btn btn-primary" do %>
+                <i class="fas fa-plus me-2"></i>Add Your First SSH Key
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+</style>
