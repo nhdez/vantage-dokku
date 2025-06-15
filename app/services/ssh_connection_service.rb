@@ -283,8 +283,7 @@ class SshConnectionService
     result = {
       success: false,
       error: nil,
-      output: '',
-      database_urls: {}
+      output: ''
     }
     
     begin
@@ -295,9 +294,7 @@ class SshConnectionService
           ssh_options
         ) do |ssh|
           # Configure database and optionally Redis
-          config_result = perform_database_configuration(ssh, app_name, database_config)
-          result[:output] = config_result[:output]
-          result[:database_urls] = config_result[:database_urls]
+          result[:output] = perform_database_configuration(ssh, app_name, database_config)
           result[:success] = true
           
           # Update last connected timestamp
@@ -1022,7 +1019,6 @@ class SshConnectionService
   
   def perform_database_configuration(ssh, app_name, database_config)
     config_output = ""
-    database_urls = {}
     
     begin
       Rails.logger.info "Configuring database for Dokku app '#{app_name}' on #{@server.name}"
@@ -1079,7 +1075,6 @@ class SshConnectionService
       db_url_result = execute_command(ssh, "sudo dokku #{db_type}:info #{db_name} --dsn 2>&1")
       if db_url_result && !db_url_result.include?('ERROR') && !db_url_result.strip.empty?
         database_url = db_url_result.strip
-        database_urls[:database_url] = database_url
         config_output += "Retrieved database URL: #{database_url[0..20]}...\n"
         
         # Set the DATABASE_URL environment variable
@@ -1128,7 +1123,6 @@ class SshConnectionService
         redis_url_result = execute_command(ssh, "sudo dokku redis:info #{redis_name} --dsn 2>&1")
         if redis_url_result && !redis_url_result.include?('ERROR') && !redis_url_result.strip.empty?
           redis_url = redis_url_result.strip
-          database_urls[:redis_url] = redis_url
           config_output += "Retrieved Redis URL: #{redis_url[0..20]}...\n"
           
           # Set the REDIS_URL environment variable
@@ -1164,10 +1158,7 @@ class SshConnectionService
       raise e
     end
     
-    {
-      output: config_output,
-      database_urls: database_urls
-    }
+    config_output
   end
   
   def perform_database_deletion(ssh, app_name, database_config)

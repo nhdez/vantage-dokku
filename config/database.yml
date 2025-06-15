@@ -12,13 +12,21 @@ test:
   database: vantage_dokku_test
 
 production:
-  adapter: postgresql
   primary: &primary_production
     <<: *default
-  url: <%= ENV['DATABASE_URL'] %>
+    url: <%= ENV["DATABASE_URL"] %>
+  # ---------- SOLID CACHE ----------
   cache:
     <<: *primary_production
+    url: <%= ENV["DATABASE_URL"] %>
+    migrations_paths: db/cache_migrate
+  # ---------- SOLID QUEUE ----------
   queue:
     <<: *primary_production
+    url: <%= ENV["DATABASE_URL"] %>
+    migrations_paths: db/queue_migrate
+  # ---------- ACTION CABLE ----------
   cable:
     <<: *primary_production
+    url: <%= ENV["DATABASE_URL"] %>
+    migrations_paths: db/cable_migrate
