@@ -19,3 +19,6 @@ require 'pagy/extras/metadata'
 
 # Enable trim extra to remove empty parameters from links
 require 'pagy/extras/trim'
+
+# Enable array extra to paginate arrays instead of ActiveRecord collections
+require 'pagy/extras/array'

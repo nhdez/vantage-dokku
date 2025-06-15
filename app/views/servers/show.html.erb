@@ -207,9 +207,9 @@
                 <i class="fas fa-download me-2"></i>Install Dokku
               </button>
             <% end %>
-            <button class="btn btn-outline-secondary" onclick="viewLogs()">
+            <%= link_to logs_server_path(@server), class: "btn btn-outline-secondary" do %>
               <i class="fas fa-file-alt me-2"></i>View Logs
-            </button>
+            <% end %>
             <%= link_to edit_server_path(@server), class: "btn btn-outline-primary" do %>
               <i class="fas fa-edit me-2"></i>Edit Configuration
             <% end %>

@@ -20,6 +20,7 @@ Rails.application.routes.draw do
       post :update_server
       post :install_dokku
       post :restart_server
+      get :logs
     end
   end
   patch "themes/update", to: "themes#update", as: :update_theme

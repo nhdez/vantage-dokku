@@ -1,0 +1,180 @@
+<% content_for :title, "Server Logs - #{@server.name}" %>
+
+<div class="container-fluid">
+  <!-- Server Logs Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-file-alt me-2 text-primary"></i>
+            Server Activity Logs
+          </h1>
+          <p class="text-muted mb-0">Activity history for <%= @server.name %> and its deployments</p>
+        </div>
+        <div>
+          <%= link_to @server, class: "btn btn-outline-secondary" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to Server
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Server Info Card -->
+  <div class="card shadow mb-4">
+    <div class="card-header py-3">
+      <h6 class="m-0 font-weight-bold text-primary">
+        <i class="fas fa-server me-2"></i>Server Information
+      </h6>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-3">
+          <strong>Server Name:</strong><br>
+          <span class="text-muted"><%= @server.name %></span>
+        </div>
+        <div class="col-md-3">
+          <strong>IP Address:</strong><br>
+          <span class="text-muted"><%= @server.ip %></span>
+        </div>
+        <div class="col-md-3">
+          <strong>Deployments:</strong><br>
+          <span class="text-muted"><%= @server.deployments.count %> apps</span>
+        </div>
+        <div class="col-md-3">
+          <strong>Status:</strong><br>
+          <% if @server.connection_status == 'connected' %>
+            <span class="badge bg-success">Connected</span>
+          <% elsif @server.connection_status == 'failed' %>
+            <span class="badge bg-danger">Connection Failed</span>
+          <% else %>
+            <span class="badge bg-secondary">Unknown</span>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity Logs -->
+  <div class="card shadow">
+    <div class="card-header py-3">
+      <h6 class="m-0 font-weight-bold text-primary">
+        <i class="fas fa-history me-2"></i>Recent Activity
+        <span class="badge bg-info ms-2"><%= @pagy.count %> total activities</span>
+      </h6>
+    </div>
+    <div class="card-body">
+      <% if @activity_logs.any? %>
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead class="table-light">
+              <tr>
+                <th>Activity</th>
+                <th>User</th>
+                <th>Details</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @activity_logs.each do |log| %>
+                <tr>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <% case log.action %>
+                      <% when 'server_viewed', 'server_list_viewed', 'server_logs_viewed' %>
+                        <i class="fas fa-eye text-info me-2"></i>
+                      <% when 'server_created', 'server_updated' %>
+                        <i class="fas fa-edit text-primary me-2"></i>
+                      <% when 'server_deleted' %>
+                        <i class="fas fa-trash text-danger me-2"></i>
+                      <% when 'server_connection_tested', 'server_connected' %>
+                        <i class="fas fa-plug text-success me-2"></i>
+                      <% when 'server_connection_failed' %>
+                        <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                      <% when 'dokku_installed', 'server_updated_packages' %>
+                        <i class="fas fa-download text-success me-2"></i>
+                      <% when 'server_restarted' %>
+                        <i class="fas fa-redo text-warning me-2"></i>
+                      <% when 'deployment_created', 'deployment_updated' %>
+                        <i class="fas fa-rocket text-primary me-2"></i>
+                      <% when 'dokku_app_created' %>
+                        <i class="fas fa-plus-circle text-success me-2"></i>
+                      <% when 'domain_configured', 'ssl_configured' %>
+                        <i class="fas fa-globe text-info me-2"></i>
+                      <% when 'database_configured', 'database_deleted' %>
+                        <i class="fas fa-database text-primary me-2"></i>
+                      <% when 'environment_variables_updated' %>
+                        <i class="fas fa-cogs text-secondary me-2"></i>
+                      <% else %>
+                        <i class="fas fa-circle text-muted me-2"></i>
+                      <% end %>
+                      <div>
+                        <strong><%= log.action.humanize.titleize %></strong>
+                        <% if log.controller_name == 'deployments' %>
+                          <br><small class="text-muted">Related to deployment</small>
+                        <% elsif log.controller_name == 'servers' %>
+                          <br><small class="text-muted">Server operation</small>
+                        <% end %>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <div class="avatar avatar-sm me-2">
+                        <div class="avatar-initial bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 12px;">
+                          <%= log.user&.email&.first&.upcase || 'S' %>
+                        </div>
+                      </div>
+                      <div>
+                        <small class="fw-medium"><%= log.user&.email || 'System' %></small>
+                        <% if log.user&.full_name.present? %>
+                          <br><small class="text-muted"><%= log.user.full_name %></small>
+                        <% end %>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <small class="text-muted"><%= log.details %></small>
+                  </td>
+                  <td>
+                    <small>
+                      <%= log.created_at.strftime("%b %d, %Y") %><br>
+                      <span class="text-muted"><%= log.created_at.strftime("%I:%M %p") %></span>
+                      <br><small class="text-muted"><%= time_ago_in_words(log.created_at) %> ago</small>
+                    </small>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <% if @pagy.pages > 1 %>
+          <div class="d-flex justify-content-center mt-4">
+            <%== pagy_bootstrap_nav(@pagy) %>
+          </div>
+        <% end %>
+      <% else %>
+        <div class="text-center py-5">
+          <i class="fas fa-history fa-3x text-muted mb-3"></i>
+          <h5 class="text-muted">No Activity Found</h5>
+          <p class="text-muted">No activities have been logged for this server yet.</p>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+.avatar-initial {
+  font-weight: 600;
+}
+</style>

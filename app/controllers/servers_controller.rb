@@ -1,8 +1,8 @@
 class ServersController < ApplicationController
   include ActivityTrackable
   
-  before_action :set_server, only: [:show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server]
-  before_action :authorize_server, only: [:show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server]
+  before_action :set_server, only: [:show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs]
+  before_action :authorize_server, only: [:show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs]
   
   def index
     @pagy, @servers = pagy(current_user.servers.order(:name), limit: 10)
@@ -179,6 +179,25 @@ class ServersController < ApplicationController
         message: "An unexpected error occurred: #{e.message}"
       }
     end
+  end
+
+  def logs
+    # Get activity logs related to this server
+    # Search for server name and deployment names in the details field
+    deployment_names = @server.deployments.pluck(:name)
+    
+    # Build a query to find logs that mention this server or its deployments
+    search_terms = [@server.name, @server.display_name] + deployment_names
+    search_conditions = search_terms.map { |term| "details ILIKE ?" }
+    search_values = search_terms.map { |term| "%#{term}%" }
+    
+    @activity_logs = ActivityLog.includes(:user)
+                               .where(search_conditions.join(' OR '), *search_values)
+                               .order(occurred_at: :desc)
+    
+    @pagy, @activity_logs = pagy(@activity_logs, limit: 20)
+    
+    log_activity('server_logs_viewed', details: "Viewed activity logs for server: #{@server.display_name}")
   end
 
   private

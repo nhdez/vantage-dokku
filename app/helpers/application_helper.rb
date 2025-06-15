@@ -87,6 +87,9 @@ module ApplicationHelper
       elsif action_name == 'edit' && @server
         add_breadcrumb @server.name, server_path(@server)
         add_breadcrumb 'Edit'
+      elsif action_name == 'logs' && @server
+        add_breadcrumb @server.name, server_path(@server)
+        add_breadcrumb 'Activity Logs'
       end
     when 'ssh_keys'
       add_breadcrumb 'Dashboard', dashboard_path
