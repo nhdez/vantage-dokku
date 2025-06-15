@@ -1,0 +1,772 @@
+<% content_for :title, @server.name %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-server me-2 text-primary"></i>
+            <%= @server.name %>
+          </h1>
+          <p class="text-muted mb-0">Server details and management</p>
+        </div>
+        <div>
+          <%= link_to edit_server_path(@server), class: "btn btn-primary me-2" do %>
+            <i class="fas fa-edit me-2"></i>Edit Server
+          <% end %>
+          <%= link_to servers_path, class: "btn btn-outline-secondary" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to Servers
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Server Information -->
+    <div class="col-md-8">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-info-circle me-2"></i>Server Information
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Server Name</h6>
+              <p class="h5 mb-0"><%= @server.name %></p>
+            </div>
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Service Provider</h6>
+              <p class="h5 mb-0">
+                <% if @server.service_provider.present? %>
+                  <span class="badge bg-success fs-6"><%= @server.service_provider %></span>
+                <% else %>
+                  <span class="text-muted">Not specified</span>
+                <% end %>
+              </p>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">IP Address</h6>
+              <p class="h5 mb-0">
+                <code class="text-info fs-6"><%= @server.ip %></code>
+              </p>
+            </div>
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Internal IP</h6>
+              <p class="h5 mb-0">
+                <% if @server.internal_ip.present? %>
+                  <code class="text-secondary fs-6"><%= @server.internal_ip %></code>
+                <% else %>
+                  <span class="text-muted">Not configured</span>
+                <% end %>
+              </p>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">SSH Username</h6>
+              <p class="h5 mb-0">
+                <span class="badge bg-secondary fs-6"><%= @server.username %></span>
+              </p>
+            </div>
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">SSH Port</h6>
+              <p class="h5 mb-0">
+                <span class="badge bg-info fs-6"><%= @server.port %></span>
+              </p>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Added</h6>
+              <p class="mb-0">
+                <%= @server.created_at.strftime("%B %d, %Y at %I:%M %p") %>
+                <small class="text-muted d-block"><%= time_ago_in_words(@server.created_at) %> ago</small>
+              </p>
+            </div>
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Last Updated</h6>
+              <p class="mb-0">
+                <%= @server.updated_at.strftime("%B %d, %Y at %I:%M %p") %>
+                <small class="text-muted d-block"><%= time_ago_in_words(@server.updated_at) %> ago</small>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Connection Details -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-plug me-2"></i>Connection Details
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-12">
+              <h6 class="text-muted">SSH Connection Command</h6>
+              <div class="bg-dark text-white p-3 rounded">
+                <code class="text-white">
+                  ssh <%= @server.username %>@<%= @server.ip %><%= " -p #{@server.port}" if @server.port != 22 %>
+                </code>
+                <button class="btn btn-sm btn-outline-light ms-2" onclick="copyToClipboard(this)" data-text="ssh <%= @server.username %>@<%= @server.ip %><%= " -p #{@server.port}" if @server.port != 22 %>">
+                  <i class="fas fa-copy"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="row mt-3">
+            <div class="col-md-6">
+              <h6 class="text-muted">Authentication Methods</h6>
+              <div class="mb-2">
+                <% if ENV['DOKKU_SSH_KEY_PATH'].present? %>
+                  <div class="alert alert-success py-2">
+                    <i class="fas fa-key me-2"></i>
+                    <strong>SSH Key:</strong> <%= ENV['DOKKU_SSH_KEY_PATH'] %>
+                  </div>
+                <% else %>
+                  <div class="alert alert-warning py-2">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>SSH Key:</strong> Not configured
+                  </div>
+                <% end %>
+              </div>
+              <div>
+                <% if @server.has_password_auth? %>
+                  <div class="alert alert-success py-2">
+                    <i class="fas fa-lock me-2"></i>
+                    <strong>Password:</strong> Configured (encrypted)
+                  </div>
+                <% else %>
+                  <div class="alert alert-secondary py-2">
+                    <i class="fas fa-times me-2"></i>
+                    <strong>Password:</strong> Not configured
+                  </div>
+                <% end %>
+              </div>
+              <% if @server.has_key_auth? || @server.has_password_auth? %>
+                <small class="text-muted">
+                  <i class="fas fa-info-circle me-1"></i>
+                  Connection will try SSH key first, then fallback to password.
+                </small>
+              <% else %>
+                <div class="alert alert-danger py-2">
+                  <i class="fas fa-exclamation-triangle me-2"></i>
+                  <strong>Warning:</strong> No authentication method configured!
+                </div>
+              <% end %>
+            </div>
+            <div class="col-md-6">
+              <h6 class="text-muted">Connection Status</h6>
+              <div class="alert alert-info py-2">
+                <i class="fas fa-info-circle me-2"></i>
+                Connection testing will be implemented in the next phase
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions Sidebar -->
+    <div class="col-md-4">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-cogs me-2"></i>Quick Actions
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <button id="test-connection-btn" class="btn btn-outline-success" onclick="testConnection('<%= test_connection_server_path(@server) %>')">
+              <i class="fas fa-plug me-2"></i>Test Connection
+            </button>
+            <button id="update-server-btn" class="btn btn-outline-warning" onclick="updateServer('<%= update_server_server_path(@server) %>')">
+              <i class="fas fa-sync-alt me-2"></i>Update Server
+            </button>
+            <button id="restart-server-btn" class="btn btn-outline-danger" onclick="restartServer('<%= restart_server_server_path(@server) %>')">
+              <i class="fas fa-power-off me-2"></i>Restart Server
+            </button>
+            <% if @server.dokku_installed? %>
+              <button class="btn btn-outline-info" onclick="viewDashboard()">
+                <i class="fas fa-tachometer-alt me-2"></i>Dokku Dashboard
+              </button>
+            <% else %>
+              <button id="install-dokku-btn" class="btn btn-outline-success" onclick="installDokku('<%= install_dokku_server_path(@server) %>')">
+                <i class="fas fa-download me-2"></i>Install Dokku
+              </button>
+            <% end %>
+            <button class="btn btn-outline-secondary" onclick="viewLogs()">
+              <i class="fas fa-file-alt me-2"></i>View Logs
+            </button>
+            <%= link_to edit_server_path(@server), class: "btn btn-outline-primary" do %>
+              <i class="fas fa-edit me-2"></i>Edit Configuration
+            <% end %>
+            <%= link_to server_path(@server), method: :delete, 
+                class: "btn btn-outline-danger",
+                data: { 
+                  confirm: "Are you sure you want to delete '#{@server.name}'? This action cannot be undone.",
+                  turbo_method: :delete
+                } do %>
+              <i class="fas fa-trash me-2"></i>Delete Server
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Server Information -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-server me-2"></i>System Information
+          </h6>
+        </div>
+        <div class="card-body" id="server-info-section">
+          <% if @server.os_version.present? %>
+            <div class="row mb-3">
+              <div class="col-sm-4">
+                <h6 class="text-muted mb-1">Operating System</h6>
+                <p class="mb-0"><%= @server.os_version %></p>
+              </div>
+              <div class="col-sm-4">
+                <h6 class="text-muted mb-1">CPU</h6>
+                <p class="mb-0">
+                  <% if @server.cpu_model.present? %>
+                    <%= @server.cpu_model %>
+                    <% if @server.cpu_cores.present? %>
+                      <br><small class="text-muted"><%= @server.cpu_cores %> cores</small>
+                    <% end %>
+                  <% else %>
+                    <span class="text-muted">Unknown</span>
+                  <% end %>
+                </p>
+              </div>
+              <div class="col-sm-4">
+                <h6 class="text-muted mb-1">Memory</h6>
+                <p class="mb-0"><%= @server.formatted_ram %></p>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-sm-4">
+                <h6 class="text-muted mb-1">Disk Space</h6>
+                <p class="mb-0"><%= @server.formatted_disk %></p>
+              </div>
+              <div class="col-sm-4">
+                <h6 class="text-muted mb-1">Dokku Version</h6>
+                <p class="mb-0">
+                  <% if @server.dokku_installed? %>
+                    <span class="badge bg-success fs-6"><%= @server.formatted_dokku_version %></span>
+                  <% else %>
+                    <span class="text-muted">Not detected</span>
+                  <% end %>
+                </p>
+              </div>
+              <div class="col-sm-4">
+                <h6 class="text-muted mb-1">Last Connected</h6>
+                <p class="mb-0"><%= @server.last_connected_ago %></p>
+              </div>
+            </div>
+          <% else %>
+            <div class="text-center text-muted py-3">
+              <i class="fas fa-info-circle fa-2x mb-3"></i>
+              <p>System information will be available after testing the connection.</p>
+              <p class="small">Click "Test Connection" to gather server details.</p>
+            </div>
+          <% end %>
+        </div>
+      </div>
+      
+      <!-- Connection Status -->
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-wifi me-2"></i>Connection Status
+          </h6>
+        </div>
+        <div class="card-body" id="connection-status-section">
+          <div class="text-center mb-3">
+            <span class="badge <%= @server.connection_status_badge_class %> fs-6 px-3 py-2">
+              <i class="<%= @server.connection_status_icon %> me-2"></i><%= @server.connection_status.titleize %>
+            </span>
+          </div>
+          
+          <div class="row text-center">
+            <div class="col-md-6">
+              <h6 class="text-muted mb-1">Last Test</h6>
+              <% if @server.last_connected_at.present? %>
+                <p class="mb-0">
+                  <%= @server.last_connected_at.strftime("%B %d, %Y") %>
+                  <br><small class="text-muted"><%= @server.last_connected_at.strftime("%I:%M %p") %></small>
+                </p>
+              <% else %>
+                <p class="text-muted mb-0">Never tested</p>
+              <% end %>
+            </div>
+            <div class="col-md-6">
+              <h6 class="text-muted mb-1">Result</h6>
+              <% case @server.connection_status %>
+              <% when 'connected' %>
+                <p class="text-success mb-0">
+                  <i class="fas fa-check-circle me-1"></i>
+                  Connection successful
+                  <br><small class="text-muted">Server is reachable</small>
+                </p>
+              <% when 'failed' %>
+                <p class="text-danger mb-0">
+                  <i class="fas fa-times-circle me-1"></i>
+                  Connection failed
+                  <br><small class="text-muted">Check credentials or network</small>
+                </p>
+              <% else %>
+                <p class="text-warning mb-0">
+                  <i class="fas fa-question-circle me-1"></i>
+                  Status unknown
+                  <br><small class="text-muted">Test connection to verify</small>
+                </p>
+              <% end %>
+            </div>
+          </div>
+          
+          <% if @server.connection_status == 'connected' && @server.last_connected_at.present? %>
+            <div class="alert alert-success mt-3 py-2">
+              <i class="fas fa-info-circle me-2"></i>
+              <strong>Last successful connection:</strong> <%= @server.last_connected_ago %>
+              <br><small>Server information was gathered and is up to date.</small>
+            </div>
+          <% elsif @server.connection_status == 'failed' %>
+            <div class="alert alert-warning mt-3 py-2">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              <strong>Connection issues detected.</strong> Try testing the connection again or check your SSH credentials.
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function copyToClipboard(button) {
+  const text = button.getAttribute('data-text');
+  navigator.clipboard.writeText(text).then(function() {
+    const icon = button.querySelector('i');
+    icon.className = 'fas fa-check';
+    setTimeout(() => {
+      icon.className = 'fas fa-copy';
+    }, 2000);
+  });
+}
+
+function testConnection(url) {
+  const btn = document.getElementById('test-connection-btn');
+  const originalText = btn.innerHTML;
+  
+  // Show loading state
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Testing Connection...';
+  
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+      'Content-Type': 'application/json',
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    // Reset button
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    
+    if (data.success) {
+      showToast('success', data.message, 'Connection Successful');
+      
+      // Update connection status section
+      updateConnectionStatus(data.connection_status);
+      
+      // Reload page to show updated server info
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } else {
+      showToast('error', data.message, 'Connection Failed');
+      updateConnectionStatus(data.connection_status);
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    showToast('error', 'An unexpected error occurred while testing the connection.', 'Connection Error');
+  });
+}
+
+function updateConnectionStatus(status) {
+  const statusSection = document.getElementById('connection-status-section');
+  let badgeClass, icon, statusText;
+  
+  switch(status) {
+    case 'connected':
+      badgeClass = 'bg-success';
+      icon = 'fas fa-check-circle';
+      statusText = 'Connected';
+      break;
+    case 'failed':
+      badgeClass = 'bg-danger';
+      icon = 'fas fa-times-circle';
+      statusText = 'Failed';
+      break;
+    default:
+      badgeClass = 'bg-warning text-dark';
+      icon = 'fas fa-question-circle';
+      statusText = 'Unknown';
+  }
+  
+  // Update the status badge
+  const badge = statusSection.querySelector('.badge');
+  if (badge) {
+    badge.className = `badge ${badgeClass} fs-6 px-3 py-2`;
+    badge.innerHTML = `<i class="${icon} me-2"></i>${statusText}`;
+  }
+}
+
+function showToast(type, message, title) {
+  // This function integrates with the app's existing toast system
+  // Create a toast element and show it
+  const toastHtml = `
+    <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">
+          <strong>${title}:</strong> ${message}
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-mdb-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  `;
+  
+  const toastContainer = document.querySelector('.toast-container') || document.body;
+  toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+  
+  const toastElement = toastContainer.lastElementChild;
+  const toast = new mdb.Toast(toastElement);
+  toast.show();
+  
+  // Remove toast element after it's hidden
+  toastElement.addEventListener('hidden.mdb.toast', () => {
+    toastElement.remove();
+  });
+}
+
+function viewDashboard() {
+  alert('Dokku dashboard integration will be implemented in the next phase.');
+}
+
+function updateServer(url) {
+  const btn = document.getElementById('update-server-btn');
+  const originalText = btn.innerHTML;
+  
+  // Confirm action
+  if (!confirm('This will run "sudo apt update && sudo apt upgrade -y" on the server. This may take several minutes. Continue?')) {
+    return;
+  }
+  
+  // Show loading state
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Updating Server...';
+  
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+      'Content-Type': 'application/json',
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    // Reset button
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    
+    if (data.success) {
+      if (data.reboot_required) {
+        showToast('warning', data.message, 'Update Complete - Reboot Required');
+      } else {
+        showToast('success', data.message, 'Update Successful');
+      }
+      
+      // Show update output in a modal or console
+      if (data.output) {
+        showUpdateOutput(data.output);
+      }
+    } else {
+      showToast('error', data.message, 'Update Failed');
+      
+      // Show error output if available
+      if (data.output) {
+        showUpdateOutput(data.output);
+      }
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    showToast('error', 'An unexpected error occurred while updating the server.', 'Update Error');
+  });
+}
+
+function showUpdateOutput(output) {
+  // Create a modal to show the update output
+  const modalHtml = `
+    <div class="modal fade" id="updateOutputModal" tabindex="-1" aria-labelledby="updateOutputModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="updateOutputModalLabel">
+              <i class="fas fa-terminal me-2"></i>Server Update Output
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <pre class="bg-dark text-white p-3 rounded" style="max-height: 400px; overflow-y: auto; font-size: 0.875rem;">${output}</pre>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-mdb-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Remove existing modal if any
+  const existingModal = document.getElementById('updateOutputModal');
+  if (existingModal) {
+    existingModal.remove();
+  }
+  
+  // Add modal to page
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+  
+  // Show modal
+  const modal = new mdb.Modal(document.getElementById('updateOutputModal'));
+  modal.show();
+  
+  // Clean up modal after it's hidden
+  document.getElementById('updateOutputModal').addEventListener('hidden.mdb.modal', function() {
+    this.remove();
+  });
+}
+
+function installDokku(url) {
+  const btn = document.getElementById('install-dokku-btn');
+  const originalText = btn.innerHTML;
+  
+  // Confirm action
+  if (!confirm('This will install Dokku on the server and set up SSH keys. This process may take 5-10 minutes. Continue?')) {
+    return;
+  }
+  
+  // Show loading state
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Installing Dokku...';
+  
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+      'Content-Type': 'application/json',
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    // Reset button
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    
+    if (data.success) {
+      showToast('success', data.message, 'Dokku Installation');
+      
+      // Show installation output
+      if (data.output) {
+        showInstallationOutput(data.output);
+      }
+      
+      // Reload page to update UI after successful installation
+      setTimeout(() => {
+        window.location.reload();
+      }, 3000);
+    } else {
+      showToast('error', data.message, 'Installation Failed');
+      
+      // Show error output if available
+      if (data.output) {
+        showInstallationOutput(data.output);
+      }
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    showToast('error', 'An unexpected error occurred during Dokku installation.', 'Installation Error');
+  });
+}
+
+function showInstallationOutput(output) {
+  // Create a modal to show the installation output
+  const modalHtml = `
+    <div class="modal fade" id="installationOutputModal" tabindex="-1" aria-labelledby="installationOutputModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="installationOutputModalLabel">
+              <i class="fas fa-terminal me-2"></i>Dokku Installation Output
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <pre class="bg-dark text-white p-3 rounded" style="max-height: 400px; overflow-y: auto; font-size: 0.875rem;">${output}</pre>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-mdb-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Remove existing modal if any
+  const existingModal = document.getElementById('installationOutputModal');
+  if (existingModal) {
+    existingModal.remove();
+  }
+  
+  // Add modal to page
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+  
+  // Show modal
+  const modal = new mdb.Modal(document.getElementById('installationOutputModal'));
+  modal.show();
+  
+  // Clean up modal after it's hidden
+  document.getElementById('installationOutputModal').addEventListener('hidden.mdb.modal', function() {
+    this.remove();
+  });
+}
+
+function restartServer(url) {
+  const btn = document.getElementById('restart-server-btn');
+  const originalText = btn.innerHTML;
+  
+  // Confirm action with strong warning
+  if (!confirm('⚠️ WARNING: This will immediately restart the server using "sudo shutdown -r now".\n\nThe server will be unavailable for several minutes during the restart.\n\nAre you sure you want to proceed?')) {
+    return;
+  }
+  
+  // Show loading state
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Restarting Server...';
+  
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+      'Content-Type': 'application/json',
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    // Reset button
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    
+    if (data.success) {
+      showToast('warning', data.message, 'Server Restart');
+      
+      // Show restart output
+      if (data.output) {
+        showRestartOutput(data.output);
+      }
+    } else {
+      showToast('error', data.message, 'Restart Failed');
+      
+      // Show error output if available
+      if (data.output) {
+        showRestartOutput(data.output);
+      }
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    showToast('error', 'An unexpected error occurred while restarting the server.', 'Restart Error');
+  });
+}
+
+function showRestartOutput(output) {
+  // Create a modal to show the restart output
+  const modalHtml = `
+    <div class="modal fade" id="restartOutputModal" tabindex="-1" aria-labelledby="restartOutputModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="restartOutputModalLabel">
+              <i class="fas fa-power-off me-2"></i>Server Restart Output
+            </h5>
+            <button type="button" class="btn-close" data-mdb-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <pre class="bg-dark text-white p-3 rounded" style="max-height: 400px; overflow-y: auto; font-size: 0.875rem;">${output}</pre>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-mdb-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Remove existing modal if any
+  const existingModal = document.getElementById('restartOutputModal');
+  if (existingModal) {
+    existingModal.remove();
+  }
+  
+  // Add modal to page
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+  
+  // Show modal
+  const modal = new mdb.Modal(document.getElementById('restartOutputModal'));
+  modal.show();
+  
+  // Clean up modal after it's hidden
+  document.getElementById('restartOutputModal').addEventListener('hidden.mdb.modal', function() {
+    this.remove();
+  });
+}
+
+function viewLogs() {
+  alert('Log viewing will be implemented in the next phase.');
+}
+</script>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+</style>

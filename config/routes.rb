@@ -1,4 +1,26 @@
 Rails.application.routes.draw do
+  resources :deployments, param: :uuid do
+    member do
+      get :configure_domain
+      post :update_domains
+      get :attach_ssh_keys
+      post :update_ssh_keys
+      get :manage_environment
+      post :update_environment
+      get :configure_databases
+      post :update_database_configuration
+      post :create_dokku_app
+    end
+  end
+  resources :ssh_keys
+  resources :servers, param: :uuid do
+    member do
+      post :test_connection
+      post :update_server
+      post :install_dokku
+      post :restart_server
+    end
+  end
   patch "themes/update", to: "themes#update", as: :update_theme
   get "toast_demo/index"
   get "toast_demo/show_success"

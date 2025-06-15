@@ -35,3 +35,13 @@
 
 # We test in production! 
 /test/
+
+# Ignore all files in config/keys
+/config/keys/*
+
+# But keep the folder itself
+!config/keys/.keep
+
+# IDE
+.idea
+/.idea/*

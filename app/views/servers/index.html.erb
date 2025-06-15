@@ -1,0 +1,165 @@
+<% content_for :title, "Servers" %>
+
+<div class="container-fluid">
+  <!-- Servers Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-server me-2 text-primary"></i>
+            My Servers
+          </h1>
+          <p class="text-muted mb-0">Manage your Dokku servers and connections</p>
+        </div>
+        <div>
+          <%= link_to new_server_path, class: "btn btn-primary" do %>
+            <i class="fas fa-plus me-2"></i>Add New Server
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Servers Table -->
+  <div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+      <h6 class="m-0 font-weight-bold text-primary">
+        <i class="fas fa-list me-2"></i>Servers (<%= @servers.count %> total)
+      </h6>
+      <div>
+        <% if @pagy.pages > 1 %>
+          <span class="text-muted">Page <%= @pagy.page %> of <%= @pagy.pages %></span>
+        <% end %>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <% if @servers.any? %>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Name</th>
+                <th>IP Address</th>
+                <th>Username</th>
+                <th>Port</th>
+                <th>Provider</th>
+                <th>Dokku</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @servers.each do |server| %>
+                <tr>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <div class="me-3">
+                        <div class="bg-info rounded-circle d-flex align-items-center justify-content-center text-white" style="width: 40px; height: 40px;">
+                          <i class="fas fa-server"></i>
+                        </div>
+                      </div>
+                      <div>
+                        <div class="font-weight-bold"><%= server.name %></div>
+                        <small class="text-muted">Added <%= time_ago_in_words(server.created_at) %> ago</small>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <code class="text-info"><%= server.ip %></code>
+                    <% if server.internal_ip.present? %>
+                      <br><small class="text-muted">Internal: <code><%= server.internal_ip %></code></small>
+                    <% end %>
+                  </td>
+                  <td>
+                    <span class="badge bg-secondary"><%= server.username %></span>
+                  </td>
+                  <td>
+                    <span class="badge bg-info"><%= server.port %></span>
+                  </td>
+                  <td>
+                    <% if server.service_provider.present? %>
+                      <span class="badge bg-success"><%= server.service_provider %></span>
+                    <% else %>
+                      <span class="text-muted">Not specified</span>
+                    <% end %>
+                  </td>
+                  <td>
+                    <% if server.dokku_installed? %>
+                      <span class="badge bg-info"><%= server.formatted_dokku_version %></span>
+                    <% else %>
+                      <span class="text-muted">
+                        <i class="fas fa-question-circle me-1"></i>Unknown
+                      </span>
+                    <% end %>
+                  </td>
+                  <td>
+                    <span class="badge <%= server.connection_status_badge_class %>">
+                      <i class="<%= server.connection_status_icon %> me-1"></i><%= server.connection_status.titleize %>
+                    </span>
+                    <% if server.last_connected_at.present? %>
+                      <br><small class="text-muted">Last: <%= server.last_connected_ago %></small>
+                    <% end %>
+                  </td>
+                  <td>
+                    <div class="btn-group" role="group">
+                      <%= link_to server_path(server), class: "btn btn-sm btn-outline-info", title: "View Server" do %>
+                        <i class="fas fa-eye"></i>
+                      <% end %>
+                      <%= link_to edit_server_path(server), class: "btn btn-sm btn-outline-primary", title: "Edit Server" do %>
+                        <i class="fas fa-edit"></i>
+                      <% end %>
+                      <%= link_to server_path(server), method: :delete, 
+                          class: "btn btn-sm btn-outline-danger", 
+                          title: "Delete Server",
+                          data: { 
+                            confirm: "Are you sure you want to delete '#{server.name}'? This action cannot be undone.",
+                            turbo_method: :delete
+                          } do %>
+                        <i class="fas fa-trash"></i>
+                      <% end %>
+                    </div>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% else %>
+        <div class="text-center py-5">
+          <div class="mb-4">
+            <i class="fas fa-server fa-4x text-muted"></i>
+          </div>
+          <h5 class="text-muted">No servers found</h5>
+          <p class="text-muted">Get started by adding your first Dokku server.</p>
+          <%= link_to new_server_path, class: "btn btn-primary mt-3" do %>
+            <i class="fas fa-plus me-2"></i>Add Your First Server
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <% if @pagy.pages > 1 %>
+    <div class="d-flex justify-content-center">
+      <%== pagy_bootstrap_nav(@pagy) %>
+    </div>
+  <% end %>
+</div>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+.table th {
+  border-top: none;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+}
+</style>

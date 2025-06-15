@@ -39,4 +39,9 @@ class AppSetting < ApplicationRecord
       value
     end
   end
+  
+  # Convenience method to get the Dokku install version
+  def self.dokku_install_version
+    get('dokku_install_version', '0.35.9')
+  end
 end

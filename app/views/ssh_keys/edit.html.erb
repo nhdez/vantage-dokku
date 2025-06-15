@@ -1,0 +1,159 @@
+<% content_for :title, "Edit #{@ssh_key.name}" %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-edit me-2 text-primary"></i>
+            Edit SSH Key
+          </h1>
+          <p class="text-muted mb-0">Update SSH key: <%= @ssh_key.name %></p>
+        </div>
+        <div>
+          <%= link_to @ssh_key, class: "btn btn-outline-secondary me-2" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to SSH Key
+          <% end %>
+          <%= link_to ssh_keys_path, class: "btn btn-outline-secondary" do %>
+            <i class="fas fa-list me-2"></i>All SSH Keys
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Form -->
+    <div class="col-md-8">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-key me-2"></i>SSH Key Information
+          </h6>
+        </div>
+        <div class="card-body">
+          <%= form_with model: @ssh_key, local: true, class: "needs-validation", novalidate: true do |form| %>
+            <div class="row">
+              <div class="col-md-12 mb-3">
+                <%= form.label :name, class: "form-label" %>
+                <%= form.text_field :name, class: "form-control #{'is-invalid' if @ssh_key.errors[:name].any?}", 
+                    placeholder: "e.g., Work Laptop, Home Desktop, CI/CD Key" %>
+                <% if @ssh_key.errors[:name].any? %>
+                  <div class="invalid-feedback">
+                    <%= @ssh_key.errors[:name].first %>
+                  </div>
+                <% end %>
+                <div class="form-text">Choose a descriptive name to identify this key</div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-12 mb-3">
+                <%= form.label :public_key, "SSH Public Key", class: "form-label" %>
+                <%= form.text_area :public_key, rows: 4, class: "form-control #{'is-invalid' if @ssh_key.errors[:public_key].any?}", 
+                    placeholder: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC... user@hostname" %>
+                <% if @ssh_key.errors[:public_key].any? %>
+                  <div class="invalid-feedback">
+                    <%= @ssh_key.errors[:public_key].first %>
+                  </div>
+                <% end %>
+                <div class="form-text">
+                  Paste your SSH public key here. It should start with ssh-rsa, ssh-ed25519, or similar.
+                  <br><strong>Never share your private key!</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <%= form.label :expires_at, "Expiration Date (Optional)", class: "form-label" %>
+                <%= form.datetime_local_field :expires_at, class: "form-control #{'is-invalid' if @ssh_key.errors[:expires_at].any?}" %>
+                <% if @ssh_key.errors[:expires_at].any? %>
+                  <div class="invalid-feedback">
+                    <%= @ssh_key.errors[:expires_at].first %>
+                  </div>
+                <% end %>
+                <div class="form-text">Leave empty for no expiration</div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-12">
+                <div class="d-flex gap-2">
+                  <%= form.submit "Update SSH Key", class: "btn btn-primary" %>
+                  <%= link_to "Cancel", @ssh_key, class: "btn btn-secondary" %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Info Sidebar -->
+    <div class="col-md-4">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-info-circle me-2"></i>Current Key Details
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <h6 class="text-muted">Key Type</h6>
+            <span class="badge bg-secondary fs-6"><%= @ssh_key.key_type || 'Unknown' %></span>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-muted">Fingerprint</h6>
+            <% if @ssh_key.fingerprint.present? %>
+              <code class="text-muted small"><%= @ssh_key.fingerprint %></code>
+            <% else %>
+              <span class="text-muted">-</span>
+            <% end %>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-muted">Status</h6>
+            <span class="badge <%= @ssh_key.status_badge_class %> fs-6">
+              <% if @ssh_key.expired? %>
+                <i class="fas fa-times-circle me-1"></i>
+              <% elsif @ssh_key.expires_at.present? %>
+                <i class="fas fa-clock me-1"></i>
+              <% else %>
+                <i class="fas fa-check-circle me-1"></i>
+              <% end %>
+              <%= @ssh_key.status_text %>
+            </span>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-muted">Added</h6>
+            <p class="mb-0">
+              <%= @ssh_key.created_at.strftime("%B %d, %Y at %I:%M %p") %>
+              <small class="text-muted d-block"><%= time_ago_in_words(@ssh_key.created_at) %> ago</small>
+            </p>
+          </div>
+          
+          <% if @ssh_key.comment.present? %>
+            <div class="mb-3">
+              <h6 class="text-muted">Comment</h6>
+              <p class="mb-0 small"><%= @ssh_key.comment %></p>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+</style>

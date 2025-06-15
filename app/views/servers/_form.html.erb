@@ -1,0 +1,201 @@
+<%= form_with model: @server, local: true do |f| %>
+  <% if @server.errors.any? %>
+    <div class="alert alert-danger" role="alert">
+      <h6 class="alert-heading mb-2">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        Please correct the following errors:
+      </h6>
+      <ul class="mb-0">
+        <% @server.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="row">
+    <!-- Server Name -->
+    <div class="col-md-6 mb-3">
+      <div class="form-outline">
+        <%= f.text_field :name, class: "form-control", id: "server_name", required: true %>
+        <%= f.label :name, "Server Name", class: "form-label", for: "server_name" %>
+      </div>
+      <div class="form-text">A friendly name to identify this server</div>
+    </div>
+
+    <!-- Service Provider -->
+    <div class="col-md-6 mb-3">
+      <div class="form-outline">
+        <%= f.text_field :service_provider, class: "form-control", id: "server_service_provider" %>
+        <%= f.label :service_provider, "Service Provider", class: "form-label", for: "server_service_provider" %>
+      </div>
+      <div class="form-text">Optional - e.g., DigitalOcean, AWS, Linode</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- IP Address -->
+    <div class="col-md-6 mb-3">
+      <div class="form-outline">
+        <%= f.text_field :ip, class: "form-control", id: "server_ip", required: true, placeholder: "192.168.1.100" %>
+        <%= f.label :ip, "IP Address", class: "form-label", for: "server_ip" %>
+      </div>
+      <div class="form-text">The public IP address of your server</div>
+    </div>
+
+    <!-- Internal IP Address -->
+    <div class="col-md-6 mb-3">
+      <div class="form-outline">
+        <%= f.text_field :internal_ip, class: "form-control", id: "server_internal_ip", placeholder: "10.0.0.1" %>
+        <%= f.label :internal_ip, "Internal IP Address", class: "form-label", for: "server_internal_ip" %>
+      </div>
+      <div class="form-text">Optional - internal/private IP address</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Username -->
+    <div class="col-md-6 mb-3">
+      <div class="form-outline">
+        <%= f.text_field :username, class: "form-control", id: "server_username", required: true %>
+        <%= f.label :username, "SSH Username", class: "form-label", for: "server_username" %>
+      </div>
+      <div class="form-text">Usually 'root' for Dokku servers</div>
+    </div>
+
+    <!-- Port -->
+    <div class="col-md-6 mb-3">
+      <div class="form-outline">
+        <%= f.number_field :port, class: "form-control", id: "server_port", required: true, min: 1, max: 65535 %>
+        <%= f.label :port, "SSH Port", class: "form-label", for: "server_port" %>
+      </div>
+      <div class="form-text">Default SSH port is 22</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Password -->
+    <div class="col-md-12 mb-3">
+      <div class="form-outline">
+        <%= f.password_field :password, class: "form-control", id: "server_password", autocomplete: "new-password" %>
+        <%= f.label :password, "Root Password (Optional)", class: "form-label", for: "server_password" %>
+      </div>
+      <div class="form-text">
+        <i class="fas fa-info-circle me-1"></i>
+        <strong>Fallback Authentication:</strong> Used when SSH key authentication fails. Leave blank if you only want to use SSH keys.
+        <br>
+        <i class="fas fa-shield-alt me-1 text-success"></i>
+        This password is encrypted and stored securely.
+      </div>
+    </div>
+  </div>
+
+  <!-- Connection Info -->
+  <div class="card border-info mb-4">
+    <div class="card-header bg-info text-white">
+      <h6 class="mb-0">
+        <i class="fas fa-info-circle me-2"></i>
+        Connection Information
+      </h6>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <h6 class="text-muted">Authentication Methods</h6>
+          <div class="small">
+            <div class="mb-2">
+              <% if ENV['DOKKU_SSH_KEY_PATH'].present? %>
+                <i class="fas fa-check-circle text-success me-2"></i>
+                <strong>SSH Key:</strong> <code><%= ENV['DOKKU_SSH_KEY_PATH'] %></code>
+              <% else %>
+                <i class="fas fa-times-circle text-danger me-2"></i>
+                <strong>SSH Key:</strong> Not configured
+              <% end %>
+            </div>
+            <div>
+              <% if @server&.password.present? %>
+                <i class="fas fa-check-circle text-success me-2"></i>
+                <strong>Password:</strong> Configured (encrypted)
+              <% else %>
+                <i class="fas fa-times-circle text-muted me-2"></i>
+                <strong>Password:</strong> Not set
+              <% end %>
+            </div>
+          </div>
+          <div class="alert alert-info py-2 mt-2">
+            <small>
+              <i class="fas fa-info-circle me-2"></i>
+              Connection will try SSH key first, then fallback to password if provided.
+            </small>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <h6 class="text-muted">Connection Test</h6>
+          <p class="small">After saving, you can test the connection to ensure your server is reachable.</p>
+          <% if @server.persisted? %>
+            <button type="button" class="btn btn-sm btn-outline-info" onclick="testConnection('<%= test_connection_server_path(@server) %>')">
+              <i class="fas fa-plug me-2"></i>Test Connection
+            </button>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="d-flex justify-content-between">
+    <div>
+      <%= link_to servers_path, class: "btn btn-outline-secondary" do %>
+        <i class="fas fa-arrow-left me-2"></i>Back to Servers
+      <% end %>
+    </div>
+    <div>
+      <%= f.submit (@server.persisted? ? "Update Server" : "Create Server"), 
+          class: "btn btn-primary" do %>
+        <i class="fas fa-<%= @server.persisted? ? 'save' : 'plus' %> me-2"></i>
+      <% end %>
+    </div>
+  </div>
+<% end %>
+
+<script>
+function testConnection(url) {
+  if (!url) {
+    alert('Please save the server first before testing the connection.');
+    return;
+  }
+  
+  const btn = event.target;
+  const originalText = btn.innerHTML;
+  
+  // Show loading state
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Testing...';
+  
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+      'Content-Type': 'application/json',
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    // Reset button
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    
+    if (data.success) {
+      alert('Connection successful! Server information has been gathered.');
+    } else {
+      alert('Connection failed: ' + data.message);
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    alert('An unexpected error occurred while testing the connection.');
+  });
+}
+</script>

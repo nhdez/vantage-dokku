@@ -121,7 +121,7 @@ class Admin::DashboardController < ApplicationController
   end
 
   def settings_params
-    params.require(:settings).permit(:app_name, :allow_registration, :require_email_confirmation, :maintenance_mode, :max_file_upload_size, :default_user_role)
+    params.require(:settings).permit(:app_name, :allow_registration, :require_email_confirmation, :maintenance_mode, :max_file_upload_size, :default_user_role, :dokku_install_version)
   end
 
   def smtp_params

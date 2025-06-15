@@ -96,6 +96,15 @@
               <li class="nav-item">
                 <%= link_to "Dashboard", dashboard_path, class: "nav-link #{'active' if controller_name == 'dashboard' && action_name == 'index' && !(params[:controller]&.starts_with?('admin/'))}" %>
               </li>
+              <li class="nav-item">
+                <%= link_to "Servers", servers_path, class: "nav-link #{'active' if controller_name == 'servers'}" %>
+              </li>
+              <li class="nav-item">
+                <%= link_to "Apps", deployments_path, class: "nav-link #{'active' if controller_name == 'deployments'}" %>
+              </li>
+              <li class="nav-item">
+                <%= link_to "SSH Keys", ssh_keys_path, class: "nav-link #{'active' if controller_name == 'ssh_keys'}" %>
+              </li>
               <% if current_user.admin? %>
                 <li class="nav-item">
                   <%= link_to "Administration", admin_root_path, class: "nav-link #{'active' if params[:controller]&.starts_with?('admin/')}" %>

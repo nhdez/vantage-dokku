@@ -21,7 +21,7 @@ class ActivityLog < ApplicationRecord
       occurred_at: Time.current,
       controller_name: controller_name,
       action_name: action_name,
-      params_data: params_data&.to_json
+      params_data: params_data&.to_json,
     )
   end
 

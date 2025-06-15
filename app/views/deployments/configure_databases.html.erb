@@ -1,0 +1,401 @@
+<% content_for :title, "Database Configuration - #{@deployment.name}" %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-database me-2 text-primary"></i>
+            Database Configuration
+          </h1>
+          <p class="text-muted mb-0">Set up database services for <%= @deployment.name %></p>
+        </div>
+        <div>
+          <%= link_to @deployment, class: "btn btn-outline-secondary" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to App
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Database Configuration Form -->
+    <div class="col-md-8">
+      <% if @has_conflicts %>
+        <!-- Environment Variable Conflict Warning -->
+        <div class="card shadow mb-4">
+          <div class="card-header py-3 bg-danger text-white">
+            <h6 class="m-0 font-weight-bold">
+              <i class="fas fa-exclamation-triangle me-2"></i>Environment Variable Conflict
+            </h6>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-danger">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              <strong>Conflict Detected:</strong> You have manually set environment variables that conflict with managed databases.
+            </div>
+            
+            <p class="mb-3">
+              The following environment variables are already configured and will take precedence over managed databases:
+            </p>
+            
+            <ul class="mb-3">
+              <% @database_configuration.has_environment_variable_conflict?.each do |var| %>
+                <li><code><%= var %></code></li>
+              <% end %>
+            </ul>
+            
+            <p class="mb-0">
+              <strong>Options:</strong>
+            </p>
+            <ul class="mb-0">
+              <li>Remove the conflicting environment variables to use managed databases</li>
+              <li>Keep your manual environment variables (managed databases will be disabled)</li>
+            </ul>
+          </div>
+        </div>
+      <% end %>
+
+      <!-- Database Selection Form -->
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-database me-2"></i>Database Services
+          </h6>
+        </div>
+        <div class="card-body">
+          <%= form_with model: @database_configuration, url: update_database_configuration_deployment_path(@deployment), method: :post, local: true, id: "database-form" do |form| %>
+            <% unless @has_conflicts %>
+              <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Managed Databases:</strong> Dokku will automatically install plugins, create databases, and configure connection details.
+                Database credentials will be available as environment variables in your application.
+              </div>
+              
+              <div class="alert alert-warning">
+                <i class="fas fa-clock me-2"></i>
+                <strong>Setup Time:</strong> Database configuration may take 5-10 minutes as plugins are installed and databases are created.
+              </div>
+              
+              <!-- Database Type Selection -->
+              <div class="mb-4">
+                <label class="form-label">
+                  <i class="fas fa-database me-2"></i>Primary Database
+                </label>
+                <div class="row">
+                  <!-- PostgreSQL Option (enabled for now) -->
+                  <div class="col-md-6 mb-3">
+                    <div class="card border <%= @database_configuration.database_type == 'postgres' ? 'border-primary' : 'border-light' %>">
+                      <div class="card-body p-3">
+                        <div class="form-check">
+                          <%= form.radio_button :database_type, 'postgres', 
+                              class: "form-check-input",
+                              id: "database_postgres" %>
+                          <%= form.label "database_postgres", class: "form-check-label flex-grow-1" do %>
+                            <div class="d-flex align-items-center">
+                              <i class="fas fa-database text-primary me-2"></i>
+                              <div class="flex-grow-1">
+                                <strong>PostgreSQL</strong>
+                                <br><small class="text-muted">Advanced open-source relational database</small>
+                                <br><small class="badge bg-success">Recommended</small>
+                              </div>
+                            </div>
+                          <% end %>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- Future database options (disabled for now) -->
+                  <div class="col-md-6 mb-3">
+                    <div class="card border-light">
+                      <div class="card-body p-3 text-muted">
+                        <div class="d-flex align-items-center">
+                          <i class="fas fa-database me-2"></i>
+                          <div class="flex-grow-1">
+                            <strong>MySQL / MariaDB / MongoDB</strong>
+                            <br><small>Coming in future updates</small>
+                            <br><small class="badge bg-secondary">Coming Soon</small>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Redis Option -->
+              <div class="mb-4">
+                <label class="form-label">
+                  <i class="fas fa-memory me-2"></i>Additional Services
+                </label>
+                <div class="card border <%= @database_configuration.redis_enabled? ? 'border-success' : 'border-light' %>">
+                  <div class="card-body p-3">
+                    <div class="form-check">
+                      <%= form.check_box :redis_enabled, 
+                          class: "form-check-input",
+                          id: "redis_enabled" %>
+                      <%= form.label "redis_enabled", class: "form-check-label flex-grow-1" do %>
+                        <div class="d-flex align-items-center">
+                          <i class="fas fa-memory text-success me-2"></i>
+                          <div class="flex-grow-1">
+                            <strong>Redis</strong>
+                            <br><small class="text-muted">In-memory data structure store (caching, sessions, queues)</small>
+                          </div>
+                        </div>
+                      <% end %>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Database Information Display -->
+              <% if @database_configuration.persisted? %>
+                <div class="alert alert-success">
+                  <i class="fas fa-check-circle me-2"></i>
+                  <strong>Current Configuration:</strong>
+                  <ul class="mb-0 mt-2">
+                    <li><strong>Database:</strong> <%= @database_configuration.display_name %> (<code><%= @database_configuration.database_name %></code>)</li>
+                    <% if @database_configuration.redis_enabled? %>
+                      <li><strong>Redis:</strong> <%= @database_configuration.redis_display_name %></li>
+                    <% end %>
+                    <li><strong>Status:</strong> 
+                      <span class="badge <%= @database_configuration.status_class %>">
+                        <%= @database_configuration.status_text %>
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+              <% end %>
+              
+              <!-- Submit Button -->
+              <div class="row">
+                <div class="col-12">
+                  <div class="d-flex gap-2 align-items-center">
+                    <%= form.submit "Configure Database", class: "btn btn-primary", id: "database-submit-btn",
+                        data: { 
+                          loading_text: "Configuring database... (this may take 5-10 minutes)",
+                          original_text: "Configure Database"
+                        } %>
+                    <%= link_to "Cancel", @deployment, class: "btn btn-secondary" %>
+                    
+                    <div class="ms-auto">
+                      <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Process may take 5-10 minutes
+                      </small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            <% else %>
+              <div class="text-center py-4">
+                <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                <h5 class="text-muted">Cannot Configure Managed Databases</h5>
+                <p class="text-muted mb-4">
+                  Environment variable conflicts prevent automatic database setup.
+                  Resolve conflicts above to enable managed databases.
+                </p>
+                <%= link_to manage_environment_deployment_path(@deployment), class: "btn btn-warning" do %>
+                  <i class="fas fa-cogs me-2"></i>Manage Environment Variables
+                <% end %>
+              </div>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Information Sidebar -->
+    <div class="col-md-4">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-info-circle me-2"></i>Database Status
+          </h6>
+        </div>
+        <div class="card-body">
+          <% if @database_configuration.persisted? %>
+            <div class="mb-3">
+              <h6 class="text-muted">Primary Database</h6>
+              <div class="d-flex align-items-center">
+                <i class="fas fa-database text-primary me-2"></i>
+                <div class="flex-grow-1">
+                  <strong><%= @database_configuration.display_name %></strong>
+                  <br><small class="text-muted"><%= @database_configuration.database_name %></small>
+                </div>
+                <span class="badge <%= @database_configuration.status_class %>">
+                  <%= @database_configuration.status_text %>
+                </span>
+              </div>
+            </div>
+            
+            <% if @database_configuration.redis_enabled? %>
+              <div class="mb-3">
+                <h6 class="text-muted">Redis Cache</h6>
+                <div class="d-flex align-items-center">
+                  <i class="fas fa-memory text-success me-2"></i>
+                  <div class="flex-grow-1">
+                    <strong>Redis</strong>
+                    <br><small class="text-muted"><%= @database_configuration.redis_name %></small>
+                  </div>
+                  <span class="badge bg-success">Enabled</span>
+                </div>
+              </div>
+            <% end %>
+            
+            <% if @database_configuration.configured? %>
+              <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Ready:</strong> Database is configured and available to your application.
+              </div>
+            <% elsif @database_configuration.error_message.present? %>
+              <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Error:</strong> <%= @database_configuration.error_message %>
+              </div>
+            <% end %>
+          <% else %>
+            <div class="text-center py-3">
+              <i class="fas fa-database fa-2x text-muted mb-2"></i>
+              <p class="text-muted mb-0">No database configured</p>
+              <small class="text-muted">Configure a database to get started</small>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-server me-2"></i>Deployment Info
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <h6 class="text-muted">Dokku App Name</h6>
+            <code class="text-info"><%= @deployment.dokku_app_name %></code>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-muted">Target Server</h6>
+            <div class="d-flex align-items-center">
+              <i class="fas fa-server text-secondary me-2"></i>
+              <%= @deployment.server_name %>
+            </div>
+            <small class="text-muted"><%= @deployment.server.ip %></small>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-lightbulb me-2"></i>Database Guide
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-success">
+            <i class="fas fa-check-circle me-2"></i>
+            <strong>Automatic Setup:</strong> Plugins are installed and databases are created automatically.
+          </div>
+          
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Environment Variables:</strong> Connection details are automatically added to your app environment.
+          </div>
+          
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Note:</strong> Manual DATABASE_URL or REDIS_URL environment variables take precedence.
+          </div>
+          
+          <h6 class="mt-3">What gets installed:</h6>
+          <ul class="list-unstyled">
+            <li><i class="fas fa-check text-success me-2"></i>PostgreSQL plugin & database</li>
+            <li><i class="fas fa-check text-success me-2"></i>Redis plugin & instance (if selected)</li>
+            <li><i class="fas fa-check text-success me-2"></i>Automatic linking to your app</li>
+            <li><i class="fas fa-check text-success me-2"></i>Environment variables setup</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Handle form submission loading state
+  const form = document.getElementById('database-form');
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      const submitBtn = document.getElementById('database-submit-btn');
+      const loadingText = submitBtn.getAttribute('data-loading-text');
+      const originalText = submitBtn.getAttribute('data-original-text');
+      
+      submitBtn.value = loadingText;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>' + loadingText;
+      
+      // Show additional loading message
+      const loadingDiv = document.createElement('div');
+      loadingDiv.className = 'alert alert-info mt-3';
+      loadingDiv.innerHTML = `
+        <i class="fas fa-spinner fa-spin me-2"></i>
+        <strong>Configuring database...</strong> This process includes:
+        <ul class="mb-0 mt-2">
+          <li>Installing database plugins on the server</li>
+          <li>Creating database instances</li>
+          <li>Linking databases to your application</li>
+          <li>Setting up environment variables</li>
+        </ul>
+        <small class="d-block mt-2">Please do not close this page or navigate away.</small>
+      `;
+      form.appendChild(loadingDiv);
+    });
+  }
+  
+  // Handle database type selection highlighting
+  document.addEventListener('change', function(e) {
+    if (e.target.name === 'database_configuration[database_type]') {
+      // Remove highlighting from all cards
+      document.querySelectorAll('.card.border-primary').forEach(function(card) {
+        card.classList.remove('border-primary');
+        card.classList.add('border-light');
+      });
+      
+      // Add highlighting to selected card
+      const selectedCard = e.target.closest('.card');
+      if (selectedCard) {
+        selectedCard.classList.remove('border-light');
+        selectedCard.classList.add('border-primary');
+      }
+    }
+    
+    if (e.target.name === 'database_configuration[redis_enabled]') {
+      const redisCard = e.target.closest('.card');
+      if (redisCard) {
+        if (e.target.checked) {
+          redisCard.classList.remove('border-light');
+          redisCard.classList.add('border-success');
+        } else {
+          redisCard.classList.remove('border-success');
+          redisCard.classList.add('border-light');
+        }
+      }
+    }
+  });
+});
+</script>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+</style>

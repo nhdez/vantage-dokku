@@ -83,7 +83,7 @@ production:
     <<: *default
     database: vantage_dokku_production
     username: vantage
-    password: <%= ENV["vantage_dokku_DATABASE_PASSWORD"] %>
+    password: <%= ENV["VANTAGE_DATABASE_PASSWORD"] %>
   cache:
     <<: *primary_production
     database: vantage_dokku_production_cache

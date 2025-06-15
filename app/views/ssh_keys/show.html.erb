@@ -1,0 +1,248 @@
+<% content_for :title, @ssh_key.name %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-key me-2 text-primary"></i>
+            <%= @ssh_key.name %>
+          </h1>
+          <p class="text-muted mb-0">SSH key details and information</p>
+        </div>
+        <div>
+          <%= link_to edit_ssh_key_path(@ssh_key), class: "btn btn-primary me-2" do %>
+            <i class="fas fa-edit me-2"></i>Edit SSH Key
+          <% end %>
+          <%= link_to ssh_keys_path, class: "btn btn-outline-secondary" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to SSH Keys
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- SSH Key Information -->
+    <div class="col-md-8">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-info-circle me-2"></i>SSH Key Information
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Key Name</h6>
+              <p class="h5 mb-0"><%= @ssh_key.name %></p>
+            </div>
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Key Type</h6>
+              <p class="h5 mb-0">
+                <span class="badge bg-secondary fs-6"><%= @ssh_key.key_type || 'Unknown' %></span>
+              </p>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-12 mb-3">
+              <h6 class="text-muted">Fingerprint</h6>
+              <p class="h5 mb-0">
+                <% if @ssh_key.fingerprint.present? %>
+                  <code class="text-info fs-6"><%= @ssh_key.fingerprint %></code>
+                <% else %>
+                  <span class="text-muted">Unable to generate fingerprint</span>
+                <% end %>
+              </p>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Status</h6>
+              <p class="h5 mb-0">
+                <span class="badge <%= @ssh_key.status_badge_class %> fs-6">
+                  <% if @ssh_key.expired? %>
+                    <i class="fas fa-times-circle me-1"></i>
+                  <% elsif @ssh_key.expires_at.present? %>
+                    <i class="fas fa-clock me-1"></i>
+                  <% else %>
+                    <i class="fas fa-check-circle me-1"></i>
+                  <% end %>
+                  <%= @ssh_key.status_text %>
+                </span>
+              </p>
+            </div>
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Expiration</h6>
+              <p class="h5 mb-0">
+                <% if @ssh_key.expires_at.present? %>
+                  <%= @ssh_key.expires_at.strftime("%B %d, %Y at %I:%M %p") %>
+                  <% if @ssh_key.expires_in_days.present? %>
+                    <br><small class="text-muted">
+                      <% if @ssh_key.expired? %>
+                        Expired <%= time_ago_in_words(@ssh_key.expires_at) %> ago
+                      <% else %>
+                        Expires in <%= @ssh_key.expires_in_days %> day<%= 's' unless @ssh_key.expires_in_days == 1 %>
+                      <% end %>
+                    </small>
+                  <% end %>
+                <% else %>
+                  <span class="text-muted">Never expires</span>
+                <% end %>
+              </p>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Added</h6>
+              <p class="mb-0">
+                <%= @ssh_key.created_at.strftime("%B %d, %Y at %I:%M %p") %>
+                <small class="text-muted d-block"><%= time_ago_in_words(@ssh_key.created_at) %> ago</small>
+              </p>
+            </div>
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Last Updated</h6>
+              <p class="mb-0">
+                <%= @ssh_key.updated_at.strftime("%B %d, %Y at %I:%M %p") %>
+                <small class="text-muted d-block"><%= time_ago_in_words(@ssh_key.updated_at) %> ago</small>
+              </p>
+            </div>
+          </div>
+          
+          <% if @ssh_key.comment.present? %>
+            <div class="row">
+              <div class="col-md-12 mb-3">
+                <h6 class="text-muted">Comment</h6>
+                <p class="mb-0"><%= @ssh_key.comment %></p>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- SSH Public Key -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-code me-2"></i>Public Key
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="bg-dark text-white p-3 rounded position-relative">
+            <pre class="text-white mb-0" style="font-size: 0.875rem; white-space: pre-wrap; word-break: break-all;"><%= @ssh_key.public_key %></pre>
+            <button class="btn btn-sm btn-outline-light position-absolute top-0 end-0 mt-2 me-2" 
+                    onclick="copyToClipboard(this)" 
+                    data-text="<%= @ssh_key.public_key %>">
+              <i class="fas fa-copy"></i> Copy
+            </button>
+          </div>
+          <div class="form-text mt-2">
+            <i class="fas fa-info-circle me-1"></i>
+            This is your SSH public key. You can safely share this with services and servers.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions Sidebar -->
+    <div class="col-md-4">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-cogs me-2"></i>Actions
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <%= link_to edit_ssh_key_path(@ssh_key), class: "btn btn-outline-primary" do %>
+              <i class="fas fa-edit me-2"></i>Edit SSH Key
+            <% end %>
+            
+            <button class="btn btn-outline-secondary" onclick="copyToClipboard(this)" data-text="<%= @ssh_key.public_key %>">
+              <i class="fas fa-copy me-2"></i>Copy Public Key
+            </button>
+            
+            <%= link_to ssh_key_path(@ssh_key), method: :delete, 
+                class: "btn btn-outline-danger",
+                data: { 
+                  confirm: "Are you sure you want to delete '#{@ssh_key.name}'? This action cannot be undone.",
+                  turbo_method: :delete
+                } do %>
+              <i class="fas fa-trash me-2"></i>Delete SSH Key
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Usage Information -->
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-lightbulb me-2"></i>Usage Tips
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>SSH Access:</strong> Use this key to authenticate with servers without passwords.
+          </div>
+          
+          <div class="alert alert-success">
+            <i class="fas fa-shield-alt me-2"></i>
+            <strong>Security:</strong> This public key is safe to share. Never share your private key!
+          </div>
+          
+          <% if @ssh_key.expires_at.present? && @ssh_key.expires_in_days && @ssh_key.expires_in_days <= 30 %>
+            <div class="alert alert-warning">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              <strong>Expiring Soon:</strong> This key expires in <%= @ssh_key.expires_in_days %> day<%= 's' unless @ssh_key.expires_in_days == 1 %>. Consider updating the expiration date.
+            </div>
+          <% end %>
+          
+          <% if @ssh_key.expired? %>
+            <div class="alert alert-danger">
+              <i class="fas fa-times-circle me-2"></i>
+              <strong>Expired:</strong> This key has expired and cannot be used for authentication.
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function copyToClipboard(button) {
+  const text = button.getAttribute('data-text');
+  navigator.clipboard.writeText(text).then(function() {
+    const icon = button.querySelector('i');
+    const originalClasses = icon.className;
+    icon.className = 'fas fa-check';
+    
+    // Show success feedback
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-check me-2"></i>Copied!';
+    
+    setTimeout(() => {
+      button.innerHTML = originalText;
+    }, 2000);
+  }).catch(function(err) {
+    console.error('Failed to copy text: ', err);
+    alert('Failed to copy to clipboard');
+  });
+}
+</script>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+</style>

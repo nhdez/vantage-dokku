@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_06_12_222823) do
+ActiveRecord::Schema[8.0].define(version: 2025_06_15_155004) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -70,6 +70,75 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_12_222823) do
     t.index ["key"], name: "index_app_settings_on_key", unique: true
   end
 
+  create_table "database_configurations", force: :cascade do |t|
+    t.bigint "deployment_id", null: false
+    t.string "database_type", null: false
+    t.string "database_name", null: false
+    t.string "username"
+    t.string "password"
+    t.boolean "redis_enabled", default: false, null: false
+    t.string "redis_name"
+    t.boolean "configured", default: false, null: false
+    t.text "configuration_output"
+    t.text "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["database_name"], name: "index_database_configurations_on_database_name", unique: true
+    t.index ["deployment_id"], name: "index_database_configurations_on_deployment_id", unique: true
+  end
+
+  create_table "deployment_ssh_keys", force: :cascade do |t|
+    t.bigint "deployment_id", null: false
+    t.bigint "ssh_key_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["deployment_id", "ssh_key_id"], name: "index_deployment_ssh_keys_on_deployment_id_and_ssh_key_id", unique: true
+    t.index ["deployment_id"], name: "index_deployment_ssh_keys_on_deployment_id"
+    t.index ["ssh_key_id"], name: "index_deployment_ssh_keys_on_ssh_key_id"
+  end
+
+  create_table "deployments", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "dokku_app_name", null: false
+    t.text "description"
+    t.bigint "server_id", null: false
+    t.bigint "user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "uuid", null: false
+    t.index ["dokku_app_name"], name: "index_deployments_on_dokku_app_name", unique: true
+    t.index ["server_id", "dokku_app_name"], name: "index_deployments_on_server_id_and_dokku_app_name", unique: true
+    t.index ["server_id"], name: "index_deployments_on_server_id"
+    t.index ["user_id", "name"], name: "index_deployments_on_user_id_and_name", unique: true
+    t.index ["user_id"], name: "index_deployments_on_user_id"
+    t.index ["uuid"], name: "index_deployments_on_uuid", unique: true
+  end
+
+  create_table "domains", force: :cascade do |t|
+    t.bigint "deployment_id", null: false
+    t.string "name", null: false
+    t.boolean "ssl_enabled", default: false, null: false
+    t.boolean "default_domain", default: false, null: false
+    t.text "ssl_error_message"
+    t.datetime "ssl_configured_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["deployment_id", "default_domain"], name: "index_domains_on_deployment_id_and_default_domain"
+    t.index ["deployment_id", "name"], name: "index_domains_on_deployment_id_and_name", unique: true
+    t.index ["deployment_id"], name: "index_domains_on_deployment_id"
+  end
+
+  create_table "environment_variables", force: :cascade do |t|
+    t.bigint "deployment_id", null: false
+    t.string "key", null: false
+    t.text "value"
+    t.string "description"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["deployment_id", "key"], name: "index_environment_variables_on_deployment_id_and_key", unique: true
+    t.index ["deployment_id"], name: "index_environment_variables_on_deployment_id"
+  end
+
   create_table "oauth_settings", force: :cascade do |t|
     t.string "key", null: false
     t.text "value"
@@ -88,6 +157,44 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_12_222823) do
     t.datetime "updated_at", null: false
     t.index ["name", "resource_type", "resource_id"], name: "index_roles_on_name_and_resource_type_and_resource_id"
     t.index ["resource_type", "resource_id"], name: "index_roles_on_resource"
+  end
+
+  create_table "servers", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "ip", null: false
+    t.string "username", default: "root"
+    t.string "internal_ip"
+    t.integer "port", default: 22
+    t.string "service_provider"
+    t.string "uuid", null: false
+    t.bigint "user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "password"
+    t.string "os_version"
+    t.string "ram_total"
+    t.string "cpu_model"
+    t.integer "cpu_cores"
+    t.string "disk_total"
+    t.datetime "last_connected_at"
+    t.string "connection_status", default: "unknown"
+    t.string "dokku_version"
+    t.index ["connection_status"], name: "index_servers_on_connection_status"
+    t.index ["last_connected_at"], name: "index_servers_on_last_connected_at"
+    t.index ["user_id", "name"], name: "index_servers_on_user_id_and_name"
+    t.index ["user_id"], name: "index_servers_on_user_id"
+    t.index ["uuid"], name: "index_servers_on_uuid", unique: true
+  end
+
+  create_table "ssh_keys", force: :cascade do |t|
+    t.string "name", null: false
+    t.text "public_key", null: false
+    t.datetime "expires_at"
+    t.bigint "user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "name"], name: "index_ssh_keys_on_user_id_and_name", unique: true
+    t.index ["user_id"], name: "index_ssh_keys_on_user_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -122,4 +229,13 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_12_222823) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "activity_logs", "users"
+  add_foreign_key "database_configurations", "deployments"
+  add_foreign_key "deployment_ssh_keys", "deployments"
+  add_foreign_key "deployment_ssh_keys", "ssh_keys"
+  add_foreign_key "deployments", "servers"
+  add_foreign_key "deployments", "users"
+  add_foreign_key "domains", "deployments"
+  add_foreign_key "environment_variables", "deployments"
+  add_foreign_key "servers", "users"
+  add_foreign_key "ssh_keys", "users"
 end
