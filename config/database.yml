@@ -1,36 +1,32 @@
 default: &default
   adapter: postgresql
   encoding: unicode
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS", 5) %>
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
 
 development:
   <<: *default
-  database: vantage_development
-
+  database: vantage_dokku_development
+git add
 test:
   <<: *default
-  database: vantage_test
+  database: vantage_dokku_test
 
 production:
-  # ---------- MAIN ----------
   primary: &primary_production
     <<: *default
-    url: <%= ENV.fetch("DATABASE_URL") %>
-
+    url: <%= ENV["DATABASE_URL"] %>
   # ---------- SOLID CACHE ----------
   cache:
     <<: *primary_production
     url: <%= ENV.fetch("CACHE_DATABASE_URL",
                        ENV.fetch("DATABASE_URL")) %>
     migrations_paths: db/cache_migrate
-
   # ---------- SOLID QUEUE ----------
   queue:
     <<: *primary_production
     url: <%= ENV.fetch("QUEUE_DATABASE_URL",
                        ENV.fetch("DATABASE_URL")) %>
     migrations_paths: db/queue_migrate
-
   # ---------- ACTION CABLE ----------
   cable:
     <<: *primary_production
