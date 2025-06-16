@@ -47,7 +47,7 @@
                         <p class="text-muted mb-0">Choose between letter_opener (development) or SMTP (production)</p>
                       </div>
                       <div class="form-check form-switch">
-                        <% smtp_enabled = AppSetting.get('smtp_enabled', false) %>
+                        <% smtp_enabled = @env_fully_configured ? (ENV['USE_REAL_EMAIL']&.downcase == 'true') : AppSetting.get('smtp_enabled', false) %>
                         <%= f.check_box "smtp_enabled", 
                             { checked: smtp_enabled, class: "form-check-input", id: "smtp_toggle", data: { "smtp-settings-target": "toggle", action: "change->smtp-settings#toggleSettings" }, disabled: @env_fully_configured }, 
                             "true", "false" %>
@@ -228,7 +228,14 @@
         <div class="card-body">
           <div class="mb-3">
             <strong>Email Delivery:</strong>
-            <% if AppSetting.get('smtp_enabled', false) %>
+            <% 
+              if @env_fully_configured
+                smtp_enabled = ENV['USE_REAL_EMAIL']&.downcase == 'true'
+              else
+                smtp_enabled = AppSetting.get('smtp_enabled', false)
+              end
+            %>
+            <% if smtp_enabled %>
               <span class="badge bg-success">SMTP Enabled</span>
             <% else %>
               <span class="badge bg-warning">Letter Opener</span>
@@ -237,12 +244,16 @@
           
           <div class="mb-3">
             <strong>SMTP Server:</strong><br>
-            <small class="text-muted"><%= AppSetting.get('smtp_address', 'Not configured') %></small>
+            <small class="text-muted">
+              <%= @env_fully_configured ? (ENV['SMTP_ADDRESS'] || 'Not configured') : AppSetting.get('smtp_address', 'Not configured') %>
+            </small>
           </div>
           
           <div class="mb-3">
             <strong>From Address:</strong><br>
-            <small class="text-muted"><%= AppSetting.get('mail_from', 'Not configured') %></small>
+            <small class="text-muted">
+              <%= @env_fully_configured ? (ENV['MAIL_FROM'] || 'Not configured') : AppSetting.get('mail_from', 'Not configured') %>
+            </small>
           </div>
           
           <div class="mb-3">

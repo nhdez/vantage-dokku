@@ -108,6 +108,8 @@ class Admin::DashboardController < ApplicationController
   end
 
   def test_email
+    # Ensure mailer configuration is up to date before sending test email
+    update_mailer_configuration
     TestMailer.test_email(current_user.email).deliver_now
     toast_test_email_sent
   rescue => e
