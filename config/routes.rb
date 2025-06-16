@@ -48,6 +48,7 @@ Rails.application.routes.draw do
     resources :activity_logs, only: [:index, :show]
     get "general_settings", to: "dashboard#general_settings"
     patch "general_settings", to: "dashboard#update_general_settings"
+    post "regenerate_ssh_keys", to: "dashboard#regenerate_ssh_keys"
     get "smtp_settings", to: "dashboard#smtp_settings"
     patch "smtp_settings", to: "dashboard#update_smtp_settings"
     post "test_email", to: "dashboard#test_email"

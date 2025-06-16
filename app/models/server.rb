@@ -1,3 +1,5 @@
+require 'fileutils'
+
 class Server < ApplicationRecord
   include ActionView::Helpers::DateHelper
   
@@ -33,7 +35,7 @@ class Server < ApplicationRecord
       host: ip,
       username: username,
       port: port,
-      keys: [ENV['DOKKU_SSH_KEY_PATH']].compact
+      keys: ssh_key_paths
     }
     
     # Add password for fallback authentication if SSH key fails
@@ -47,7 +49,28 @@ class Server < ApplicationRecord
   end
   
   def has_key_auth?
-    ENV['DOKKU_SSH_KEY_PATH'].present?
+    ssh_key_paths.any?
+  end
+  
+  def ssh_key_paths
+    paths = []
+    
+    # Check environment variables first (they take precedence)
+    if ENV['DOKKU_SSH_KEY_PATH'].present?
+      paths << ENV['DOKKU_SSH_KEY_PATH']
+    else
+      # Use database settings
+      ssh_key_path = AppSetting.get('dokku_ssh_key_path')
+      private_key = AppSetting.get('dokku_ssh_private_key')
+      
+      if ssh_key_path.present? && private_key.present?
+        # Create temporary key file if it doesn't exist
+        key_file_path = create_temp_ssh_key_file(ssh_key_path, private_key)
+        paths << key_file_path if key_file_path
+      end
+    end
+    
+    paths.compact
   end
   
   def connected?
@@ -112,5 +135,24 @@ class Server < ApplicationRecord
   
   def generate_uuid
     self.uuid ||= SecureRandom.uuid
+  end
+  
+  def create_temp_ssh_key_file(key_path, private_key_content)
+    return nil if private_key_content.blank?
+    
+    # Ensure the directory exists
+    key_dir = File.dirname(key_path)
+    FileUtils.mkdir_p(key_dir) unless File.directory?(key_dir)
+    
+    # Write the private key to the file
+    File.write(key_path, private_key_content)
+    
+    # Set correct permissions (readable only by owner)
+    File.chmod(0600, key_path)
+    
+    key_path
+  rescue => e
+    Rails.logger.error "Failed to create SSH key file: #{e.message}"
+    nil
   end
 end
