@@ -1,0 +1,297 @@
+<% content_for :title, "Deployment Logs - #{@deployment.name}" %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-terminal me-2 text-primary"></i>
+            Deployment Logs
+          </h1>
+          <p class="text-muted mb-0">
+            Real-time deployment logs for <strong><%= @deployment.name %></strong>
+          </p>
+        </div>
+        <div>
+          <%= link_to @deployment, class: "btn btn-outline-secondary me-2" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to App
+          <% end %>
+          <button class="btn btn-outline-primary" onclick="toggleAutoScroll()">
+            <i class="fas fa-sync-alt me-2"></i>
+            <span id="auto-scroll-text">Auto-scroll: On</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Logs Display -->
+    <div class="col-lg-9">
+      <div class="card shadow">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-file-alt me-2"></i>Live Deployment Logs
+          </h6>
+          <div>
+            <span class="badge <%= @deployment.status_badge_class %> fs-6">
+              <i class="<%= @deployment.status_icon %> me-1"></i>
+              <span id="deployment-status"><%= @deployment.status_text %></span>
+            </span>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="bg-dark text-white p-3" style="height: 600px; overflow-y: auto; font-family: 'Courier New', monospace;" id="logs-container">
+            <div id="logs-content">
+              <% if @deployment.deployment_logs.present? %>
+                <% @deployment.deployment_logs.split("\n").each do |log_line| %>
+                  <div class="log-line"><%= log_line %></div>
+                <% end %>
+              <% else %>
+                <div class="log-line text-muted">[No logs available yet]</div>
+              <% end %>
+            </div>
+            <div id="loading-indicator" style="display: <%= @deployment.deployment_status == 'deploying' ? 'block' : 'none' %>;">
+              <div class="text-warning">
+                <i class="fas fa-spinner fa-spin me-2"></i>Deployment in progress...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status & Actions -->
+    <div class="col-lg-3">
+      <!-- Current Status -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-info-circle me-2"></i>Deployment Status
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="text-center mb-3">
+            <span class="badge <%= @deployment.status_badge_class %> fs-5 px-3 py-2" id="status-badge">
+              <i class="<%= @deployment.status_icon %> me-2" id="status-icon"></i>
+              <span id="status-text"><%= @deployment.status_text %></span>
+            </span>
+          </div>
+          
+          <div class="mb-3">
+            <strong>Method:</strong><br>
+            <small class="text-muted"><%= @deployment.deployment_method_text %></small>
+          </div>
+          
+          <% if @deployment.repository_url.present? %>
+            <div class="mb-3">
+              <strong>Repository:</strong><br>
+              <small class="text-muted word-break"><%= @deployment.repository_url %></small>
+            </div>
+          <% end %>
+          
+          <% if @deployment.repository_branch.present? %>
+            <div class="mb-3">
+              <strong>Branch:</strong><br>
+              <code class="text-info"><%= @deployment.repository_branch %></code>
+            </div>
+          <% end %>
+          
+          <% if @deployment.last_deployment_at.present? %>
+            <div class="mb-3">
+              <strong>Last Deployed:</strong><br>
+              <small class="text-muted">
+                <%= @deployment.last_deployment_at.strftime("%B %d, %Y at %I:%M %p") %>
+                <br><%= time_ago_in_words(@deployment.last_deployment_at) %> ago
+              </small>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-success">
+            <i class="fas fa-cogs me-2"></i>Actions
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <% if @deployment.deployment_status == 'deploying' %>
+              <button class="btn btn-warning" disabled>
+                <i class="fas fa-spinner fa-spin me-2"></i>Deploying...
+              </button>
+            <% elsif @deployment.can_deploy? && @deployment.deployment_configured? %>
+              <%= form_with url: deploy_deployment_path(@deployment), method: :post, local: true do |f| %>
+                <%= submit_tag "Deploy Again", class: "btn btn-success", 
+                    data: { confirm: "Start a new deployment? This will override any existing deployment." } %>
+              <% end %>
+            <% end %>
+            
+            <%= link_to git_configuration_deployment_path(@deployment), class: "btn btn-outline-primary" do %>
+              <i class="fab fa-git-alt me-2"></i>Git Configuration
+            <% end %>
+            
+            <% if @deployment.dokku_url.present? %>
+              <%= link_to @deployment.dokku_url, target: "_blank", rel: "noopener", class: "btn btn-outline-success" do %>
+                <i class="fas fa-external-link-alt me-2"></i>Visit App
+              <% end %>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Help -->
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-question-circle me-2"></i>Understanding Logs
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <h6 class="text-success">Success Messages</h6>
+            <p class="small text-muted">Look for ✓ markers indicating successful steps.</p>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-danger">Error Messages</h6>
+            <p class="small text-muted">✗ markers and ERROR messages indicate issues that need attention.</p>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-info">Process Flow</h6>
+            <p class="small text-muted">Logs show repository cloning, Dokku app creation, and deployment steps.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let autoScroll = true;
+  let pollingInterval;
+  
+  // Auto-scroll toggle
+  function toggleAutoScroll() {
+    autoScroll = !autoScroll;
+    const text = document.getElementById('auto-scroll-text');
+    text.textContent = `Auto-scroll: ${autoScroll ? 'On' : 'Off'}`;
+    
+    if (autoScroll) {
+      scrollToBottom();
+    }
+  }
+  
+  // Scroll to bottom of logs
+  function scrollToBottom() {
+    const container = document.getElementById('logs-container');
+    container.scrollTop = container.scrollHeight;
+  }
+  
+  // Poll for log updates
+  function pollForUpdates() {
+    fetch(window.location.href + '.json')
+      .then(response => response.json())
+      .then(data => {
+        // Update logs
+        const logsContent = document.getElementById('logs-content');
+        if (data.logs) {
+          logsContent.innerHTML = data.logs.split('\n').map(line => 
+            `<div class="log-line">${escapeHtml(line)}</div>`
+          ).join('');
+        }
+        
+        // Update status
+        updateStatus(data.status, data.status_text, data.status_icon, data.status_badge_class);
+        
+        // Auto-scroll if enabled
+        if (autoScroll) {
+          scrollToBottom();
+        }
+        
+        // Hide loading indicator if deployment is complete
+        const loadingIndicator = document.getElementById('loading-indicator');
+        if (data.status !== 'deploying') {
+          loadingIndicator.style.display = 'none';
+          // Stop polling if deployment is complete
+          if (pollingInterval) {
+            clearInterval(pollingInterval);
+          }
+        }
+      })
+      .catch(error => {
+        console.error('Error polling for updates:', error);
+      });
+  }
+  
+  // Update status display
+  function updateStatus(status, statusText, statusIcon, statusBadgeClass) {
+    const statusBadge = document.getElementById('status-badge');
+    const statusIconEl = document.getElementById('status-icon');
+    const statusTextEl = document.getElementById('status-text');
+    const deploymentStatusEl = document.getElementById('deployment-status');
+    
+    if (statusBadge && statusIconEl && statusTextEl && deploymentStatusEl) {
+      statusBadge.className = `badge ${statusBadgeClass} fs-5 px-3 py-2`;
+      statusIconEl.className = `${statusIcon} me-2`;
+      statusTextEl.textContent = statusText;
+      deploymentStatusEl.textContent = statusText;
+    }
+  }
+  
+  // Escape HTML to prevent XSS
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  
+  // Start polling when page loads
+  document.addEventListener('DOMContentLoaded', function() {
+    // Initial scroll to bottom
+    scrollToBottom();
+    
+    // Start polling every 2 seconds if deployment is in progress
+    const currentStatus = '<%= @deployment.deployment_status %>';
+    if (currentStatus === 'deploying') {
+      pollingInterval = setInterval(pollForUpdates, 2000);
+    }
+  });
+</script>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+.word-break {
+  word-break: break-all;
+}
+.log-line {
+  margin-bottom: 2px;
+  white-space: pre-wrap;
+}
+.log-line:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+#logs-container::-webkit-scrollbar {
+  width: 8px;
+}
+#logs-container::-webkit-scrollbar-track {
+  background: #2d3748;
+}
+#logs-container::-webkit-scrollbar-thumb {
+  background: #4a5568;
+  border-radius: 4px;
+}
+#logs-container::-webkit-scrollbar-thumb:hover {
+  background: #718096;
+}
+</style>

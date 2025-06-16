@@ -1,8 +1,8 @@
 class DeploymentsController < ApplicationController
   include ActivityTrackable
   
-  before_action :set_deployment, only: [:show, :edit, :update, :destroy, :configure_domain, :update_domains, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status]
-  before_action :authorize_deployment, only: [:show, :edit, :update, :destroy, :configure_domain, :update_domains, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status]
+  before_action :set_deployment, only: [:show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status]
+  before_action :authorize_deployment, only: [:show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status]
   
   def index
     @pagy, @deployments = pagy(current_user.deployments.includes(:server).recent, limit: 15)
@@ -449,6 +449,109 @@ class DeploymentsController < ApplicationController
             success: false,
             error: "SSL check failed: #{e.message}"
           }, status: :internal_server_error, content_type: 'application/json'
+        }
+      end
+    end
+  end
+
+  def git_configuration
+    @github_linked_account = current_user.linked_accounts.find_by(provider: 'github')
+    @github_repositories = []
+    
+    if @github_linked_account&.connected?
+      begin
+        github_service = GitHubService.new(@github_linked_account.access_token)
+        result = github_service.user_repositories
+        @github_repositories = result[:repositories] if result[:success]
+      rescue => e
+        Rails.logger.error "Failed to fetch GitHub repositories: #{e.message}"
+        flash[:warning] = "Unable to fetch GitHub repositories. Please check your connection."
+      end
+    end
+    
+    log_activity('git_configuration_viewed', details: "Viewed Git configuration for deployment: #{@deployment.display_name}")
+  end
+
+  def update_git_configuration
+    deployment_method = params[:deployment_method]
+    
+    case deployment_method
+    when 'manual'
+      @deployment.update!(
+        deployment_method: 'manual',
+        repository_url: nil,
+        repository_branch: nil
+      )
+      toast_success("Git configuration updated to manual deployment.", title: "Configuration Updated")
+      
+    when 'github_repo'
+      repository_url = params[:github_repository_url]
+      branch = params[:repository_branch].presence || 'main'
+      
+      @deployment.update!(
+        deployment_method: 'github_repo',
+        repository_url: repository_url,
+        repository_branch: branch
+      )
+      toast_success("GitHub repository configured successfully.", title: "Configuration Updated")
+      
+    when 'public_repo'
+      repository_url = params[:public_repository_url]
+      branch = params[:repository_branch].presence || 'main'
+      
+      @deployment.update!(
+        deployment_method: 'public_repo',
+        repository_url: repository_url,
+        repository_branch: branch
+      )
+      toast_success("Public repository configured successfully.", title: "Configuration Updated")
+    end
+    
+    log_activity('git_configuration_updated', 
+                details: "Updated Git configuration for deployment: #{@deployment.display_name} - Method: #{deployment_method}")
+    
+    redirect_to @deployment
+  rescue => e
+    toast_error("Failed to update Git configuration: #{e.message}", title: "Configuration Failed")
+    redirect_to git_configuration_deployment_path(@deployment)
+  end
+
+  def deploy
+    unless @deployment.can_deploy?
+      toast_error("Deployment not ready. Ensure server has Dokku installed and is connected.", title: "Deployment Failed")
+      redirect_to @deployment
+      return
+    end
+
+    unless @deployment.deployment_configured?
+      toast_error("Git configuration required before deployment.", title: "Configuration Required")
+      redirect_to git_configuration_deployment_path(@deployment)
+      return
+    end
+
+    # Start deployment in background
+    @deployment.update!(deployment_status: 'deploying')
+    DeploymentJob.perform_later(@deployment)
+    
+    log_activity('deployment_started', details: "Started deployment for: #{@deployment.display_name}")
+    toast_success("Deployment started! You can monitor progress in the logs.", title: "Deployment Started")
+    redirect_to logs_deployment_path(@deployment)
+  end
+
+  def logs
+    # This will show deployment logs in real-time
+    log_activity('deployment_logs_viewed', details: "Viewed deployment logs for: #{@deployment.display_name}")
+    
+    respond_to do |format|
+      format.html
+      format.json do
+        render json: {
+          logs: @deployment.deployment_logs || "",
+          status: @deployment.deployment_status,
+          status_text: @deployment.status_text,
+          status_icon: @deployment.status_icon,
+          status_badge_class: @deployment.status_badge_class,
+          last_deployment_at: @deployment.last_deployment_at&.iso8601
         }
       end
     end

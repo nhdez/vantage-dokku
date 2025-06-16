@@ -206,6 +206,17 @@
         </div>
         <div class="card-body">
           <div class="d-grid gap-2">
+            <% if @deployment.deployment_status == 'deploying' %>
+              <%= link_to logs_deployment_path(@deployment), class: "btn btn-warning" do %>
+                <i class="fas fa-spinner fa-spin me-2"></i>View Deployment
+              <% end %>
+            <% elsif @deployment.can_deploy? && @deployment.deployment_configured? %>
+              <%= form_with url: deploy_deployment_path(@deployment), method: :post, local: true do |f| %>
+                <%= submit_tag "Deploy Now", class: "btn btn-success", 
+                    data: { confirm: "Start deployment? This will clone the repository and deploy to Dokku." } %>
+              <% end %>
+            <% end %>
+            
             <% if @deployment.dokku_url.present? %>
               <%= link_to @deployment.dokku_url, target: "_blank", rel: "noopener", class: "btn btn-outline-success" do %>
                 <i class="fas fa-external-link-alt me-2"></i>Visit Application
@@ -237,6 +248,10 @@
         </div>
         <div class="card-body">
           <div class="d-grid gap-2">
+            <%= link_to git_configuration_deployment_path(@deployment), class: "btn btn-outline-success" do %>
+              <i class="fab fa-git-alt me-2"></i>Git Configuration
+            <% end %>
+            
             <%= link_to configure_domain_deployment_path(@deployment), class: "btn btn-outline-primary",
                         data: { turbo: false } do %>
               <i class="fas fa-globe me-2"></i>Configure Domain
@@ -313,15 +328,27 @@
             </span>
           </div>
           
-          <% if @deployment.can_deploy? %>
+          <% if @deployment.deployment_status == 'deploying' %>
+            <div class="alert alert-warning py-2">
+              <i class="fas fa-spinner fa-spin me-2"></i>
+              <strong>Deployment in progress!</strong> 
+              <%= link_to "View logs", logs_deployment_path(@deployment), class: "alert-link" %> to monitor progress.
+            </div>
+          <% elsif @deployment.can_deploy? && @deployment.deployment_configured? %>
             <div class="alert alert-success py-2">
               <i class="fas fa-check-circle me-2"></i>
-              <strong>Ready to deploy!</strong> Server has Dokku installed and is connected.
+              <strong>Ready to deploy!</strong> Configuration complete and server connected.
             </div>
-          <% else %>
+          <% elsif !@deployment.deployment_configured? %>
+            <div class="alert alert-info py-2">
+              <i class="fas fa-cogs me-2"></i>
+              <strong>Configuration needed:</strong> 
+              <%= link_to "Configure Git repository", git_configuration_deployment_path(@deployment), class: "alert-link" %> to enable deployment.
+            </div>
+          <% elsif !@deployment.can_deploy? %>
             <div class="alert alert-warning py-2">
               <i class="fas fa-exclamation-triangle me-2"></i>
-              <strong>Deployment blocked:</strong> 
+              <strong>Server not ready:</strong> 
               <% unless @deployment.server.dokku_installed? %>
                 Install Dokku on the server first.
               <% end %>
@@ -333,7 +360,10 @@
           
           <div class="small text-muted mt-2">
             <i class="fas fa-info-circle me-1"></i>
-            Deployment management features will be expanded in future updates.
+            <strong>Method:</strong> <%= @deployment.deployment_method_text %>
+            <% if @deployment.last_deployment_at.present? %>
+              <br><strong>Last deployed:</strong> <%= time_ago_in_words(@deployment.last_deployment_at) %> ago
+            <% end %>
           </div>
         </div>
       </div>

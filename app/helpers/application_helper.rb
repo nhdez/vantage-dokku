@@ -75,6 +75,12 @@ module ApplicationHelper
       elsif action_name == 'configure_databases' && @deployment
         add_breadcrumb @deployment.name, deployment_path(@deployment)
         add_breadcrumb 'Database Configuration'
+      elsif action_name == 'git_configuration' && @deployment
+        add_breadcrumb @deployment.name, deployment_path(@deployment)
+        add_breadcrumb 'Git Configuration', nil, icon: 'fab fa-git-alt'
+      elsif action_name == 'logs' && @deployment
+        add_breadcrumb @deployment.name, deployment_path(@deployment)
+        add_breadcrumb 'Deployment Logs', nil, icon: 'fas fa-terminal'
       end
     when 'servers'
       add_breadcrumb 'Dashboard', dashboard_path

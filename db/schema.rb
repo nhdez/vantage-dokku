@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_06_15_224022) do
+ActiveRecord::Schema[8.0].define(version: 2025_06_16_003702) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -120,6 +120,14 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_15_224022) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "uuid", null: false
+    t.text "repository_url"
+    t.string "deployment_method", default: "manual"
+    t.string "deployment_status", default: "pending"
+    t.text "deployment_logs"
+    t.string "repository_branch", default: "main"
+    t.datetime "last_deployment_at"
+    t.index ["deployment_method"], name: "index_deployments_on_deployment_method"
+    t.index ["deployment_status"], name: "index_deployments_on_deployment_status"
     t.index ["dokku_app_name"], name: "index_deployments_on_dokku_app_name", unique: true
     t.index ["server_id", "dokku_app_name"], name: "index_deployments_on_server_id_and_dokku_app_name", unique: true
     t.index ["server_id"], name: "index_deployments_on_server_id"

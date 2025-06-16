@@ -100,6 +100,10 @@ class LinkedAccount < ApplicationRecord
     end
   end
   
+  def connected?
+    connection_status == 'connected'
+  end
+  
   def connection_status_color
     case connection_status
     when 'connected'

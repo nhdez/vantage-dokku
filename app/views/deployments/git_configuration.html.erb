@@ -1,0 +1,324 @@
+<% content_for :title, "Git Configuration - #{@deployment.name}" %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fab fa-git-alt me-2 text-success"></i>
+            Git Configuration
+          </h1>
+          <p class="text-muted mb-0">
+            Configure repository source for <strong><%= @deployment.name %></strong>
+          </p>
+        </div>
+        <div>
+          <%= link_to @deployment, class: "btn btn-outline-secondary" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to App
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Configuration Form -->
+    <div class="col-lg-8">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-cogs me-2"></i>Repository Configuration
+          </h6>
+        </div>
+        <div class="card-body">
+          <%= form_with url: update_git_configuration_deployment_path(@deployment), method: :post, local: true do |f| %>
+            <!-- Deployment Method Selection -->
+            <div class="mb-4">
+              <h6 class="text-primary mb-3">Choose Deployment Method</h6>
+              
+              <!-- Manual Git Push Option -->
+              <div class="form-check mb-3">
+                <%= radio_button_tag "deployment_method", "manual", @deployment.deployment_method == "manual", 
+                    class: "form-check-input", id: "method_manual" %>
+                <label class="form-check-label" for="method_manual">
+                  <div class="d-flex align-items-center">
+                    <i class="fas fa-terminal me-2 text-secondary"></i>
+                    <div>
+                      <strong>Manual Git Push</strong>
+                      <div class="small text-muted">Push directly from your local environment using git push dokku main</div>
+                    </div>
+                  </div>
+                </label>
+              </div>
+
+              <!-- GitHub Repository Option -->
+              <div class="form-check mb-3">
+                <%= radio_button_tag "deployment_method", "github_repo", @deployment.deployment_method == "github_repo", 
+                    class: "form-check-input", id: "method_github" %>
+                <label class="form-check-label" for="method_github">
+                  <div class="d-flex align-items-center">
+                    <i class="fab fa-github me-2 text-dark"></i>
+                    <div>
+                      <strong>GitHub Repository</strong>
+                      <div class="small text-muted">
+                        Deploy from your GitHub repositories
+                        <% unless @github_linked_account&.connected? %>
+                          <span class="text-warning">- GitHub account required</span>
+                        <% end %>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+              </div>
+
+              <!-- Public Repository Option -->
+              <div class="form-check mb-3">
+                <%= radio_button_tag "deployment_method", "public_repo", @deployment.deployment_method == "public_repo", 
+                    class: "form-check-input", id: "method_public" %>
+                <label class="form-check-label" for="method_public">
+                  <div class="d-flex align-items-center">
+                    <i class="fas fa-globe me-2 text-info"></i>
+                    <div>
+                      <strong>Public Repository</strong>
+                      <div class="small text-muted">Deploy from any publicly accessible Git repository</div>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- GitHub Repository Configuration -->
+            <div id="github-config" class="method-config" style="<%= @deployment.deployment_method == 'github_repo' ? '' : 'display: none;' %>">
+              <div class="card bg-light">
+                <div class="card-body">
+                  <h6 class="mb-3">
+                    <i class="fab fa-github me-2"></i>GitHub Repository Configuration
+                  </h6>
+                  
+                  <% if @github_linked_account&.connected? %>
+                    <div class="mb-3">
+                      <label class="form-label">Select Repository</label>
+                      <select name="github_repository_url" class="form-select">
+                        <option value="">Choose a repository...</option>
+                        <% @github_repositories.each do |repo| %>
+                          <option value="<%= repo[:clone_url] %>" 
+                                  data-name="<%= repo[:name] %>"
+                                  <%= 'selected' if @deployment.repository_url == repo[:clone_url] %>>
+                            <%= repo[:full_name] %> <%= "(#{repo[:visibility]})" %>
+                          </option>
+                        <% end %>
+                      </select>
+                    </div>
+                  <% else %>
+                    <div class="alert alert-warning">
+                      <i class="fas fa-exclamation-triangle me-2"></i>
+                      <strong>GitHub Account Required</strong>
+                      <p class="mb-2">To deploy from GitHub repositories, you need to link your GitHub account first.</p>
+                      <%= link_to linked_accounts_path, class: "btn btn-sm btn-warning" do %>
+                        <i class="fab fa-github me-2"></i>Link GitHub Account
+                      <% end %>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+
+            <!-- Public Repository Configuration -->
+            <div id="public-config" class="method-config" style="<%= @deployment.deployment_method == 'public_repo' ? '' : 'display: none;' %>">
+              <div class="card bg-light">
+                <div class="card-body">
+                  <h6 class="mb-3">
+                    <i class="fas fa-globe me-2"></i>Public Repository Configuration
+                  </h6>
+                  
+                  <div class="mb-3">
+                    <label for="public_repository_url" class="form-label">Repository URL</label>
+                    <input type="url" name="public_repository_url" id="public_repository_url" 
+                           class="form-control" 
+                           placeholder="https://github.com/user/repo.git"
+                           value="<%= @deployment.repository_url if @deployment.deployment_method == 'public_repo' %>">
+                    <div class="form-text">
+                      <i class="fas fa-info-circle me-1"></i>
+                      Enter the Git clone URL for any publicly accessible repository
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Branch Configuration (for both GitHub and Public repos) -->
+            <div id="branch-config" class="method-config" style="<%= @deployment.deployment_method.in?(['github_repo', 'public_repo']) ? '' : 'display: none;' %>">
+              <div class="mb-4">
+                <label for="repository_branch" class="form-label">Branch</label>
+                <input type="text" name="repository_branch" id="repository_branch" 
+                       class="form-control" 
+                       placeholder="main"
+                       value="<%= @deployment.repository_branch || 'main' %>">
+                <div class="form-text">
+                  <i class="fas fa-info-circle me-1"></i>
+                  The branch to deploy from (default: main)
+                </div>
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="d-flex justify-content-end">
+              <%= submit_tag "Save Configuration", class: "btn btn-success btn-lg" %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Current Configuration & Help -->
+    <div class="col-lg-4">
+      <!-- Current Configuration -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-info-circle me-2"></i>Current Configuration
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <strong>Deployment Method:</strong><br>
+            <span class="badge bg-primary fs-6"><%= @deployment.deployment_method_text %></span>
+          </div>
+          
+          <% if @deployment.repository_url.present? %>
+            <div class="mb-3">
+              <strong>Repository:</strong><br>
+              <small class="text-muted word-break"><%= @deployment.repository_url %></small>
+            </div>
+          <% end %>
+          
+          <% if @deployment.repository_branch.present? %>
+            <div class="mb-3">
+              <strong>Branch:</strong><br>
+              <code class="text-info"><%= @deployment.repository_branch %></code>
+            </div>
+          <% end %>
+          
+          <div class="mb-3">
+            <strong>Status:</strong><br>
+            <span class="badge <%= @deployment.status_badge_class %> fs-6">
+              <i class="<%= @deployment.status_icon %> me-1"></i>
+              <%= @deployment.status_text %>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deploy Button -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-success">
+            <i class="fas fa-rocket me-2"></i>Ready to Deploy?
+          </h6>
+        </div>
+        <div class="card-body">
+          <% if @deployment.can_deploy? && @deployment.deployment_configured? %>
+            <div class="alert alert-success py-2 mb-3">
+              <i class="fas fa-check-circle me-2"></i>
+              <strong>Ready!</strong> Configuration complete and server connected.
+            </div>
+            <%= form_with url: deploy_deployment_path(@deployment), method: :post, local: true do |f| %>
+              <div class="d-grid">
+                <%= submit_tag "Deploy Now", class: "btn btn-success btn-lg", 
+                    data: { confirm: "Start deployment? This will clone the repository and deploy to Dokku." } %>
+              </div>
+            <% end %>
+          <% elsif !@deployment.can_deploy? %>
+            <div class="alert alert-warning py-2">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              <strong>Server not ready:</strong> Ensure Dokku is installed and server is connected.
+            </div>
+          <% elsif !@deployment.deployment_configured? %>
+            <div class="alert alert-info py-2">
+              <i class="fas fa-info-circle me-2"></i>
+              <strong>Configuration required:</strong> Configure repository above to enable deployment.
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- Help -->
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-question-circle me-2"></i>Need Help?
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <h6>Manual Deployment</h6>
+            <p class="small text-muted">Push directly from your local Git repository using the provided Dokku commands.</p>
+          </div>
+          
+          <div class="mb-3">
+            <h6>GitHub Repository</h6>
+            <p class="small text-muted">Deploy automatically from your GitHub repositories. Requires linked GitHub account.</p>
+          </div>
+          
+          <div class="mb-3">
+            <h6>Public Repository</h6>
+            <p class="small text-muted">Deploy from any publicly accessible Git repository by providing the clone URL.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Function to show/hide method configurations
+    function showMethodConfig(method) {
+      // Hide all method configs
+      document.querySelectorAll('.method-config').forEach(el => {
+        el.style.display = 'none';
+      });
+      
+      // Show relevant config based on method
+      if (method === 'github_repo') {
+        const githubConfig = document.getElementById('github-config');
+        const branchConfig = document.getElementById('branch-config');
+        if (githubConfig) githubConfig.style.display = 'block';
+        if (branchConfig) branchConfig.style.display = 'block';
+      } else if (method === 'public_repo') {
+        const publicConfig = document.getElementById('public-config');
+        const branchConfig = document.getElementById('branch-config');
+        if (publicConfig) publicConfig.style.display = 'block';
+        if (branchConfig) branchConfig.style.display = 'block';
+      }
+    }
+    
+    // Add event listeners to radio buttons
+    const methodRadios = document.querySelectorAll('input[name="deployment_method"]');
+    methodRadios.forEach(radio => {
+      radio.addEventListener('change', function(event) {
+        showMethodConfig(event.target.value);
+      });
+    });
+    
+    // Show initial configuration based on current selection
+    const checkedRadio = document.querySelector('input[name="deployment_method"]:checked');
+    if (checkedRadio) {
+      showMethodConfig(checkedRadio.value);
+    }
+  });
+</script>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+.word-break {
+  word-break: break-all;
+}
+</style>

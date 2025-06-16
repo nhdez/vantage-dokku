@@ -6,6 +6,10 @@ Rails.application.routes.draw do
   end
   resources :deployments, param: :uuid do
     member do
+      get :git_configuration
+      post :update_git_configuration
+      post :deploy
+      get :logs
       get :configure_domain
       post :update_domains
       get :attach_ssh_keys

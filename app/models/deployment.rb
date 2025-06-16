@@ -18,6 +18,10 @@ class Deployment < ApplicationRecord
   }
   validates :description, length: { maximum: 1000 }, allow_blank: true
   validates :uuid, presence: true, uniqueness: true
+  validates :deployment_method, inclusion: { in: %w[manual github_repo public_repo], allow_blank: true }
+  validates :deployment_status, inclusion: { in: %w[pending deploying deployed failed], allow_blank: true }
+  validates :repository_branch, presence: true, if: -> { deployment_method.in?(['github_repo', 'public_repo']) }
+  validates :repository_url, presence: true, if: -> { deployment_method.in?(['github_repo', 'public_repo']) }
   
   validate :server_must_have_dokku_installed
   
@@ -94,9 +98,21 @@ class Deployment < ApplicationRecord
     server&.dokku_installed? && server&.connection_status == 'connected'
   end
   
-  def deployment_status
-    # This will be expanded later when we add actual deployment functionality
-    'not_deployed'
+  def deployment_method_text
+    case deployment_method
+    when 'manual'
+      'Manual Git Push'
+    when 'github_repo'
+      'GitHub Repository'
+    when 'public_repo'
+      'Public Repository'
+    else
+      'Not Configured'
+    end
+  end
+  
+  def deployment_configured?
+    deployment_method.present? && deployment_method != 'manual'
   end
   
   def status_badge_class
@@ -121,7 +137,7 @@ class Deployment < ApplicationRecord
     when 'failed'
       'Failed'
     else
-      'Not Deployed'
+      'Pending'
     end
   end
   
