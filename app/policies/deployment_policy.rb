@@ -71,6 +71,30 @@ class DeploymentPolicy < ApplicationPolicy
     user.present? && (record.user == user || user.admin?)
   end
 
+  def git_configuration?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def update_git_configuration?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def deploy?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def logs?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def execute_commands?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def run_command?
+    user.present? && (record.user == user || user.admin?)
+  end
+
   class Scope < Scope
     def resolve
       if user.admin?

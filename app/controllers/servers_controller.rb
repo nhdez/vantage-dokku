@@ -58,97 +58,63 @@ class ServersController < ApplicationController
 
   def test_connection
     begin
-      service = SshConnectionService.new(@server)
-      result = service.test_connection_and_gather_info
+      # Start the connection test in the background
+      TestConnectionJob.perform_later(@server.id, current_user.id)
       
-      if result[:success]
-        log_activity('server_connection_tested', details: "Successfully connected to server: #{@server.display_name}")
-        render json: {
-          success: true,
-          message: "Connection successful! Server information has been updated.",
-          server_info: result[:server_info],
-          connection_status: @server.reload.connection_status
-        }
-      else
-        log_activity('server_connection_failed', details: "Failed to connect to server: #{@server.display_name} - #{result[:error]}")
-        render json: {
-          success: false,
-          message: result[:error],
-          connection_status: @server.reload.connection_status
-        }
-      end
+      log_activity('server_connection_test_started', details: "Started connection test for server: #{@server.display_name}")
+      
+      render json: {
+        success: true,
+        message: "Connection test started in background. You'll be notified when complete.",
+        server_uuid: @server.uuid
+      }
     rescue StandardError => e
-      Rails.logger.error "Connection test failed: #{e.message}"
+      Rails.logger.error "Failed to start connection test: #{e.message}"
       render json: {
         success: false,
-        message: "An unexpected error occurred: #{e.message}",
-        connection_status: 'failed'
+        message: "Failed to start connection test: #{e.message}"
       }
     end
   end
 
   def update_server
     begin
-      service = SshConnectionService.new(@server)
-      result = service.update_server_packages
+      # Start the server update in the background
+      UpdateServerJob.perform_later(@server.id, current_user.id)
       
-      if result[:success]
-        log_activity('server_updated', details: "Successfully updated packages on server: #{@server.display_name}")
-        
-        # Check if reboot is required
-        reboot_required = result[:output].include?('REBOOT_REQUIRED')
-        
-        render json: {
-          success: true,
-          message: reboot_required ? 
-            "Server updated successfully! A reboot is required to complete some updates." : 
-            "Server updated successfully! All packages are up to date.",
-          output: result[:output],
-          reboot_required: reboot_required
-        }
-      else
-        log_activity('server_update_failed', details: "Failed to update server: #{@server.display_name} - #{result[:error]}")
-        render json: {
-          success: false,
-          message: result[:error],
-          output: result[:output]
-        }
-      end
+      log_activity('server_update_started', details: "Started server update for: #{@server.display_name}")
+      
+      render json: {
+        success: true,
+        message: "Server update started in background. This may take several minutes. You'll be notified when complete.",
+        server_uuid: @server.uuid
+      }
     rescue StandardError => e
-      Rails.logger.error "Server update failed: #{e.message}"
+      Rails.logger.error "Failed to start server update: #{e.message}"
       render json: {
         success: false,
-        message: "An unexpected error occurred: #{e.message}"
+        message: "Failed to start server update: #{e.message}"
       }
     end
   end
 
   def install_dokku
     begin
-      service = SshConnectionService.new(@server)
-      result = service.install_dokku_with_key_setup
+      # Start the Dokku installation in the background
+      InstallDokkuJob.perform_later(@server.id, current_user.id)
       
-      if result[:success]
-        log_activity('dokku_installed', details: "Successfully installed Dokku on server: #{@server.display_name}")
-        render json: {
-          success: true,
-          message: "Dokku installation completed successfully!",
-          output: result[:output],
-          dokku_installed: result[:dokku_installed]
-        }
-      else
-        log_activity('dokku_installation_failed', details: "Failed to install Dokku on server: #{@server.display_name} - #{result[:error]}")
-        render json: {
-          success: false,
-          message: result[:error],
-          output: result[:output]
-        }
-      end
+      log_activity('dokku_installation_started', details: "Started Dokku installation for: #{@server.display_name}")
+      
+      render json: {
+        success: true,
+        message: "Dokku installation started in background. This may take 5-10 minutes. You'll be notified when complete.",
+        server_uuid: @server.uuid
+      }
     rescue StandardError => e
-      Rails.logger.error "Dokku installation failed: #{e.message}"
+      Rails.logger.error "Failed to start Dokku installation: #{e.message}"
       render json: {
         success: false,
-        message: "An unexpected error occurred: #{e.message}"
+        message: "Failed to start Dokku installation: #{e.message}"
       }
     end
   end

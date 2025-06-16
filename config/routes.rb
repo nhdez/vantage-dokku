@@ -1,4 +1,6 @@
 Rails.application.routes.draw do
+  # Mount ActionCable
+  mount ActionCable.server => '/cable'
   resources :linked_accounts do
     member do
       post :test_connection
@@ -6,6 +8,10 @@ Rails.application.routes.draw do
   end
   resources :deployments, param: :uuid do
     member do
+      get :git_configuration
+      post :update_git_configuration
+      post :deploy
+      get :logs
       get :configure_domain
       post :update_domains
       get :attach_ssh_keys
@@ -17,6 +23,8 @@ Rails.application.routes.draw do
       delete :delete_database_configuration
       post :create_dokku_app
       post :check_ssl_status
+      get :execute_commands
+      post :run_command
     end
   end
   resources :ssh_keys
@@ -44,6 +52,7 @@ Rails.application.routes.draw do
     resources :activity_logs, only: [:index, :show]
     get "general_settings", to: "dashboard#general_settings"
     patch "general_settings", to: "dashboard#update_general_settings"
+    post "regenerate_ssh_keys", to: "dashboard#regenerate_ssh_keys"
     get "smtp_settings", to: "dashboard#smtp_settings"
     patch "smtp_settings", to: "dashboard#update_smtp_settings"
     post "test_email", to: "dashboard#test_email"

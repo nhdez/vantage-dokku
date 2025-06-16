@@ -87,6 +87,97 @@
           <% end %>
         </div>
       </div>
+
+      <!-- SSH Key Management -->
+      <div class="card shadow mt-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-success">
+            <i class="fas fa-key me-2"></i>SSH Key Configuration
+          </h6>
+        </div>
+        <div class="card-body">
+          <% if @using_env_ssh_keys %>
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle me-2"></i>
+              <strong>Environment Variables Detected</strong>
+              <p class="mb-0">SSH keys are currently configured via environment variables. Database values are shown for reference but environment variables take precedence.</p>
+            </div>
+          <% end %>
+
+          <%= form_with url: admin_general_settings_path, method: :patch, local: true do |f| %>
+            <% @ssh_settings.each do |setting| %>
+              <div class="mb-4">
+                <label class="form-label">
+                  <strong><%= setting.key.humanize %></strong>
+                  <% if @using_env_ssh_keys %>
+                    <span class="badge bg-warning ms-2">ENV Override</span>
+                  <% end %>
+                </label>
+                <% if setting.description.present? %>
+                  <div class="form-text text-muted mb-2"><%= setting.description %></div>
+                <% end %>
+                
+                <% if setting.key.include?('private_key') %>
+                  <%= f.text_area setting.key, 
+                      value: setting.value, 
+                      class: "form-control font-monospace", 
+                      rows: 8,
+                      style: "font-size: 0.8rem;",
+                      disabled: @using_env_ssh_keys,
+                      placeholder: "-----BEGIN OPENSSH PRIVATE KEY-----" %>
+                <% elsif setting.key.include?('public_key') %>
+                  <%= f.text_area setting.key, 
+                      value: setting.value, 
+                      class: "form-control font-monospace", 
+                      rows: 3,
+                      style: "font-size: 0.8rem;",
+                      disabled: @using_env_ssh_keys,
+                      placeholder: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5..." %>
+                <% else %>
+                  <%= f.text_field setting.key, 
+                      value: setting.value, 
+                      class: "form-control font-monospace",
+                      style: "font-size: 0.9rem;",
+                      disabled: @using_env_ssh_keys,
+                      placeholder: "/path/to/ssh/key" %>
+                <% end %>
+              </div>
+            <% end %>
+            
+            <div class="row">
+              <div class="col-6">
+                <div class="d-grid">
+                  <%= f.submit "Update SSH Keys", 
+                      class: "btn btn-success", 
+                      disabled: @using_env_ssh_keys %>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="d-grid">
+                  <%= form_with url: admin_regenerate_ssh_keys_path, method: :post, local: true do |regen_form| %>
+                    <%= regen_form.submit "Regenerate Keys", 
+                        class: "btn btn-warning", 
+                        disabled: @using_env_ssh_keys,
+                        data: { confirm: "Are you sure? This will generate new SSH keys and may affect existing server connections." } %>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+
+          <div class="alert alert-warning mt-3">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Important:</strong> These SSH keys are used by Vantage Dokku to connect to your deployment servers. Keep them secure!
+          </div>
+
+          <% if @ssh_settings.find { |s| s.key == 'dokku_ssh_public_key' }&.value.present? %>
+            <div class="alert alert-info mt-3">
+              <i class="fas fa-info-circle me-2"></i>
+              <strong>Next Steps:</strong> Add the public key above to your servers' <code>~/.ssh/authorized_keys</code> file or use the SSH key management in each server configuration.
+            </div>
+          <% end %>
+        </div>
+      </div>
     </div>
 
     <!-- Settings Information -->

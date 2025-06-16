@@ -8,6 +8,7 @@ class Deployment < ApplicationRecord
   has_many :domains, dependent: :destroy
   has_one :database_configuration, dependent: :destroy
   has_many :application_healths, dependent: :destroy
+  has_many :deployment_attempts, dependent: :destroy
   
   validates :name, presence: true, length: { maximum: 100 }
   validates :name, uniqueness: { scope: :user_id, message: "has already been used for another deployment" }
@@ -18,6 +19,10 @@ class Deployment < ApplicationRecord
   }
   validates :description, length: { maximum: 1000 }, allow_blank: true
   validates :uuid, presence: true, uniqueness: true
+  validates :deployment_method, inclusion: { in: %w[manual github_repo public_repo], allow_blank: true }
+  validates :deployment_status, inclusion: { in: %w[pending deploying deployed failed], allow_blank: true }
+  validates :repository_branch, presence: true, if: -> { deployment_method.in?(['github_repo', 'public_repo']) }
+  validates :repository_url, presence: true, if: -> { deployment_method.in?(['github_repo', 'public_repo']) }
   
   validate :server_must_have_dokku_installed
   
@@ -94,9 +99,21 @@ class Deployment < ApplicationRecord
     server&.dokku_installed? && server&.connection_status == 'connected'
   end
   
-  def deployment_status
-    # This will be expanded later when we add actual deployment functionality
-    'not_deployed'
+  def deployment_method_text
+    case deployment_method
+    when 'manual'
+      'Manual Git Push'
+    when 'github_repo'
+      'GitHub Repository'
+    when 'public_repo'
+      'Public Repository'
+    else
+      'Not Configured'
+    end
+  end
+  
+  def deployment_configured?
+    deployment_method.present? && deployment_method != 'manual'
   end
   
   def status_badge_class
@@ -121,7 +138,7 @@ class Deployment < ApplicationRecord
     when 'failed'
       'Failed'
     else
-      'Not Deployed'
+      'Pending'
     end
   end
   
@@ -136,6 +153,22 @@ class Deployment < ApplicationRecord
     else
       'fas fa-clock'
     end
+  end
+  
+  def latest_deployment_attempt
+    deployment_attempts.recent.first
+  end
+  
+  def last_deployment_attempt
+    deployment_attempts.recent.first
+  end
+  
+  def successful_deployments_count
+    deployment_attempts.successful.count
+  end
+  
+  def failed_deployments_count
+    deployment_attempts.failed.count
   end
   
   def latest_health_check
