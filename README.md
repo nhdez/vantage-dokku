@@ -1,4 +1,4 @@
-# Vantage - Rails 8 Boilerplate
+# Vantage Dokku - Complete Dokku Management Platform
 
 [![Rails Version](https://img.shields.io/badge/rails-8.0.2-red.svg)](https://rubyonrails.org/)
 [![Ruby Version](https://img.shields.io/badge/ruby-3.2+-red.svg)](https://www.ruby-lang.org/)
@@ -6,46 +6,62 @@
 
 ![vantage_bp](https://github.com/user-attachments/assets/68761cc4-89f7-42f7-bc82-5b8a3cadb7b0)
 
-A modern, production-ready Rails 8 boilerplate application featuring comprehensive authentication, advanced dark mode theming, beautiful toast notifications, detailed activity logging, and a powerful admin panel. Built with MDBootstrap Material Design for an exceptional user experience.
+A comprehensive Dokku deployment management platform built with Rails 8. Manage your servers, deploy applications from GitHub repositories, configure domains with SSL, and monitor deployments with real-time logs. Features a beautiful Material Design interface with advanced theming, GitHub integration, and powerful background job processing.
 
 ## ✨ Features
+
+### 🚀 Dokku Server Management
+- **Server Dashboard** - Manage multiple Dokku servers from a single interface
+- **SSH Connection Testing** - Automated server connectivity verification
+- **Dokku Installation Status** - Real-time monitoring of Dokku installation and version
+- **Secure Authentication** - SSH key-based server authentication with password fallback
+- **Health Monitoring** - Automated server health checks and status tracking
+
+### 📦 Application Deployment
+- **GitHub Integration** - Deploy directly from your GitHub repositories with OAuth authentication
+- **Public Repository Support** - Deploy from any publicly accessible Git repository
+- **Manual Git Push** - Traditional Dokku workflow with git remote configuration
+- **Background Processing** - Non-blocking deployments with SolidQueue job processing
+- **Real-time Logs** - Live deployment monitoring with auto-refreshing terminal-style logs
+- **Deployment History** - Track deployment status, timing, and outcomes
+
+### 🌐 Domain & SSL Management
+- **Custom Domain Configuration** - Add and manage custom domains for your applications
+- **Automatic SSL** - Let's Encrypt integration with automatic certificate management
+- **SSL Status Monitoring** - Real-time SSL certificate verification and expiry tracking
+- **Default Domain Support** - Automatic .nip.io domain generation for quick access
+
+### 🔑 Infrastructure Management
+- **SSH Key Management** - Centralized SSH key storage and deployment to servers
+- **Environment Variables** - Secure management of application environment configuration
+- **Database Configuration** - PostgreSQL, MySQL, Redis, and custom database setup
+- **Resource Monitoring** - Application health checks and performance tracking
+
+### 🔗 GitHub Integration
+- **OAuth Authentication** - Secure GitHub account linking with personal access tokens
+- **Repository Browser** - Visual selection of repositories from connected GitHub accounts
+- **Branch Selection** - Deploy from any branch with real-time branch detection
+- **Connection Testing** - Automated GitHub API connectivity verification
 
 ### 🔐 Authentication & Authorization
 - **Devise Authentication** - Complete user management with sign-up, sign-in, password recovery
 - **Google OAuth Integration** - One-click sign-in with Google accounts
-- **Role-Based Access Control** - Powered by Rolify with three default roles (Admin, Moderator, Registered)
-- **Pundit Authorization** - Policy-based access control for granular permissions
-- **Profile Management** - User profiles with picture uploads and customizable themes
-- **Activity Logging** - Comprehensive tracking of all user actions and admin operations
+- **Role-Based Access Control** - Powered by Rolify with granular permissions
+- **Multi-tenant Security** - Users can only manage their own servers and deployments
 
-### 🎨 Modern UI & Theming
+### 🎨 Modern UI & Experience
 - **MDBootstrap Material Design** - Beautiful, responsive Material Design components
 - **Advanced Dark Mode** - System-aware theme switching with manual override options
-- **Intelligent Theme Toggle** - Three-state toggle (Light/Dark/Auto) with persistence
-- **CSS Custom Properties** - Comprehensive theming system with smooth transitions
+- **Real-time Updates** - Live status updates and progress monitoring
 - **Responsive Design** - Mobile-first approach optimized for all device sizes
-- **Custom Animations** - Smooth transitions and interactive elements
+- **Toast Notifications** - Beautiful animated notifications for all actions
 
 ### 🛡️ Admin Panel
-- **Comprehensive Dashboard** - Real-time statistics and system overview
+- **System Dashboard** - Server and deployment statistics overview
 - **User Management** - Advanced search, filtering, and role assignment
-- **SMTP Configuration** - Dynamic email settings with AWS SES support and test functionality
-- **OAuth Settings** - Google OAuth credential management with enable/disable controls
-- **General Settings** - Application-wide configuration management
-- **Activity Monitoring** - Real-time activity logs with detailed filtering and search
-
-### 📢 Toast Notification System
-- **Beautiful Notifications** - Animated toast messages with multiple types (success, error, warning, info)
-- **Smart Positioning** - Top-right positioning with auto-stacking
-- **Auto-dismiss** - Configurable timing and manual dismissal
-- **Dark Mode Support** - Seamless integration with theme system
-- **Backend Integration** - Easy-to-use helper methods for controllers
-
-### 🔍 Activity & Security Features
-- **Detailed Activity Logging** - IP tracking, user agent detection, and action timestamps
-- **Security Monitoring** - Login attempts, role changes, and admin access tracking
-- **Search & Filtering** - Advanced filtering of activity logs by user, action, and date range
-- **Data Protection** - Sensitive parameter filtering and secure credential storage
+- **SMTP Configuration** - Email settings with environment variable support
+- **OAuth Settings** - Google OAuth credential management
+- **Activity Monitoring** - Comprehensive audit logs with filtering and search
 
 ## 🚀 Quick Start
 
@@ -54,13 +70,14 @@ A modern, production-ready Rails 8 boilerplate application featuring comprehensi
 - Rails 8.0.2
 - PostgreSQL
 - Node.js (for asset pipeline)
+- One or more servers with Dokku installed for deployment management
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd vantage
+   cd vantage-dokku
    ```
 
 2. **Install dependencies**
@@ -68,90 +85,186 @@ A modern, production-ready Rails 8 boilerplate application featuring comprehensi
    bundle install
    ```
 
-3. **Database setup**
+3. **Generate encryption keys**
+   ```bash
+   rails db:encryption:init
+   ```
+   Save the output - you'll need these keys for production!
+
+4. **Database setup**
    ```bash
    rails db:create
    rails db:migrate
    rails db:seed
    ```
 
-4. **Start the server**
+5. **Setup SolidQueue (Background Jobs)**
+   ```bash
+   # SolidQueue tables should be created by migration, but if needed:
+   rails runner "load Rails.root.join('db', 'queue_schema.rb')"
+   ```
+
+6. **Start the server**
    ```bash
    rails server
    ```
 
-5. **Access the application**
+7. **Access the application**
    - Application: http://localhost:3000
    - Admin login: `admin@vantage.com` / `password123`
+
+### First Steps
+1. **Add a Server**: Go to Dashboard → Servers → Add Server
+2. **Link GitHub Account**: Go to Dashboard → Linked Accounts → Link GitHub
+3. **Create Deployment**: Go to Dashboard → Deployments → New Deployment
+4. **Configure Git**: Set up repository source in Git Configuration
+5. **Deploy**: Click the Deploy button and monitor logs!
 
 ## ⚙️ Configuration
 
 ### Environment Variables
 
-Create a `.env` file in the root directory:
+Create a `.env` file for development:
 
 ```env
 # Database
-DATABASE_URL=postgresql://username:password@localhost/vantage_development
+DATABASE_URL=postgresql://username:password@localhost/vantage_dokku_development
 
-# Google OAuth (Configure via Admin Panel)
+# Google OAuth (Configure via Admin Panel or ENV)
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 
-# SMTP (Configure via Admin Panel)
+# SMTP (Can configure via Admin Panel or ENV)
+USE_REAL_EMAIL=false
 SMTP_ADDRESS=email-smtp.region.amazonaws.com
+SMTP_PORT=587
+SMTP_DOMAIN=yourdomain.com
 SMTP_USERNAME=your_smtp_username
 SMTP_PASSWORD=your_smtp_password
+SMTP_AUTHENTICATION=login
+MAIL_FROM=no-reply@yourdomain.com
 ```
 
-### Google OAuth Setup
+### Production Environment (Critical!)
+
+Production requires additional configuration for secure token storage and background jobs:
+
+```env
+# Active Record Encryption (REQUIRED for GitHub token storage)
+ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY=your_primary_key
+ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY=your_deterministic_key  
+ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT=your_key_derivation_salt
+
+# Database
+DATABASE_URL=postgresql://username:password@hostname/database_production
+
+# Email Configuration
+USE_REAL_EMAIL=true
+SMTP_ADDRESS=email-smtp.eu-west-2.amazonaws.com
+SMTP_PORT=587
+SMTP_DOMAIN=yourdomain.com
+SMTP_USERNAME=your_aws_ses_username
+SMTP_PASSWORD=your_aws_ses_password
+SMTP_AUTHENTICATION=login
+MAIL_FROM=no-reply@yourdomain.com
+
+# OAuth
+GOOGLE_CLIENT_ID=production_google_client_id
+GOOGLE_CLIENT_SECRET=production_google_client_secret
+```
+
+### Production Deployment Checklist
+
+⚠️ **These steps are critical for successful production deployment:**
+
+1. **Generate and configure encryption keys**:
+   ```bash
+   rails db:encryption:init
+   ```
+   Add the generated keys to your production environment variables or credentials
+
+2. **Run database migrations**:
+   ```bash
+   # In production (Dokku example)
+   dokku run your-app rails db:migrate
+   ```
+
+3. **Verify SolidQueue tables exist**:
+   ```bash
+   # Should be created by migration, but if issues:
+   dokku run your-app rails runner "load Rails.root.join('db', 'queue_schema.rb')"
+   ```
+
+4. **Set up SMTP environment variables** (easier than admin panel for production)
+
+5. **Configure SSL/TLS for your domain**
+
+### GitHub OAuth Setup
 
 1. Visit [Google Cloud Console](https://console.cloud.google.com)
-2. Create a new project or select existing
-3. Enable Google+ API
-4. Create OAuth 2.0 credentials
-5. Add authorized redirect URI: `http://localhost:3000/users/auth/google_oauth2/callback`
-6. Configure credentials in Admin → OAuth Settings
+2. Create OAuth 2.0 credentials  
+3. Add authorized redirect URIs:
+   - Development: `http://localhost:3000/users/auth/google_oauth2/callback`
+   - Production: `https://yourdomain.com/users/auth/google_oauth2/callback`
+4. Configure via Admin → OAuth Settings or environment variables
 
-### SMTP Configuration
+### GitHub Integration
 
-Configure email delivery through Admin → SMTP Settings:
-- Supports AWS SES, Gmail, and custom SMTP providers
-- Built-in test email functionality
-- Secure credential storage
-- Dynamic configuration updates
+Users can link their GitHub accounts to deploy private repositories:
+1. Go to GitHub → Settings → Developer settings → Personal access tokens
+2. Generate a classic token with `repo` and `read:user` permissions
+3. Link account in Vantage Dokku → Linked Accounts
 
 ## 🏗️ Architecture
 
 ### Core Models
 
-#### User Model (`app/models/user.rb`)
-- **Authentication**: Devise modules with OAuth integration
-- **Roles**: Rolify integration with helper methods (`admin?`, `moderator?`)
-- **Profiles**: Profile picture uploads with validation
-- **Themes**: Personal theme preferences (light/dark/auto)
-- **OAuth**: Google OAuth integration with account linking
+#### Server Model (`app/models/server.rb`)
+- **SSH Connectivity**: Secure server connections with key-based authentication
+- **Dokku Integration**: Automated Dokku installation detection and version monitoring
+- **Health Monitoring**: Periodic connectivity and status checks
+- **Multi-tenant**: Users can only access their own servers
 
-#### Role Model (`app/models/role.rb`)
-- **Rolify Integration**: Dynamic role assignment and checking
-- **Resource Scoping**: Support for resource-specific roles
-- **Database Relations**: Many-to-many with users
+#### Deployment Model (`app/models/deployment.rb`)
+- **Git Integration**: Support for GitHub repos, public repos, and manual deployment
+- **Background Processing**: Asynchronous deployment with status tracking
+- **Domain Management**: Custom domain configuration with SSL support
+- **Resource Configuration**: Environment variables, databases, SSH keys
 
-#### ActivityLog Model (`app/models/activity_log.rb`)
-- **Comprehensive Tracking**: User actions, IP addresses, user agents
-- **Categorized Actions**: Predefined action types with custom details
-- **Search & Filtering**: Scopes for date ranges, users, and actions
-- **Browser Detection**: Simple user agent parsing
+#### LinkedAccount Model (`app/models/linked_account.rb`)
+- **GitHub Integration**: OAuth token storage with encryption
+- **Connection Testing**: Automated GitHub API connectivity verification
+- **Token Management**: Secure encrypted storage of access tokens
+- **Repository Access**: Fetch user repositories and organization data
 
-#### AppSetting Model (`app/models/app_setting.rb`)
-- **Typed Values**: String, boolean, and integer settings
-- **Dynamic Configuration**: Runtime application configuration
-- **Default Management**: Automatic setup of default settings
+#### Domain Model (`app/models/domain.rb`)
+- **SSL Management**: Let's Encrypt integration with automatic verification
+- **Multi-domain Support**: Multiple domains per deployment
+- **Health Monitoring**: SSL certificate expiry and validity checking
+- **Default Domains**: Automatic .nip.io domain generation
 
-#### OauthSetting Model (`app/models/oauth_setting.rb`)
-- **Provider Management**: OAuth provider configuration
-- **Dynamic Credentials**: Runtime OAuth setup
-- **Enable/Disable**: Toggle OAuth providers on demand
+#### EnvironmentVariable Model (`app/models/environment_variable.rb`)
+- **Secure Storage**: Encrypted environment variable management
+- **Deployment Integration**: Automatic deployment to Dokku servers
+- **Validation**: Key-value pair validation and formatting
+
+#### SshKey Model (`app/models/ssh_key.rb`)
+- **Key Management**: RSA/ED25519 SSH key storage and validation
+- **Server Deployment**: Automatic key deployment to multiple servers
+- **Security**: Fingerprint generation and validation
+
+### Background Jobs
+
+#### DeploymentJob (`app/jobs/deployment_job.rb`)
+- **Repository Cloning**: Automated git clone and branch checkout
+- **Dokku Deployment**: Push to Dokku with real-time logging
+- **Status Tracking**: Deployment progress and outcome monitoring
+- **Error Handling**: Comprehensive error capture and reporting
+
+#### ApplicationHealthCheckJob
+- **Health Monitoring**: Periodic application and server health checks
+- **Status Updates**: Real-time health status updates
+- **Alerting**: Configurable health alerts and notifications
 
 ### Key Controllers
 
@@ -350,32 +463,66 @@ end
 
 ## 🌍 Deployment
 
-### Production Checklist
-- [ ] Set strong database passwords
-- [ ] Configure production SMTP settings
-- [ ] Set up Google OAuth production credentials
-- [ ] Enable SSL/TLS
-- [ ] Configure error monitoring (Sentry, Bugsnag)
-- [ ] Set up database backups
-- [ ] Configure proper log rotation
-- [ ] Set up monitoring and alerting
+### Production Deployment Guide
 
-### Recommended Stack
-- **Hosting**: Heroku, Railway, Digital Ocean, or AWS
-- **Database**: PostgreSQL (production)
-- **Email**: AWS SES, SendGrid, or Mailgun
-- **Monitoring**: Sentry for error tracking
-- **Analytics**: Google Analytics
-- **Performance**: New Relic or Datadog
+Vantage Dokku has specific requirements that make deployment a bit tricky. Follow this guide carefully:
 
-### Environment Configuration
-```ruby
-# config/environments/production.rb
-config.force_ssl = true
-config.log_level = :info
-config.cache_classes = true
-config.eager_load = true
+#### Step 1: Prepare Environment Variables
+```bash
+# Critical: Generate encryption keys first
+rails db:encryption:init
+
+# Set these in your production environment:
+ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY=<generated_key>
+ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY=<generated_key>
+ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT=<generated_salt>
+
+# Email configuration (recommended via ENV)
+USE_REAL_EMAIL=true
+SMTP_ADDRESS=email-smtp.region.amazonaws.com
+# ... other SMTP variables
 ```
+
+#### Step 2: Deploy and Migrate
+```bash
+# Deploy your application (Dokku example)
+git push dokku main
+
+# Run migrations (includes SolidQueue tables)
+dokku run your-app rails db:migrate
+
+# Seed admin user
+dokku run your-app rails db:seed
+```
+
+#### Step 3: Verify Setup
+- [ ] Admin login works (`admin@vantage.com` / `password123`)
+- [ ] Can create servers and test SSH connections  
+- [ ] Can link GitHub accounts
+- [ ] Background jobs are processing (check Admin → Activity Logs)
+- [ ] Email notifications work (test via Admin → SMTP Settings)
+
+### Deployment Checklist
+- [ ] **Encryption keys configured** (Critical!)
+- [ ] **Database migrations run** (Including SolidQueue tables)
+- [ ] **SMTP environment variables set**
+- [ ] **Google OAuth production credentials**
+- [ ] **SSL/TLS enabled**
+- [ ] **Admin user seeded**
+- [ ] **Background job processing verified**
+
+### Recommended Hosting
+- **Heroku**: Easy deployment with proper environment variable support
+- **DigitalOcean App Platform**: Good for Rails apps with background jobs
+- **Railway**: Simple deployment with PostgreSQL included
+- **Dokku**: Self-hosted (ironically, manage Dokku with Vantage Dokku!)
+- **AWS/GCP**: For enterprise deployments
+
+### Background Job Processing
+Vantage Dokku requires background job processing for deployments:
+- **SolidQueue**: Default Rails 8 job processor (included)
+- **Production**: Ensure job processing is running
+- **Monitoring**: Check Admin panel for job status
 
 ## 🤝 Contributing
 
@@ -398,30 +545,52 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- **Rails Team** - For the incredible Rails 8 framework
+- **Rails Team** - For Rails 8 and SolidQueue background processing
+- **Dokku Team** - For the amazing platform-as-a-service solution
+- **GitHub** - For the excellent API and OAuth integration
 - **MDBootstrap** - For the beautiful Material Design components
-- **Devise Team** - For the robust authentication framework
-- **Pundit** - For the elegant authorization system
-- **Rolify** - For the flexible role management
-- **Open Source Community** - For the amazing gem ecosystem
+- **Devise & Pundit Teams** - For authentication and authorization frameworks
+- **Open Source Community** - For the incredible ecosystem that makes this possible
 
-## 🆘 Support
+## 🆘 Support & Troubleshooting
 
-For support, questions, or feature requests:
-- Open an issue on GitHub
-- Check the comprehensive admin interface for debugging
-- Review activity logs for troubleshooting
-- Consult the built-in documentation in admin settings
+### Common Issues
+
+**GitHub Account Linking Fails in Production**
+- Ensure Active Record encryption keys are configured
+- Check that the GitHub token has correct permissions (`repo`, `read:user`)
+
+**Background Deployments Not Working**
+- Verify SolidQueue tables exist: `rails db:migrate`
+- Check if background job processing is running
+- Review deployment logs in Admin → Activity Logs
+
+**SMTP Configuration Issues**
+- Use environment variables instead of Admin panel for production
+- Ensure `USE_REAL_EMAIL=true` in production
+- Test email functionality via Admin → SMTP Settings
+
+**Server Connection Failures**
+- Verify SSH key permissions and server access
+- Check that Dokku is properly installed on target servers
+- Test connectivity via Server → Test Connection
+
+### Getting Help
+- Check the Admin panel for system status and logs
+- Review Activity Logs for detailed error information
+- Open an issue on GitHub for bugs or feature requests
 
 ---
 
-**Built with ❤️ using Rails 8 and modern web technologies**
+**Built with ❤️ using Rails 8 - A complete Dokku management platform**
 
-### Quick Links
-- **Dashboard**: `/dashboard` (authenticated users)
-- **Admin Panel**: `/admin` (admin users only)
-- **User Settings**: `/users/edit` (profile management)
-- **Toast Demo**: `/toast_demo` (see toast system in action)
+### Quick Navigation
+- **Dashboard**: `/dashboard` - Main interface for managing servers and deployments
+- **Servers**: `/servers` - Add and manage your Dokku servers
+- **Deployments**: `/deployments` - Create and deploy applications
+- **Linked Accounts**: `/linked_accounts` - Connect GitHub for private repository access
+- **Admin Panel**: `/admin` - System administration (admin only)
 
 ### Default Credentials
 - **Admin**: `admin@vantage.com` / `password123`
+- **Change immediately after first login!**
