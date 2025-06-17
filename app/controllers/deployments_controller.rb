@@ -450,8 +450,8 @@ class DeploymentsController < ApplicationController
     
     if @github_linked_account&.connected?
       begin
-        github_service = GitHubService.new(@github_linked_account.access_token)
-        result = github_service.user_repositories
+        github_service = GitHubService.new(@github_linked_account)
+        result = github_service.get_repositories
         @github_repositories = result[:repositories] if result[:success]
       rescue => e
         Rails.logger.error "Failed to fetch GitHub repositories: #{e.message}"
