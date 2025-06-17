@@ -31,34 +31,108 @@
     <!-- Logs Display -->
     <div class="col-lg-9">
       <div class="card shadow">
-        <div class="card-header py-3 d-flex justify-content-between align-items-center">
-          <h6 class="m-0 font-weight-bold text-primary">
-            <i class="fas fa-file-alt me-2"></i>Live Deployment Logs
-          </h6>
-          <div>
-            <span class="badge <%= @deployment.status_badge_class %> fs-6">
-              <i class="<%= @deployment.status_icon %> me-1"></i>
-              <span id="deployment-status"><%= @deployment.status_text %></span>
-            </span>
+        <div class="card-header py-3">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+              <i class="fas fa-file-alt me-2"></i>Deployment Logs
+            </h6>
+            <div>
+              <span class="badge <%= @deployment.status_badge_class %> fs-6">
+                <i class="<%= @deployment.status_icon %> me-1"></i>
+                <span id="deployment-status"><%= @deployment.status_text %></span>
+              </span>
+            </div>
           </div>
+          
+          <!-- Deployment Attempts Tabs -->
+          <% if @deployment.deployment_attempts.any? %>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <small class="text-muted">
+                <i class="fas fa-history me-1"></i>
+                <%= @deployment.deployment_attempts.count %> deployment attempt<%= 's' unless @deployment.deployment_attempts.count == 1 %>
+              </small>
+              <small class="text-muted">Click on an attempt to view its logs</small>
+            </div>
+            <ul class="nav nav-tabs card-header-tabs" id="attemptTabs" role="tablist">
+              <% @deployment.deployment_attempts.recent.each_with_index do |attempt, index| %>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link <%= 'active' if index == 0 %>" 
+                          id="attempt-<%= attempt.id %>-tab" 
+                          data-mdb-toggle="tab" 
+                          data-mdb-target="#attempt-<%= attempt.id %>" 
+                          type="button" 
+                          role="tab"
+                          onclick="switchToAttempt(<%= attempt.id %>)">
+                    <span class="badge <%= attempt.status_badge_class %> me-2">
+                      <i class="<%= attempt.status_icon %>"></i>
+                    </span>
+                    Attempt #<%= attempt.attempt_number %>
+                    <% if attempt.started_at %>
+                      <small class="text-muted d-block">
+                        <%= attempt.started_at.strftime("%m/%d %H:%M") %>
+                        <% if attempt.completed? %>
+                          (<%= attempt.duration_text %>)
+                        <% end %>
+                      </small>
+                    <% end %>
+                  </button>
+                </li>
+              <% end %>
+            </ul>
+          <% end %>
         </div>
+        
         <div class="card-body p-0">
-          <div class="bg-dark text-white p-3" style="height: 600px; overflow-y: auto; font-family: 'Courier New', monospace;" id="logs-container">
-            <div id="logs-content">
-              <% if @deployment.deployment_logs.present? %>
-                <% @deployment.deployment_logs.split("\n").each do |log_line| %>
-                  <div class="log-line"><%= log_line %></div>
-                <% end %>
-              <% else %>
-                <div class="log-line text-muted">[No logs available yet]</div>
+          <% if @deployment.deployment_attempts.any? %>
+            <div class="tab-content" id="attemptTabsContent">
+              <% @deployment.deployment_attempts.recent.each_with_index do |attempt, index| %>
+                <div class="tab-pane fade <%= 'show active' if index == 0 %>" 
+                     id="attempt-<%= attempt.id %>" 
+                     role="tabpanel"
+                     style="<%= 'display: none;' unless index == 0 %>">
+                  <div class="d-flex justify-content-between align-items-center p-3 bg-light border-bottom">
+                    <div>
+                      <strong>Attempt #<%= attempt.attempt_number %></strong>
+                      <span class="badge <%= attempt.status_badge_class %> ms-2">
+                        <i class="<%= attempt.status_icon %> me-1"></i>
+                        <%= attempt.status.capitalize %>
+                      </span>
+                    </div>
+                    <div class="text-muted">
+                      <% if attempt.started_at %>
+                        Started: <%= attempt.started_at.strftime("%B %d, %Y at %I:%M %p") %>
+                        <% if attempt.completed_at %>
+                          <br>Duration: <%= attempt.duration_text %>
+                        <% end %>
+                      <% end %>
+                    </div>
+                  </div>
+                  <div class="bg-dark text-white p-3" style="height: 550px; overflow-y: auto; font-family: 'Courier New', monospace;" data-attempt-id="<%= attempt.id %>">
+                    <div class="attempt-logs-content">
+                      <% if attempt.logs.present? %>
+                        <% attempt.logs.split("\n").each do |log_line| %>
+                          <div class="log-line"><%= log_line %></div>
+                        <% end %>
+                      <% else %>
+                        <div class="log-line text-muted">[No logs available for this attempt]</div>
+                      <% end %>
+                    </div>
+                    <% if attempt.running? %>
+                      <div class="loading-indicator">
+                        <div class="text-warning">
+                          <i class="fas fa-spinner fa-spin me-2"></i>Deployment in progress...
+                        </div>
+                      </div>
+                    <% end %>
+                  </div>
+                </div>
               <% end %>
             </div>
-            <div id="loading-indicator" style="display: <%= @deployment.deployment_status == 'deploying' ? 'block' : 'none' %>;">
-              <div class="text-warning">
-                <i class="fas fa-spinner fa-spin me-2"></i>Deployment in progress...
-              </div>
+          <% else %>
+            <div class="bg-dark text-white p-3" style="height: 600px; overflow-y: auto; font-family: 'Courier New', monospace;">
+              <div class="log-line text-muted">[No deployment attempts yet]</div>
             </div>
-          </div>
+          <% end %>
         </div>
       </div>
     </div>
@@ -110,6 +184,59 @@
           <% end %>
         </div>
       </div>
+
+      <!-- Deployment History -->
+      <% if @deployment.deployment_attempts.any? %>
+        <div class="card shadow mb-4">
+          <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-success">
+              <i class="fas fa-history me-2"></i>Deployment History
+            </h6>
+          </div>
+          <div class="card-body">
+            <div class="row text-center mb-3">
+              <div class="col-6">
+                <div class="text-success">
+                  <i class="fas fa-check-circle fa-2x"></i>
+                  <div class="mt-1">
+                    <strong><%= @deployment.successful_deployments_count %></strong>
+                    <br><small>Successful</small>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="text-danger">
+                  <i class="fas fa-times-circle fa-2x"></i>
+                  <div class="mt-1">
+                    <strong><%= @deployment.failed_deployments_count %></strong>
+                    <br><small>Failed</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <% if @deployment.latest_deployment_attempt %>
+              <div class="border-top pt-3">
+                <small class="text-muted">Latest Attempt:</small>
+                <div class="d-flex justify-content-between align-items-center">
+                  <span class="badge <%= @deployment.latest_deployment_attempt.status_badge_class %>">
+                    <i class="<%= @deployment.latest_deployment_attempt.status_icon %> me-1"></i>
+                    #<%= @deployment.latest_deployment_attempt.attempt_number %>
+                  </span>
+                  <small class="text-muted">
+                    <%= @deployment.latest_deployment_attempt.duration_text %>
+                  </small>
+                </div>
+                <% if @deployment.latest_deployment_attempt.error_message.present? %>
+                  <small class="text-danger d-block mt-1">
+                    <%= truncate(@deployment.latest_deployment_attempt.error_message, length: 100) %>
+                  </small>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
 
       <!-- Actions -->
       <div class="card shadow mb-4">
@@ -190,7 +317,26 @@
   // Scroll to bottom of logs
   function scrollToBottom() {
     const container = document.getElementById('logs-container');
-    container.scrollTop = container.scrollHeight;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }
+  
+  // Scroll to bottom of active tab
+  function scrollToBottomActiveTab() {
+    const activeTab = document.querySelector('.tab-pane.active [data-attempt-id]');
+    if (activeTab) {
+      activeTab.scrollTop = activeTab.scrollHeight;
+    } else {
+      // Fallback: scroll the active tab pane itself if structured differently
+      const activePane = document.querySelector('.tab-pane.active');
+      if (activePane) {
+        const scrollContainer = activePane.querySelector('[data-attempt-id]');
+        if (scrollContainer) {
+          scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        }
+      }
+    }
   }
   
   // Poll for log updates
@@ -198,12 +344,9 @@
     fetch(window.location.href + '.json')
       .then(response => response.json())
       .then(data => {
-        // Update logs
-        const logsContent = document.getElementById('logs-content');
-        if (data.logs) {
-          logsContent.innerHTML = data.logs.split('\n').map(line => 
-            `<div class="log-line">${escapeHtml(line)}</div>`
-          ).join('');
+        // Update logs for the current active attempt
+        if (data.latest_attempt) {
+          updateAttemptLogs(data.latest_attempt);
         }
         
         // Update status
@@ -211,13 +354,15 @@
         
         // Auto-scroll if enabled
         if (autoScroll) {
-          scrollToBottom();
+          scrollToBottomActiveTab();
         }
         
-        // Hide loading indicator if deployment is complete
-        const loadingIndicator = document.getElementById('loading-indicator');
+        // Hide loading indicators if deployment is complete
+        const loadingIndicators = document.querySelectorAll('.loading-indicator');
         if (data.status !== 'deploying') {
-          loadingIndicator.style.display = 'none';
+          loadingIndicators.forEach(indicator => {
+            indicator.style.display = 'none';
+          });
           // Stop polling if deployment is complete
           if (pollingInterval) {
             clearInterval(pollingInterval);
@@ -227,6 +372,19 @@
       .catch(error => {
         console.error('Error polling for updates:', error);
       });
+  }
+  
+  // Update logs for a specific attempt
+  function updateAttemptLogs(attempt) {
+    const attemptContainer = document.querySelector(`[data-attempt-id="${attempt.id}"]`);
+    if (attemptContainer) {
+      const logsContent = attemptContainer.querySelector('.attempt-logs-content');
+      if (logsContent && attempt.logs) {
+        logsContent.innerHTML = attempt.logs.split('\n').map(line => 
+          `<div class="log-line">${escapeHtml(line)}</div>`
+        ).join('');
+      }
+    }
   }
   
   // Update status display
@@ -251,16 +409,217 @@
     return div.innerHTML;
   }
   
+  let deploymentLogsChannel = null;
+  let currentAttemptId = <%= @deployment.latest_deployment_attempt&.id || 'null' %>;
+  
+  // Switch between deployment attempts
+  function switchToAttempt(attemptId) {
+    // Hide all tab panes
+    document.querySelectorAll('.tab-pane').forEach(pane => {
+      pane.classList.remove('show', 'active');
+      pane.style.display = 'none';
+    });
+    
+    // Remove active class from all tabs
+    document.querySelectorAll('.nav-link').forEach(tab => {
+      tab.classList.remove('active');
+    });
+    
+    // Show the selected tab pane
+    const targetPane = document.getElementById(`attempt-${attemptId}`);
+    const targetTab = document.getElementById(`attempt-${attemptId}-tab`);
+    
+    if (targetPane && targetTab) {
+      targetPane.classList.add('show', 'active');
+      targetPane.style.display = 'block';
+      targetTab.classList.add('active');
+      
+      // Update current attempt ID
+      currentAttemptId = attemptId;
+      
+      // Scroll to bottom if auto-scroll is enabled
+      if (autoScroll) {
+        setTimeout(() => {
+          scrollToBottomActiveTab();
+        }, 100);
+      }
+    }
+  }
+  
+  // Subscribe to real-time deployment logs
+  function subscribeToDeploymentLogs() {
+    if (deploymentLogsChannel) {
+      deploymentLogsChannel.unsubscribe();
+    }
+    
+    const deploymentUuid = '<%= @deployment.uuid %>';
+    const latestAttemptId = <%= @deployment.latest_deployment_attempt&.id || 'null' %>;
+    
+    deploymentLogsChannel = window.actionCableConsumer.subscriptions.create(
+      { 
+        channel: "DeploymentLogsChannel",
+        deployment_uuid: deploymentUuid,
+        attempt_id: latestAttemptId
+      },
+      {
+        received: function(data) {
+          console.log('Received deployment log data:', data);
+          
+          if (data.type === 'log_message') {
+            appendLogMessage(data.attempt_id, data.message);
+            
+            if (autoScroll) {
+              scrollToBottomActiveTab();
+            }
+          } else if (data.type === 'deployment_completed') {
+            handleDeploymentCompletion(data);
+          }
+        },
+        
+        connected: function() {
+          console.log('Connected to deployment logs channel');
+        },
+        
+        disconnected: function() {
+          console.log('Disconnected from deployment logs channel');
+        }
+      }
+    );
+  }
+  
+  // Append a new log message to the appropriate attempt tab
+  function appendLogMessage(attemptId, message) {
+    const attemptContainer = document.querySelector(`[data-attempt-id="${attemptId}"]`);
+    if (attemptContainer) {
+      const logsContent = attemptContainer.querySelector('.attempt-logs-content');
+      if (logsContent) {
+        const logLine = document.createElement('div');
+        logLine.className = 'log-line';
+        logLine.textContent = message;
+        logsContent.appendChild(logLine);
+      }
+    }
+  }
+  
+  // Handle deployment completion
+  function handleDeploymentCompletion(data) {
+    console.log('Deployment completed:', data);
+    
+    // Hide loading indicators
+    const loadingIndicators = document.querySelectorAll('.loading-indicator');
+    loadingIndicators.forEach(indicator => {
+      indicator.style.display = 'none';
+    });
+    
+    // Stop polling if it was running
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      pollingInterval = null;
+    }
+    
+    // Update the tab badge with final status
+    updateAttemptTabStatus(data.attempt_id, data.status, data.duration);
+    
+    // Show completion notification
+    const status = data.success ? 'success' : 'error';
+    const title = data.success ? 'Deployment Successful!' : 'Deployment Failed';
+    const message = data.success 
+      ? `Deployment completed successfully in ${data.duration}` 
+      : `Deployment failed: ${data.error_message || 'Unknown error'}`;
+    
+    showToast(status, message, title);
+    
+    // Refresh the page after a short delay to update all UI elements
+    setTimeout(() => {
+      if (confirm('Deployment completed! Would you like to refresh the page to see the updated status?')) {
+        window.location.reload();
+      }
+    }, 3000);
+  }
+  
+  // Update attempt tab status badge
+  function updateAttemptTabStatus(attemptId, status, duration) {
+    const tabButton = document.querySelector(`#attempt-${attemptId}-tab`);
+    if (tabButton) {
+      const badge = tabButton.querySelector('.badge');
+      if (badge) {
+        const statusClass = status === 'success' ? 'bg-success' : 'bg-danger';
+        const statusIcon = status === 'success' ? 'fas fa-check-circle' : 'fas fa-times-circle';
+        
+        badge.className = `badge ${statusClass} me-2`;
+        badge.innerHTML = `<i class="${statusIcon}"></i>`;
+      }
+      
+      // Add duration if available
+      if (duration) {
+        const durationSpan = tabButton.querySelector('small') || document.createElement('small');
+        durationSpan.className = 'text-muted';
+        durationSpan.textContent = `(${duration})`;
+        
+        if (!tabButton.querySelector('small')) {
+          tabButton.appendChild(document.createTextNode(' '));
+          tabButton.appendChild(durationSpan);
+        }
+      }
+    }
+  }
+  
+  // Show toast notification
+  function showToast(type, message, title) {
+    const toastHtml = `
+      <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+          <div class="toast-body">
+            <strong>${title}:</strong> ${message}
+          </div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-mdb-dismiss="toast" aria-label="Close"></button>
+        </div>
+      </div>
+    `;
+    
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+      toastContainer = document.createElement('div');
+      toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+      document.body.appendChild(toastContainer);
+    }
+    
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+    
+    const toastElement = toastContainer.lastElementChild;
+    const toast = new mdb.Toast(toastElement);
+    toast.show();
+    
+    toastElement.addEventListener('hidden.mdb.toast', () => {
+      toastElement.remove();
+    });
+  }
+
   // Start polling when page loads
   document.addEventListener('DOMContentLoaded', function() {
     // Initial scroll to bottom
-    scrollToBottom();
+    scrollToBottomActiveTab();
     
-    // Start polling every 2 seconds if deployment is in progress
+    // Subscribe to real-time logs
+    subscribeToDeploymentLogs();
+    
+    // Fallback polling every 10 seconds (much slower than before since we have real-time updates)
     const currentStatus = '<%= @deployment.deployment_status %>';
     if (currentStatus === 'deploying') {
-      pollingInterval = setInterval(pollForUpdates, 2000);
+      pollingInterval = setInterval(pollForUpdates, 10000); // 10 seconds instead of 2
     }
+    
+    // Handle tab switching - scroll to bottom when switching tabs
+    const tabLinks = document.querySelectorAll('[data-bs-toggle="tab"]');
+    tabLinks.forEach(tab => {
+      tab.addEventListener('shown.bs.tab', function() {
+        setTimeout(() => {
+          if (autoScroll) {
+            scrollToBottomActiveTab();
+          }
+        }, 100);
+      });
+    });
   });
 </script>
 

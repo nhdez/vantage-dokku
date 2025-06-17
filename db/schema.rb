@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_06_16_013250) do
+ActiveRecord::Schema[8.0].define(version: 2025_06_17_224834) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -99,6 +99,21 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_16_013250) do
     t.datetime "updated_at", null: false
     t.index ["database_name"], name: "index_database_configurations_on_database_name", unique: true
     t.index ["deployment_id"], name: "index_database_configurations_on_deployment_id", unique: true
+  end
+
+  create_table "deployment_attempts", force: :cascade do |t|
+    t.bigint "deployment_id", null: false
+    t.string "status", default: "pending", null: false
+    t.text "logs"
+    t.datetime "started_at"
+    t.datetime "completed_at"
+    t.text "error_message"
+    t.integer "attempt_number", default: 1, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["deployment_id", "attempt_number"], name: "index_deployment_attempts_on_deployment_id_and_attempt_number", unique: true
+    t.index ["deployment_id"], name: "index_deployment_attempts_on_deployment_id"
+    t.index ["status"], name: "index_deployment_attempts_on_status"
   end
 
   create_table "deployment_ssh_keys", force: :cascade do |t|
@@ -392,6 +407,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_16_013250) do
   add_foreign_key "activity_logs", "users"
   add_foreign_key "application_healths", "deployments"
   add_foreign_key "database_configurations", "deployments"
+  add_foreign_key "deployment_attempts", "deployments"
   add_foreign_key "deployment_ssh_keys", "deployments"
   add_foreign_key "deployment_ssh_keys", "ssh_keys"
   add_foreign_key "deployments", "servers"

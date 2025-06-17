@@ -1,0 +1,427 @@
+<% content_for :title, "Execute Commands - #{@deployment.name}" %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-terminal me-2 text-primary"></i>
+            Execute Commands
+          </h1>
+          <p class="text-muted mb-0">
+            Run commands on your Dokku deployment: <strong><%= @deployment.name %></strong>
+          </p>
+        </div>
+        <div>
+          <%= link_to @deployment, class: "btn btn-outline-secondary" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to App
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Command Interface -->
+    <div class="col-lg-9">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-terminal me-2"></i>Command Console
+          </h6>
+        </div>
+        <div class="card-body">
+          <!-- Command Input -->
+          <div class="mb-3">
+            <%= form_with url: run_command_deployment_path(@deployment), method: :post, local: false, id: "command-form" do |f| %>
+              <div class="input-group">
+                <span class="input-group-text bg-dark text-white">
+                  <i class="fas fa-terminal me-1"></i>
+                  dokku run <%= @deployment.dokku_app_name %>
+                </span>
+                <%= text_field_tag :command, "", 
+                    class: "form-control", 
+                    placeholder: "Enter your command (e.g., rails db:migrate, bundle exec rake task:run)",
+                    autocomplete: "off",
+                    id: "command-input" %>
+                <button type="submit" class="btn btn-success" id="execute-btn">
+                  <i class="fas fa-play me-2"></i>Execute
+                </button>
+              </div>
+            <% end %>
+            <div class="form-text">
+              <i class="fas fa-info-circle me-1"></i>
+              Commands will be executed as: <code>sudo dokku run <%= @deployment.dokku_app_name %> [your-command]</code><br>
+              <i class="fas fa-magic me-1"></i>
+              Rails commands (rails, rake, etc.) will automatically be prefixed with <code>bundle exec</code>
+            </div>
+          </div>
+
+          <!-- Command Output -->
+          <div class="bg-dark text-white p-3 rounded" style="height: 450px; overflow-y: auto; font-family: 'Courier New', monospace;" id="command-output">
+            <div class="text-muted">
+              <i class="fas fa-info-circle me-2"></i>Enter a command above and click Execute to see output here...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Command History -->
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-success">
+            <i class="fas fa-history me-2"></i>Command History
+          </h6>
+        </div>
+        <div class="card-body">
+          <div id="command-history" class="text-muted">
+            <i class="fas fa-clock me-2"></i>No commands executed yet
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Documentation Sidebar -->
+    <div class="col-lg-3">
+      <!-- Quick Commands -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-rocket me-2"></i>Quick Commands
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <button class="btn btn-outline-info btn-sm" onclick="setCommand('rails db:migrate')">
+              <i class="fas fa-database me-2"></i>Run Migrations
+            </button>
+            <button class="btn btn-outline-info btn-sm" onclick="setCommand('rails db:seed')">
+              <i class="fas fa-seedling me-2"></i>Seed Database
+            </button>
+            <button class="btn btn-outline-info btn-sm" onclick="setCommand('rails console')">
+              <i class="fas fa-terminal me-2"></i>Rails Console
+            </button>
+            <button class="btn btn-outline-info btn-sm" onclick="setCommand('rails db:reset')">
+              <i class="fas fa-redo me-2"></i>Reset Database
+            </button>
+            <button class="btn btn-outline-info btn-sm" onclick="setCommand('rails db:status')">
+              <i class="fas fa-info-circle me-2"></i>Migration Status
+            </button>
+            <button class="btn btn-outline-info btn-sm" onclick="setCommand('ps aux')">
+              <i class="fas fa-list me-2"></i>List Processes
+            </button>
+            <button class="btn btn-outline-info btn-sm" onclick="setCommand('ls -la')">
+              <i class="fas fa-folder me-2"></i>List Files
+            </button>
+            <button class="btn btn-outline-info btn-sm" onclick="setCommand('pwd')">
+              <i class="fas fa-map-marker-alt me-2"></i>Working Directory
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Application Info -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-info-circle me-2"></i>Application Info
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <h6 class="text-muted">App Name</h6>
+            <code class="text-info"><%= @deployment.dokku_app_name %></code>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-muted">Server</h6>
+            <p class="mb-0"><%= @deployment.server.name %></p>
+            <small class="text-muted"><%= @deployment.server.ip %></small>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-muted">Status</h6>
+            <span class="badge <%= @deployment.status_badge_class %>">
+              <i class="<%= @deployment.status_icon %> me-1"></i>
+              <%= @deployment.status_text %>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Help -->
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-question-circle me-2"></i>Command Help
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <h6 class="text-success">Rails Commands</h6>
+            <p class="small text-muted">
+              <code>rails console</code> - Interactive Rails console<br>
+              <code>rails db:migrate</code> - Run database migrations<br>
+              <code>rails db:seed</code> - Seed the database<br>
+              <code>rails db:status</code> - Check migration status<br>
+              <small class="text-info">⚡ Auto-prefixed with <code>bundle exec</code></small>
+            </p>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-info">System Commands</h6>
+            <p class="small text-muted">
+              <code>ps aux</code> - List running processes<br>
+              <code>ls -la</code> - List files and directories<br>
+              <code>pwd</code> - Show working directory<br>
+              <code>env</code> - Show environment variables
+            </p>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-warning">Safety Notice</h6>
+            <p class="small text-muted">
+              Commands run with full application privileges. Be careful with destructive operations like <code>db:reset</code>.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let commandHistory = [];
+  let executionInProgress = false;
+  let commandOutputChannel = null;
+
+  // Set a command in the input field
+  function setCommand(command) {
+    document.getElementById('command-input').value = command;
+    document.getElementById('command-input').focus();
+  }
+
+  // Clear the output console
+  function clearOutput() {
+    const output = document.getElementById('command-output');
+    output.innerHTML = '<div class="text-muted"><i class="fas fa-info-circle me-2"></i>Output cleared</div>';
+  }
+
+  // Add a message to the output
+  function addToOutput(message, type = 'info') {
+    const output = document.getElementById('command-output');
+    const timestamp = new Date().toLocaleTimeString();
+    const colorClass = type === 'error' ? 'text-danger' : type === 'success' ? 'text-success' : 'text-white';
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `log-line ${colorClass}`;
+    messageDiv.innerHTML = `<span class="text-muted">[${timestamp}]</span> ${escapeHtml(message)}`;
+    
+    output.appendChild(messageDiv);
+    output.scrollTop = output.scrollHeight;
+  }
+
+  // Escape HTML to prevent XSS
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // Add command to history
+  function addToHistory(command) {
+    commandHistory.unshift({
+      command: command,
+      timestamp: new Date().toLocaleTimeString()
+    });
+
+    updateHistoryDisplay();
+  }
+
+  // Update history display
+  function updateHistoryDisplay() {
+    const historyDiv = document.getElementById('command-history');
+    
+    if (commandHistory.length === 0) {
+      historyDiv.innerHTML = '<i class="fas fa-clock me-2"></i>No commands executed yet';
+      return;
+    }
+
+    let historyHtml = '';
+    commandHistory.slice(0, 10).forEach(item => {
+      historyHtml += `
+        <div class="border-bottom pb-2 mb-2">
+          <div class="d-flex justify-content-between align-items-center">
+            <code class="text-info">${escapeHtml(item.command)}</code>
+            <small class="text-muted">${item.timestamp}</small>
+          </div>
+        </div>
+      `;
+    });
+
+    historyDiv.innerHTML = historyHtml;
+  }
+
+  // Handle form submission
+  document.getElementById('command-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    if (executionInProgress) {
+      alert('A command is already running. Please wait for it to complete.');
+      return;
+    }
+
+    const command = document.getElementById('command-input').value.trim();
+    
+    if (command === '') {
+      alert('Please enter a command');
+      return;
+    }
+
+    // Start execution
+    executionInProgress = true;
+    const executeBtn = document.getElementById('execute-btn');
+    const originalBtnText = executeBtn.innerHTML;
+    executeBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Executing...';
+    executeBtn.disabled = true;
+
+    // Add to history
+    addToHistory(command);
+
+    // Clear previous output and show command being executed
+    const output = document.getElementById('command-output');
+    output.innerHTML = '';
+    addToOutput(`Executing: dokku run <%= @deployment.dokku_app_name %> ${command}`, 'info');
+    addToOutput('─'.repeat(80));
+
+    // Subscribe to command output channel
+    subscribeToCommandOutput();
+
+    // Submit the form
+    fetch(this.action, {
+      method: 'POST',
+      body: new FormData(this),
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        addToOutput(data.message, 'success');
+      } else {
+        addToOutput(`Error: ${data.message}`, 'error');
+        executionInProgress = false;
+        executeBtn.innerHTML = originalBtnText;
+        executeBtn.disabled = false;
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      addToOutput(`Error: ${error.message}`, 'error');
+      executionInProgress = false;
+      executeBtn.innerHTML = originalBtnText;
+      executeBtn.disabled = false;
+    });
+  });
+
+  // Subscribe to command output channel
+  function subscribeToCommandOutput() {
+    if (commandOutputChannel) {
+      commandOutputChannel.unsubscribe();
+    }
+
+    const deploymentUuid = '<%= @deployment.uuid %>';
+    
+    commandOutputChannel = window.actionCableConsumer.subscriptions.create(
+      {
+        channel: "CommandExecutionChannel",
+        deployment_uuid: deploymentUuid
+      },
+      {
+        received: function(data) {
+          console.log('Received command output:', data);
+          
+          if (data.type === 'output') {
+            addToOutput(data.message);
+          } else if (data.type === 'completed') {
+            addToOutput('─'.repeat(80));
+            addToOutput(`Command completed with exit code: ${data.exit_code}`, 
+                       data.exit_code === 0 ? 'success' : 'error');
+            
+            // Re-enable execute button
+            executionInProgress = false;
+            const executeBtn = document.getElementById('execute-btn');
+            executeBtn.innerHTML = '<i class="fas fa-play me-2"></i>Execute';
+            executeBtn.disabled = false;
+            
+            // Clear input field
+            document.getElementById('command-input').value = '';
+          } else if (data.type === 'error') {
+            addToOutput(`Error: ${data.message}`, 'error');
+            
+            // Re-enable execute button
+            executionInProgress = false;
+            const executeBtn = document.getElementById('execute-btn');
+            executeBtn.innerHTML = '<i class="fas fa-play me-2"></i>Execute';
+            executeBtn.disabled = false;
+          }
+        },
+        
+        connected: function() {
+          console.log('Connected to command execution channel');
+        },
+        
+        disconnected: function() {
+          console.log('Disconnected from command execution channel');
+        }
+      }
+    );
+  }
+
+  // Handle Enter key in command input
+  document.getElementById('command-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      document.getElementById('command-form').dispatchEvent(new Event('submit'));
+    }
+  });
+
+  // Initialize on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    // Focus on command input
+    document.getElementById('command-input').focus();
+  });
+</script>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+.log-line {
+  margin-bottom: 2px;
+  white-space: pre-wrap;
+  line-height: 1.4;
+}
+.log-line:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+#command-output::-webkit-scrollbar {
+  width: 8px;
+}
+#command-output::-webkit-scrollbar-track {
+  background: #2d3748;
+}
+#command-output::-webkit-scrollbar-thumb {
+  background: #4a5568;
+  border-radius: 4px;
+}
+#command-output::-webkit-scrollbar-thumb:hover {
+  background: #718096;
+}
+</style>

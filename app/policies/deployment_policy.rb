@@ -87,6 +87,14 @@ class DeploymentPolicy < ApplicationPolicy
     user.present? && (record.user == user || user.admin?)
   end
 
+  def execute_commands?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def run_command?
+    user.present? && (record.user == user || user.admin?)
+  end
+
   class Scope < Scope
     def resolve
       if user.admin?

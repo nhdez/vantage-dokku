@@ -1,8 +1,8 @@
 class DeploymentsController < ApplicationController
   include ActivityTrackable
   
-  before_action :set_deployment, only: [:show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status]
-  before_action :authorize_deployment, only: [:show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status]
+  before_action :set_deployment, only: [:show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command]
+  before_action :authorize_deployment, only: [:show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command]
   
   def index
     @pagy, @deployments = pagy(current_user.deployments.includes(:server).recent, limit: 15)
@@ -97,57 +97,44 @@ class DeploymentsController < ApplicationController
     begin
       domains_params = params[:domains] || {}
       
-      # Start a transaction to ensure data consistency
-      ActiveRecord::Base.transaction do
-        # Clear existing domains
-        @deployment.domains.destroy_all
-        
-        # Create new domains from the form
-        domains_params.each do |index, domain_data|
-          domain_name = domain_data[:name]&.strip&.downcase
-          is_default = domain_data[:default_domain] == '1'
-          
-          # Skip empty entries
-          next if domain_name.blank?
-          
-          @deployment.domains.create!(
-            name: domain_name,
-            default_domain: is_default
-          )
+      # Convert parameters to a serializable hash for the job
+      domains_hash = domains_params.to_unsafe_h
+      
+      # Start the domains update in the background
+      UpdateDomainsJob.perform_later(@deployment.id, current_user.id, domains_hash)
+      
+      log_activity('domains_update_started', 
+                  details: "Started domain update for deployment: #{@deployment.display_name}")
+      
+      respond_to do |format|
+        format.json do
+          render json: {
+            success: true,
+            message: "Domain update started in background. You'll be notified when complete.",
+            deployment_uuid: @deployment.uuid
+          }
         end
-        
-        # If no domain was marked as default, make the first one default
-        if @deployment.domains.any? && !@deployment.domains.exists?(default_domain: true)
-          @deployment.domains.first.update!(default_domain: true)
-        end
-        
-        # Sync domains to Dokku server and configure SSL
-        service = SshConnectionService.new(@deployment.server)
-        domain_names = @deployment.domains.pluck(:name)
-        result = service.sync_dokku_domains(@deployment.dokku_app_name, domain_names)
-        
-        if result[:success]
-          count = @deployment.domains.count
-          log_activity('domains_updated', 
-                      details: "Updated domains for deployment: #{@deployment.display_name} - #{count} domain#{'s' unless count == 1} configured")
-          toast_success("Domains updated successfully! #{count} domain#{'s' unless count == 1} configured and SSL enabled.", 
-                       title: "Domains Updated")
-        else
-          log_activity('domains_sync_failed', 
-                      details: "Failed to sync domains for deployment: #{@deployment.display_name} - #{result[:error]}")
-          toast_error("Failed to sync domains to server: #{result[:error]}", title: "Sync Failed")
-          # Rollback the transaction since server sync failed
-          raise ActiveRecord::Rollback
+        format.html do
+          toast_info("Domain update started. You'll be notified when complete.", title: "Update Started")
+          redirect_to configure_domain_deployment_path(@deployment)
         end
       end
-    rescue ActiveRecord::RecordInvalid => e
-      toast_error("Failed to save domains: #{e.record.errors.full_messages.join(', ')}", title: "Validation Error")
     rescue StandardError => e
-      Rails.logger.error "Domains update failed: #{e.message}"
-      toast_error("An unexpected error occurred: #{e.message}", title: "Update Error")
+      Rails.logger.error "Failed to start domain update: #{e.message}"
+      
+      respond_to do |format|
+        format.json do
+          render json: {
+            success: false,
+            message: "Failed to start domain update: #{e.message}"
+          }
+        end
+        format.html do
+          toast_error("Failed to start domain update: #{e.message}", title: "Update Failed")
+          redirect_to configure_domain_deployment_path(@deployment)
+        end
+      end
     end
-    
-    redirect_to configure_domain_deployment_path(@deployment)
   end
 
   def attach_ssh_keys
@@ -535,16 +522,88 @@ class DeploymentsController < ApplicationController
     respond_to do |format|
       format.html
       format.json do
+        latest_attempt = @deployment.latest_deployment_attempt
+        
         render json: {
-          logs: @deployment.deployment_logs || "No logs available",
+          logs: latest_attempt&.logs || "No logs available",
           status: @deployment.deployment_status || "pending",
           status_text: @deployment.status_text,
           status_icon: @deployment.status_icon,
           status_badge_class: @deployment.status_badge_class,
           last_deployment_at: @deployment.last_deployment_at&.strftime("%Y-%m-%d %H:%M:%S"),
           deployment_configured: @deployment.deployment_configured?,
-          can_deploy: @deployment.can_deploy?
+          can_deploy: @deployment.can_deploy?,
+          latest_attempt: latest_attempt ? {
+            id: latest_attempt.id,
+            attempt_number: latest_attempt.attempt_number,
+            status: latest_attempt.status,
+            logs: latest_attempt.logs,
+            started_at: latest_attempt.started_at&.strftime("%Y-%m-%d %H:%M:%S"),
+            completed_at: latest_attempt.completed_at&.strftime("%Y-%m-%d %H:%M:%S"),
+            duration_text: latest_attempt.duration_text,
+            error_message: latest_attempt.error_message
+          } : nil
         }, status: 200, content_type: 'application/json'
+      end
+    end
+  end
+
+  def execute_commands
+    # Show the execute commands interface
+    log_activity('execute_commands_viewed', details: "Viewed execute commands interface for deployment: #{@deployment.display_name}")
+  end
+
+  def run_command
+    command = params[:command]&.strip
+    
+    if command.blank?
+      respond_to do |format|
+        format.json do
+          render json: {
+            success: false,
+            message: "Command cannot be empty"
+          }
+        end
+        format.html do
+          toast_error("Command cannot be empty", title: "Invalid Command")
+          redirect_to execute_commands_deployment_path(@deployment)
+        end
+      end
+      return
+    end
+
+    # Start command execution in background
+    ExecuteCommandJob.perform_later(@deployment, current_user, command)
+    
+    log_activity('command_executed', details: "Executed command '#{command}' on deployment: #{@deployment.display_name}")
+    
+    respond_to do |format|
+      format.json do
+        render json: {
+          success: true,
+          message: "Command execution started in background. You'll see output in real-time below.",
+          deployment_uuid: @deployment.uuid,
+          command: command
+        }
+      end
+      format.html do
+        toast_info("Command execution started. You'll see output in real-time below.", title: "Command Started")
+        redirect_to execute_commands_deployment_path(@deployment)
+      end
+    end
+  rescue StandardError => e
+    Rails.logger.error "Failed to execute command: #{e.message}"
+    
+    respond_to do |format|
+      format.json do
+        render json: {
+          success: false,
+          message: "Failed to execute command: #{e.message}"
+        }
+      end
+      format.html do
+        toast_error("Failed to execute command: #{e.message}", title: "Execution Failed")
+        redirect_to execute_commands_deployment_path(@deployment)
       end
     end
   end

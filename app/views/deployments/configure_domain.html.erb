@@ -76,7 +76,7 @@
           </h6>
         </div>
         <div class="card-body">
-          <%= form_with url: update_domains_deployment_path(@deployment), method: :post, local: true, id: "domains-form" do |form| %>
+          <%= form_with url: update_domains_deployment_path(@deployment), method: :post, local: false, id: "domains-form" do |form| %>
             <div class="alert alert-info">
               <i class="fas fa-info-circle me-2"></i>
               <strong>SSL Certificates:</strong> Let's Encrypt SSL certificates will be automatically configured for all domains. 
@@ -311,33 +311,133 @@
 document.addEventListener('DOMContentLoaded', function() {
   let domainIndex = <%= @domains.count %>;
   
-  // Handle form submission loading state
+  let updateDomainsChannel = null;
+  
+  // Handle form submission with AJAX
   document.getElementById('domains-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
     const submitBtn = document.getElementById('domain-submit-btn');
     const loadingText = submitBtn.getAttribute('data-loading-text');
     const originalText = submitBtn.getAttribute('data-original-text');
     
-    submitBtn.value = loadingText;
+    // Show loading state
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>' + loadingText;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Updating Domains...';
     
-    // Show additional loading message
-    const form = e.target;
-    const loadingDiv = document.createElement('div');
-    loadingDiv.className = 'alert alert-info mt-3';
-    loadingDiv.innerHTML = `
-      <i class="fas fa-spinner fa-spin me-2"></i>
-      <strong>Processing domains...</strong> This process includes:
-      <ul class="mb-0 mt-2">
-        <li>Setting up domain configuration on Dokku</li>
-        <li>Installing Let's Encrypt plugin (if needed)</li>
-        <li>Requesting SSL certificates from Let's Encrypt</li>
-        <li>Validating domain ownership</li>
-      </ul>
-      <small class="d-block mt-2">Please do not close this page or navigate away.</small>
-    `;
-    form.appendChild(loadingDiv);
+    // Submit form via AJAX
+    const formData = new FormData(this);
+    
+    fetch(this.action, {
+      method: 'POST',
+      headers: {
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        'Accept': 'application/json'
+      },
+      body: formData
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Response is not JSON');
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        showToast('info', data.message, 'Domain Update');
+        
+        // Subscribe to ActionCable channel for real-time updates
+        subscribeToUpdateDomains(data.deployment_uuid, submitBtn, originalText);
+      } else {
+        // Reset button on immediate failure
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+        showToast('error', data.message, 'Update Failed');
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalText;
+      showToast('error', 'An unexpected error occurred while updating domains.', 'Update Error');
+    });
   });
+  
+  function subscribeToUpdateDomains(deploymentUuid, submitBtn, originalBtnText) {
+    // Disconnect any existing channel
+    if (updateDomainsChannel) {
+      updateDomainsChannel.unsubscribe();
+    }
+    
+    // Subscribe to the update domains channel
+    updateDomainsChannel = window.actionCableConsumer.subscriptions.create(
+      { 
+        channel: "UpdateDomainsChannel",
+        deployment_uuid: deploymentUuid
+      },
+      {
+        received: function(data) {
+          // Reset button
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnText;
+          
+          if (data.success) {
+            showToast('success', data.message, 'Domains Updated');
+            
+            // Optionally reload the page to show the updated domains
+            setTimeout(() => {
+              if (confirm('Domains updated successfully! Would you like to refresh the page to see the changes?')) {
+                window.location.reload();
+              }
+            }, 2000);
+          } else {
+            showToast('error', data.message, 'Update Failed');
+          }
+          
+          // Unsubscribe after receiving the result
+          this.unsubscribe();
+          updateDomainsChannel = null;
+        }
+      }
+    );
+  }
+  
+  function showToast(type, message, title) {
+    // Create a toast element and show it
+    const toastHtml = `
+      <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'info' ? 'info' : 'danger'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+          <div class="toast-body">
+            <strong>${title}:</strong> ${message}
+          </div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-mdb-dismiss="toast" aria-label="Close"></button>
+        </div>
+      </div>
+    `;
+    
+    // Find or create toast container
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+      toastContainer = document.createElement('div');
+      toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+      document.body.appendChild(toastContainer);
+    }
+    
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+    
+    const toastElement = toastContainer.lastElementChild;
+    const toast = new mdb.Toast(toastElement);
+    toast.show();
+    
+    // Remove toast element after it's hidden
+    toastElement.addEventListener('hidden.mdb.toast', () => {
+      toastElement.remove();
+    });
+  }
   
   // Add new domain
   document.getElementById('add-domain').addEventListener('click', function() {
@@ -640,6 +740,7 @@ function copyToClipboard(button) {
     }, 2000);
   });
 }
+
 </script>
 
 <style>

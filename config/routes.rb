@@ -23,6 +23,8 @@ Rails.application.routes.draw do
       delete :delete_database_configuration
       post :create_dokku_app
       post :check_ssl_status
+      get :execute_commands
+      post :run_command
     end
   end
   resources :ssh_keys

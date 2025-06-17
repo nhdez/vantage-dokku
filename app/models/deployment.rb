@@ -8,6 +8,7 @@ class Deployment < ApplicationRecord
   has_many :domains, dependent: :destroy
   has_one :database_configuration, dependent: :destroy
   has_many :application_healths, dependent: :destroy
+  has_many :deployment_attempts, dependent: :destroy
   
   validates :name, presence: true, length: { maximum: 100 }
   validates :name, uniqueness: { scope: :user_id, message: "has already been used for another deployment" }
@@ -152,6 +153,22 @@ class Deployment < ApplicationRecord
     else
       'fas fa-clock'
     end
+  end
+  
+  def latest_deployment_attempt
+    deployment_attempts.recent.first
+  end
+  
+  def last_deployment_attempt
+    deployment_attempts.recent.first
+  end
+  
+  def successful_deployments_count
+    deployment_attempts.successful.count
+  end
+  
+  def failed_deployments_count
+    deployment_attempts.failed.count
   end
   
   def latest_health_check
