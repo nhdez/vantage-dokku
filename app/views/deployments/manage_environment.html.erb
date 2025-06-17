@@ -31,7 +31,7 @@
           </h6>
         </div>
         <div class="card-body">
-          <%= form_with url: update_environment_deployment_path(@deployment), method: :post, local: true, id: "environment-form" do |form| %>
+          <%= form_with url: update_environment_deployment_path(@deployment), method: :post, local: false, id: "environment-form" do |form| %>
             <div class="alert alert-info">
               <i class="fas fa-info-circle me-2"></i>
               <strong>Important:</strong> Changes will be synced to the Dokku server immediately. 
@@ -101,7 +101,7 @@
             <div class="row">
               <div class="col-12">
                 <div class="d-flex gap-2 align-items-center">
-                  <%= form.submit "Update Environment Variables", class: "btn btn-primary" %>
+                  <%= form.submit "Update Environment Variables", class: "btn btn-primary", id: "update-env-btn" %>
                   <%= link_to "Cancel", @deployment, class: "btn btn-secondary" %>
                   
                   <div class="ms-auto">
@@ -208,8 +208,64 @@
 </div>
 
 <script>
+let updateEnvironmentChannel = null;
+
 document.addEventListener('DOMContentLoaded', function() {
   let envVarIndex = <%= @environment_variables.count %>;
+  
+  // Handle form submission
+  const form = document.getElementById('environment-form');
+  const submitBtn = document.getElementById('update-env-btn');
+  const originalBtnText = submitBtn.innerHTML;
+  
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Show loading state
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Updating Variables...';
+    
+    // Submit form via AJAX
+    const formData = new FormData(form);
+    
+    fetch(form.action, {
+      method: 'POST',
+      headers: {
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        'Accept': 'application/json'
+      },
+      body: formData
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Response is not JSON');
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        showToast('info', data.message, 'Environment Variables');
+        
+        // Subscribe to ActionCable channel for real-time updates
+        subscribeToUpdateEnvironment(data.deployment_uuid, submitBtn, originalBtnText);
+      } else {
+        // Reset button on immediate failure
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+        showToast('error', data.message, 'Update Failed');
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalBtnText;
+      showToast('error', 'An unexpected error occurred while updating environment variables.', 'Update Error');
+    });
+  });
   
   // Add new environment variable
   document.getElementById('add-env-var').addEventListener('click', function() {
@@ -356,6 +412,114 @@ document.addEventListener('DOMContentLoaded', function() {
       `;
       container.innerHTML = html;
     }
+  }
+  
+  function subscribeToUpdateEnvironment(deploymentUuid, submitBtn, originalBtnText) {
+    // Disconnect any existing channel
+    if (updateEnvironmentChannel) {
+      updateEnvironmentChannel.unsubscribe();
+    }
+    
+    // Subscribe to the update environment channel
+    updateEnvironmentChannel = window.actionCableConsumer.subscriptions.create(
+      { 
+        channel: "UpdateEnvironmentChannel",
+        deployment_uuid: deploymentUuid
+      },
+      {
+        received: function(data) {
+          // Reset button
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnText;
+          
+          if (data.success) {
+            showToast('success', data.message, 'Environment Variables Updated');
+            
+            // Update the sidebar with new variables count and list
+            updateVariablesSidebar(data.variables, data.count);
+            
+            // Optionally reload the page to show the updated variables
+            setTimeout(() => {
+              if (confirm('Environment variables updated successfully! Would you like to refresh the page to see the changes?')) {
+                window.location.reload();
+              }
+            }, 2000);
+          } else {
+            showToast('error', data.message, 'Update Failed');
+          }
+          
+          // Unsubscribe after receiving the result
+          this.unsubscribe();
+          updateEnvironmentChannel = null;
+        }
+      }
+    );
+  }
+  
+  function updateVariablesSidebar(variables, count) {
+    const sidebarBody = document.querySelector('#environment-variables-container').closest('.col-md-8').nextElementSibling.querySelector('.card-body');
+    
+    if (variables.length > 0) {
+      let html = '';
+      variables.forEach(function(variable) {
+        html += `
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="flex-grow-1">
+              <strong class="d-block">${variable.key}</strong>
+              ${variable.description ? `<small class="text-muted">${variable.description}</small>` : ''}
+            </div>
+            <div>
+              ${variable.sensitive ? 
+                '<span class="badge bg-warning text-dark"><i class="fas fa-lock me-1"></i>Sensitive</span>' : 
+                '<span class="badge bg-success">Set</span>'
+              }
+            </div>
+          </div>
+        `;
+      });
+      sidebarBody.innerHTML = html;
+    } else {
+      sidebarBody.innerHTML = `
+        <div class="text-center py-3">
+          <i class="fas fa-cogs fa-2x text-muted mb-2"></i>
+          <p class="text-muted mb-0">No variables configured</p>
+          <small class="text-muted">Add variables from the left</small>
+        </div>
+      `;
+    }
+  }
+  
+  function showToast(type, message, title) {
+    // Create a toast element and show it
+    const toastHtml = `
+      <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'info' ? 'info' : 'danger'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+          <div class="toast-body">
+            <strong>${title}:</strong> ${message}
+          </div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-mdb-dismiss="toast" aria-label="Close"></button>
+        </div>
+      </div>
+    `;
+    
+    // Find or create toast container
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+      toastContainer = document.createElement('div');
+      toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+      document.body.appendChild(toastContainer);
+    }
+    
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+    
+    const toastElement = toastContainer.lastElementChild;
+    const toast = new mdb.Toast(toastElement);
+    toast.show();
+    
+    // Remove toast element after it's hidden
+    toastElement.addEventListener('hidden.mdb.toast', () => {
+      toastElement.remove();
+    });
   }
 });
 </script>

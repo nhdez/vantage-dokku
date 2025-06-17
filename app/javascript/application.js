@@ -1,6 +1,13 @@
 // Configure your import map in config/importmap.rb. Read more: https://github.com/rails/importmap-rails
 import "@hotwired/turbo-rails"
 import "controllers"
+import * as ActionCable from "@rails/actioncable"
+
+// Make ActionCable available globally
+window.ActionCable = ActionCable
+
+// Initialize ActionCable consumer globally
+window.actionCableConsumer = ActionCable.createConsumer()
 
 // Initialize MDB on page load and Turbo navigation
 document.addEventListener('DOMContentLoaded', initializeMDB)

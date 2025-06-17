@@ -1,4 +1,6 @@
 Rails.application.routes.draw do
+  # Mount ActionCable
+  mount ActionCable.server => '/cable'
   resources :linked_accounts do
     member do
       post :test_connection

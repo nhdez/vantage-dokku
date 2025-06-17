@@ -1,8 +1,11 @@
+require 'net/ssh'
+
 class DeploymentService
   def initialize(deployment)
     @deployment = deployment
     @server = deployment.server
     @logs = []
+    @connection_details = @server.connection_details
   end
 
   def deploy_from_repository
@@ -12,17 +15,38 @@ class DeploymentService
       log("Branch: #{@deployment.repository_branch}")
       log("Target server: #{@server.name} (#{@server.ip})")
       
-      # Step 1: Clone or update repository on server
-      clone_result = clone_repository
-      return { success: false, error: clone_result[:error], logs: @logs } unless clone_result[:success]
+      Net::SSH.start(
+        @connection_details[:host],
+        @connection_details[:username],
+        ssh_options
+      ) do |ssh|
+        # Step 1: Create Dokku app if it doesn't exist
+        create_app_result = create_dokku_app(ssh)
+        return { success: false, error: create_app_result[:error], logs: @logs } unless create_app_result[:success]
+        
+        # Step 2: Clone repository and deploy
+        deploy_result = deploy_with_git(ssh)
+        return { success: false, error: deploy_result[:error], logs: @logs } unless deploy_result[:success]
+        
+        # Step 3: Verify deployment
+        verify_result = verify_deployment(ssh)
+        if verify_result[:success]
+          log("✓ Deployment completed successfully!")
+        else
+          log("⚠️ Deployment may have issues: #{verify_result[:message]}")
+        end
+      end
       
-      # Step 2: Deploy to Dokku
-      deploy_result = deploy_to_dokku
-      return { success: false, error: deploy_result[:error], logs: @logs } unless deploy_result[:success]
-      
-      log("Deployment completed successfully!")
       { success: true, logs: @logs }
       
+    rescue Net::SSH::AuthenticationFailed => e
+      error_msg = "Authentication failed. Please check your SSH key or password."
+      log("ERROR: #{error_msg}")
+      { success: false, error: error_msg, logs: @logs }
+    rescue Net::SSH::ConnectionTimeout => e
+      error_msg = "Connection timeout. Server may be unreachable."
+      log("ERROR: #{error_msg}")
+      { success: false, error: error_msg, logs: @logs }
     rescue StandardError => e
       log("ERROR: #{e.message}")
       { success: false, error: e.message, logs: @logs }
@@ -31,124 +55,171 @@ class DeploymentService
 
   private
 
-  def clone_repository
-    log("Cloning repository to server...")
+  def ssh_options
+    options = {
+      port: @connection_details[:port],
+      timeout: 30,
+      verify_host_key: :never,
+      non_interactive: true
+    }
     
-    ssh_service = SshConnectionService.new(@server)
-    
-    # Create deployment directory
-    repo_dir = "/tmp/vantage-deployments/#{@deployment.uuid}"
-    
-    commands = [
-      "mkdir -p #{repo_dir}",
-      "cd #{repo_dir}",
-      "rm -rf repo", # Clean up any existing clone
-      "git clone #{@deployment.repository_url} repo",
-      "cd repo",
-      "git checkout #{@deployment.repository_branch}"
-    ]
-    
-    commands.each do |command|
-      log("Executing: #{command}")
-      result = ssh_service.execute_command(command)
+    # Try SSH key first if available
+    if @connection_details[:keys].present?
+      options[:keys] = @connection_details[:keys]
+      options[:auth_methods] = ['publickey']
       
-      if result[:success]
-        log("✓ Success")
-        log(result[:output]) if result[:output].present?
-      else
-        log("✗ Failed: #{result[:error]}")
-        return { success: false, error: "Failed to clone repository: #{result[:error]}" }
+      # Add password as fallback if available
+      if @connection_details[:password].present?
+        options[:password] = @connection_details[:password]
+        options[:auth_methods] << 'password'
       end
+    elsif @connection_details[:password].present?
+      # Only password authentication
+      options[:password] = @connection_details[:password]
+      options[:auth_methods] = ['password']
+    else
+      raise StandardError, "No authentication method available"
     end
     
-    # Store the repository path for deployment
-    @repo_path = "#{repo_dir}/repo"
+    options
+  end
+
+  def create_dokku_app(ssh)
+    log("Creating Dokku app if it doesn't exist...")
+    
+    app_name = @deployment.dokku_app_name
+    
+    # Check if app already exists
+    result = execute_command(ssh, "dokku apps:list 2>/dev/null | grep '^#{app_name}$' || echo 'NOT_FOUND'")
+    
+    if result.include?('NOT_FOUND')
+      log("Creating new Dokku app: #{app_name}")
+      create_result = execute_command(ssh, "dokku apps:create #{app_name}")
+      if create_result.include?('ERROR') || create_result.include?('failed')
+        return { success: false, error: "Failed to create Dokku app: #{create_result}" }
+      end
+      log("✓ Dokku app created successfully")
+    else
+      log("✓ Dokku app already exists")
+    end
     
     { success: true }
   end
 
-  def deploy_to_dokku
-    log("Deploying to Dokku...")
+  def deploy_with_git(ssh)
+    log("Cloning repository and deploying...")
     
-    ssh_service = SshConnectionService.new(@server)
+    app_name = @deployment.dokku_app_name
+    repo_url = @deployment.repository_url
+    branch = @deployment.repository_branch
     
-    # Create Dokku app if it doesn't exist
-    log("Ensuring Dokku app exists...")
-    create_app_result = ssh_service.create_dokku_app(@deployment.dokku_app_name)
+    # Create a unique directory for this deployment
+    deploy_dir = "/home/dokku/#{app_name}-deploy-#{Time.current.to_i}"
     
-    if create_app_result[:success]
-      log("✓ Dokku app ready")
-    else
-      log("✗ Failed to create Dokku app: #{create_app_result[:error]}")
-      return { success: false, error: "Failed to create Dokku app: #{create_app_result[:error]}" }
-    end
-    
-    # Deploy using git push to Dokku
-    log("Pushing to Dokku...")
-    
-    commands = [
-      "cd #{@repo_path}",
-      "git remote remove dokku 2>/dev/null || true", # Remove existing remote if any
-      "git remote add dokku dokku@#{@server.ip}:#{@deployment.dokku_app_name}",
-      "git push dokku #{@deployment.repository_branch}:main --force"
-    ]
-    
-    commands.each do |command|
-      log("Executing: #{command}")
-      result = ssh_service.execute_command(command)
+    begin
+      # Clone the repository
+      log("Cloning #{repo_url} (branch: #{branch})")
+      clone_result = execute_command(ssh, "cd /home/dokku && git clone -b #{branch} #{repo_url} #{deploy_dir}")
       
-      # Git push output can be large, so we'll log it
-      if result[:output].present?
-        log("Output: #{result[:output]}")
+      if clone_result.include?('fatal:') || clone_result.include?('error:')
+        # Try cloning without specifying branch first, then checkout
+        log("Branch-specific clone failed, trying alternative approach...")
+        execute_command(ssh, "rm -rf #{deploy_dir}")
+        clone_result = execute_command(ssh, "cd /home/dokku && git clone #{repo_url} #{deploy_dir}")
+        
+        if clone_result.include?('fatal:') || clone_result.include?('error:')
+          return { success: false, error: "Failed to clone repository: #{clone_result}" }
+        end
+        
+        # Checkout the specific branch
+        checkout_result = execute_command(ssh, "cd #{deploy_dir} && git checkout #{branch}")
+        if checkout_result.include?('error:') || checkout_result.include?("pathspec '#{branch}' did not match")
+          log("⚠️ Warning: Could not checkout branch '#{branch}', using default branch")
+        end
       end
       
-      if result[:success]
-        log("✓ Command completed")
+      log("✓ Repository cloned successfully")
+      
+      # Add dokku remote and push
+      log("Adding Dokku remote and deploying...")
+      execute_command(ssh, "cd #{deploy_dir} && git remote remove dokku 2>/dev/null || true")
+      execute_command(ssh, "cd #{deploy_dir} && git remote add dokku dokku@localhost:#{app_name}")
+      
+      # Push to deploy (capture full output)
+      log("Pushing to Dokku (this may take a few minutes)...")
+      deploy_output = execute_command(ssh, "cd #{deploy_dir} && git push dokku HEAD:main --force", timeout: 600)
+      
+      # Log the deployment output
+      if deploy_output.present?
+        deploy_output.split("\n").each { |line| log("DEPLOY: #{line}") }
+      end
+      
+      # Check if deployment was successful
+      if deploy_output.include?('Application deployed:') || deploy_output.include?('=====> Application deployed') || !deploy_output.include?('ERROR')
+        log("✓ Git push completed")
       else
-        log("✗ Command failed: #{result[:error]}")
-        # Don't fail immediately on git push as Dokku might still succeed
-        # We'll check the final status
+        log("⚠️ Deployment may have encountered issues")
       end
-    end
-    
-    # Verify deployment by checking if the app is running
-    log("Verifying deployment...")
-    verify_result = verify_deployment
-    
-    if verify_result[:success]
-      log("✓ Deployment verified successfully")
+      
       { success: true }
-    else
-      log("✗ Deployment verification failed: #{verify_result[:error]}")
-      { success: false, error: verify_result[:error] }
+      
+    ensure
+      # Clean up the cloned repository
+      execute_command(ssh, "rm -rf #{deploy_dir}")
+      log("Cleaned up temporary files")
     end
   end
 
-  def verify_deployment
-    ssh_service = SshConnectionService.new(@server)
+  def verify_deployment(ssh)
+    log("Verifying deployment...")
+    
+    app_name = @deployment.dokku_app_name
     
     # Check if the app is running
-    result = ssh_service.execute_command("dokku ps:report #{@deployment.dokku_app_name}")
+    ps_result = execute_command(ssh, "dokku ps:report #{app_name} 2>/dev/null")
     
-    if result[:success] && result[:output].include?("running")
-      log("App is running on Dokku")
+    if ps_result.include?('running') || ps_result.include?('up')
+      log("✓ App is running on Dokku")
       
       # Try to get the app URL
-      url_result = ssh_service.execute_command("dokku url #{@deployment.dokku_app_name}")
-      if url_result[:success] && url_result[:output].present?
-        app_url = url_result[:output].strip
-        log("App URL: #{app_url}")
+      url_result = execute_command(ssh, "dokku url #{app_name} 2>/dev/null").strip
+      if url_result.present? && url_result.start_with?('http')
+        log("✓ App URL: #{url_result}")
         
         # Update deployment with the URL if different
-        if @deployment.dokku_url != app_url
-          @deployment.update_column(:dokku_url, app_url)
+        if @deployment.dokku_url != url_result
+          @deployment.update_column(:dokku_url, url_result)
         end
       end
       
       { success: true }
     else
-      { success: false, error: "App is not running on Dokku" }
+      # Try alternative status check
+      logs_result = execute_command(ssh, "dokku logs #{app_name} --tail 5 2>/dev/null")
+      if logs_result.present?
+        log("Recent logs: #{logs_result}")
+      end
+      
+      { success: false, message: "App may not be running properly" }
     end
+  end
+
+  def execute_command(ssh, command, timeout: 120)
+    log("Executing: #{command}")
+    
+    result = ""
+    ssh.exec!(command) do |channel, stream, data|
+      result += data
+      # Log output in real-time for long commands
+      if command.include?('git push') || command.include?('git clone')
+        data.split("\n").each { |line| log(">> #{line}") if line.strip.present? }
+      end
+    end
+    
+    result
+  rescue => e
+    log("Command failed: #{e.message}")
+    "ERROR: #{e.message}"
   end
 
   def log(message)
@@ -156,5 +227,10 @@ class DeploymentService
     formatted_message = "[#{timestamp}] #{message}"
     @logs << formatted_message
     Rails.logger.info "[DeploymentService] [#{@deployment.uuid}] #{message}"
+    
+    # Update deployment logs in real-time
+    current_logs = @deployment.deployment_logs || ""
+    updated_logs = current_logs + "\n#{formatted_message}"
+    @deployment.update_column(:deployment_logs, updated_logs)
   end
 end

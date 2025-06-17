@@ -7,6 +7,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
+    <%= action_cable_meta_tag %>
 
     <%= yield :head %>
     <%= theme_meta_tags %>
@@ -84,7 +85,10 @@
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
       <div class="container-fluid">
-        <%= link_to "Vantage", root_path, class: "navbar-brand" %>
+        <%= link_to root_path, class: "navbar-brand d-flex align-items-center" do %>
+          <%= image_tag "/img/vantage_logo.svg", alt: "Vantage Dokku", style: "height: 40px; width: auto;", class: "me-2" %>
+          <span class="navbar-brand-text">Vantage</span>
+        <% end %>
         
         <!-- Toggler/collapsibe Button -->
         <button class="navbar-toggler" type="button" data-mdb-toggle="collapse" data-mdb-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">

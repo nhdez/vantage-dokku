@@ -470,6 +470,8 @@ function copyToClipboard(button) {
   });
 }
 
+let testConnectionChannel = null;
+
 function testConnection(url) {
   const btn = document.getElementById('test-connection-btn');
   const originalText = btn.innerHTML;
@@ -487,23 +489,16 @@ function testConnection(url) {
   })
   .then(response => response.json())
   .then(data => {
-    // Reset button
-    btn.disabled = false;
-    btn.innerHTML = originalText;
-    
     if (data.success) {
-      showToast('success', data.message, 'Connection Successful');
+      showToast('info', data.message, 'Connection Test');
       
-      // Update connection status section
-      updateConnectionStatus(data.connection_status);
-      
-      // Reload page to show updated server info
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
+      // Subscribe to ActionCable channel for real-time updates
+      subscribeToTestConnection(data.server_uuid, btn, originalText);
     } else {
+      // Reset button on immediate failure
+      btn.disabled = false;
+      btn.innerHTML = originalText;
       showToast('error', data.message, 'Connection Failed');
-      updateConnectionStatus(data.connection_status);
     }
   })
   .catch(error => {
@@ -512,6 +507,47 @@ function testConnection(url) {
     btn.innerHTML = originalText;
     showToast('error', 'An unexpected error occurred while testing the connection.', 'Connection Error');
   });
+}
+
+function subscribeToTestConnection(serverUuid, btn, originalText) {
+  // Disconnect any existing channel
+  if (testConnectionChannel) {
+    testConnectionChannel.unsubscribe();
+  }
+  
+  // Subscribe to the test connection channel
+  testConnectionChannel = window.actionCableConsumer.subscriptions.create(
+    { 
+      channel: "TestConnectionChannel",
+      server_uuid: serverUuid
+    },
+    {
+      received: function(data) {
+        // Reset button
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        
+        if (data.success) {
+          showToast('success', data.message, 'Connection Successful');
+          
+          // Update connection status section
+          updateConnectionStatus(data.connection_status);
+          
+          // Update server information section with new data
+          if (data.server_data) {
+            updateServerInformation(data.server_data);
+          }
+        } else {
+          showToast('error', data.message, 'Connection Failed');
+          updateConnectionStatus(data.connection_status);
+        }
+        
+        // Unsubscribe after receiving the result
+        this.unsubscribe();
+        testConnectionChannel = null;
+      }
+    }
+  );
 }
 
 function updateConnectionStatus(status) {
@@ -540,6 +576,77 @@ function updateConnectionStatus(status) {
   if (badge) {
     badge.className = `badge ${badgeClass} fs-6 px-3 py-2`;
     badge.innerHTML = `<i class="${icon} me-2"></i>${statusText}`;
+  }
+}
+
+function updateServerInformation(serverData) {
+  const serverInfoSection = document.getElementById('server-info-section');
+  
+  // Create the updated system information HTML
+  const systemInfoHtml = `
+    <div class="row mb-3">
+      <div class="col-sm-4">
+        <h6 class="text-muted mb-1">Operating System</h6>
+        <p class="mb-0">${serverData.os_version || 'Unknown'}</p>
+      </div>
+      <div class="col-sm-4">
+        <h6 class="text-muted mb-1">CPU</h6>
+        <p class="mb-0">
+          ${serverData.cpu_model || '<span class="text-muted">Unknown</span>'}
+          ${serverData.cpu_cores ? `<br><small class="text-muted">${serverData.cpu_cores} cores</small>` : ''}
+        </p>
+      </div>
+      <div class="col-sm-4">
+        <h6 class="text-muted mb-1">Memory</h6>
+        <p class="mb-0">${serverData.ram_total || 'Unknown'}</p>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-sm-4">
+        <h6 class="text-muted mb-1">Disk Space</h6>
+        <p class="mb-0">${serverData.disk_total || 'Unknown'}</p>
+      </div>
+      <div class="col-sm-4">
+        <h6 class="text-muted mb-1">Dokku Version</h6>
+        <p class="mb-0">
+          ${serverData.dokku_installed ? 
+            `<span class="badge bg-success fs-6">${serverData.dokku_version}</span>` : 
+            '<span class="text-muted">Not detected</span>'
+          }
+        </p>
+      </div>
+      <div class="col-sm-4">
+        <h6 class="text-muted mb-1">Last Connected</h6>
+        <p class="mb-0">${serverData.last_connected_ago || 'Never'}</p>
+      </div>
+    </div>
+  `;
+  
+  // Update the server info section
+  serverInfoSection.innerHTML = systemInfoHtml;
+  
+  // Add a subtle animation to indicate the update
+  serverInfoSection.style.opacity = '0.5';
+  setTimeout(() => {
+    serverInfoSection.style.opacity = '1';
+    serverInfoSection.style.transition = 'opacity 0.3s ease';
+  }, 100);
+}
+
+function updateDokkuStatus(serverData) {
+  // Find the Dokku version element in the server info section
+  const serverInfoSection = document.getElementById('server-info-section');
+  const dokkuVersionElement = serverInfoSection.querySelector('.col-sm-4:nth-child(2) p');
+  
+  if (dokkuVersionElement && serverData.dokku_installed) {
+    dokkuVersionElement.innerHTML = `<span class="badge bg-success fs-6">${serverData.dokku_version}</span>`;
+    
+    // Add a subtle animation to indicate the update
+    dokkuVersionElement.style.opacity = '0.5';
+    setTimeout(() => {
+      dokkuVersionElement.style.opacity = '1';
+      dokkuVersionElement.style.transition = 'opacity 0.3s ease';
+    }, 100);
   }
 }
 
@@ -574,6 +681,8 @@ function viewDashboard() {
   alert('Dokku dashboard integration will be implemented in the next phase.');
 }
 
+let updateServerChannel = null;
+
 function updateServer(url) {
   const btn = document.getElementById('update-server-btn');
   const originalText = btn.innerHTML;
@@ -596,28 +705,16 @@ function updateServer(url) {
   })
   .then(response => response.json())
   .then(data => {
-    // Reset button
-    btn.disabled = false;
-    btn.innerHTML = originalText;
-    
     if (data.success) {
-      if (data.reboot_required) {
-        showToast('warning', data.message, 'Update Complete - Reboot Required');
-      } else {
-        showToast('success', data.message, 'Update Successful');
-      }
+      showToast('info', data.message, 'Server Update');
       
-      // Show update output in a modal or console
-      if (data.output) {
-        showUpdateOutput(data.output);
-      }
+      // Subscribe to ActionCable channel for real-time updates
+      subscribeToUpdateServer(data.server_uuid, btn, originalText);
     } else {
+      // Reset button on immediate failure
+      btn.disabled = false;
+      btn.innerHTML = originalText;
       showToast('error', data.message, 'Update Failed');
-      
-      // Show error output if available
-      if (data.output) {
-        showUpdateOutput(data.output);
-      }
     }
   })
   .catch(error => {
@@ -626,6 +723,52 @@ function updateServer(url) {
     btn.innerHTML = originalText;
     showToast('error', 'An unexpected error occurred while updating the server.', 'Update Error');
   });
+}
+
+function subscribeToUpdateServer(serverUuid, btn, originalText) {
+  // Disconnect any existing channel
+  if (updateServerChannel) {
+    updateServerChannel.unsubscribe();
+  }
+  
+  // Subscribe to the update server channel
+  updateServerChannel = window.actionCableConsumer.subscriptions.create(
+    { 
+      channel: "UpdateServerChannel",
+      server_uuid: serverUuid
+    },
+    {
+      received: function(data) {
+        // Reset button
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        
+        if (data.success) {
+          if (data.reboot_required) {
+            showToast('warning', data.message, 'Update Complete - Reboot Required');
+          } else {
+            showToast('success', data.message, 'Update Successful');
+          }
+          
+          // Show update output in a modal
+          if (data.output) {
+            showUpdateOutput(data.output);
+          }
+        } else {
+          showToast('error', data.message, 'Update Failed');
+          
+          // Show error output if available
+          if (data.output) {
+            showUpdateOutput(data.output);
+          }
+        }
+        
+        // Unsubscribe after receiving the result
+        this.unsubscribe();
+        updateServerChannel = null;
+      }
+    }
+  );
 }
 
 function showUpdateOutput(output) {
@@ -670,6 +813,8 @@ function showUpdateOutput(output) {
   });
 }
 
+let installDokkuChannel = null;
+
 function installDokku(url) {
   const btn = document.getElementById('install-dokku-btn');
   const originalText = btn.innerHTML;
@@ -692,29 +837,16 @@ function installDokku(url) {
   })
   .then(response => response.json())
   .then(data => {
-    // Reset button
-    btn.disabled = false;
-    btn.innerHTML = originalText;
-    
     if (data.success) {
-      showToast('success', data.message, 'Dokku Installation');
+      showToast('info', data.message, 'Dokku Installation');
       
-      // Show installation output
-      if (data.output) {
-        showInstallationOutput(data.output);
-      }
-      
-      // Reload page to update UI after successful installation
-      setTimeout(() => {
-        window.location.reload();
-      }, 3000);
+      // Subscribe to ActionCable channel for real-time updates
+      subscribeToInstallDokku(data.server_uuid, btn, originalText);
     } else {
+      // Reset button on immediate failure
+      btn.disabled = false;
+      btn.innerHTML = originalText;
       showToast('error', data.message, 'Installation Failed');
-      
-      // Show error output if available
-      if (data.output) {
-        showInstallationOutput(data.output);
-      }
     }
   })
   .catch(error => {
@@ -723,6 +855,63 @@ function installDokku(url) {
     btn.innerHTML = originalText;
     showToast('error', 'An unexpected error occurred during Dokku installation.', 'Installation Error');
   });
+}
+
+function subscribeToInstallDokku(serverUuid, btn, originalText) {
+  // Disconnect any existing channel
+  if (installDokkuChannel) {
+    installDokkuChannel.unsubscribe();
+  }
+  
+  // Subscribe to the install Dokku channel
+  installDokkuChannel = window.actionCableConsumer.subscriptions.create(
+    { 
+      channel: "InstallDokkuChannel",
+      server_uuid: serverUuid
+    },
+    {
+      received: function(data) {
+        if (data.success) {
+          showToast('success', data.message, 'Dokku Installation');
+          
+          // Show installation output
+          if (data.output) {
+            showInstallationOutput(data.output);
+          }
+          
+          // Update server information if Dokku version is available
+          if (data.server_data) {
+            updateDokkuStatus(data.server_data);
+          }
+          
+          // Hide the Install Dokku button since it's now installed
+          btn.style.display = 'none';
+          
+          // Show success message and option to reload
+          setTimeout(() => {
+            if (confirm('Dokku installation completed! Would you like to refresh the page to see the updated interface?')) {
+              window.location.reload();
+            }
+          }, 2000);
+        } else {
+          showToast('error', data.message, 'Installation Failed');
+          
+          // Show error output if available
+          if (data.output) {
+            showInstallationOutput(data.output);
+          }
+          
+          // Reset button on failure
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+        
+        // Unsubscribe after receiving the result
+        this.unsubscribe();
+        installDokkuChannel = null;
+      }
+    }
+  );
 }
 
 function showInstallationOutput(output) {

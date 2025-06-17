@@ -322,54 +322,44 @@ class DeploymentsController < ApplicationController
     begin
       env_vars_params = params[:environment_variables] || {}
       
-      # Start a transaction to ensure data consistency
-      ActiveRecord::Base.transaction do
-        # Clear existing environment variables
-        @deployment.environment_variables.destroy_all
-        
-        # Create new environment variables from the form
-        env_vars_params.each do |index, env_var_data|
-          key = env_var_data[:key]&.strip&.upcase
-          value = env_var_data[:value]
-          description = env_var_data[:description]&.strip
-          
-          # Skip empty entries
-          next if key.blank?
-          
-          @deployment.environment_variables.create!(
-            key: key,
-            value: value,
-            description: description
-          )
+      # Convert parameters to a serializable hash for the job
+      env_vars_hash = env_vars_params.to_unsafe_h
+      
+      # Start the environment variables update in the background
+      UpdateEnvironmentJob.perform_later(@deployment.id, current_user.id, env_vars_hash)
+      
+      log_activity('environment_variables_update_started', 
+                  details: "Started environment variables update for deployment: #{@deployment.display_name}")
+      
+      respond_to do |format|
+        format.json do
+          render json: {
+            success: true,
+            message: "Environment variables update started in background. You'll be notified when complete.",
+            deployment_uuid: @deployment.uuid
+          }
         end
-        
-        # Sync environment variables to Dokku server
-        service = SshConnectionService.new(@deployment.server)
-        env_vars = @deployment.environment_variables.pluck(:key, :value).to_h
-        result = service.sync_dokku_environment_variables(@deployment.dokku_app_name, env_vars)
-        
-        if result[:success]
-          count = @deployment.environment_variables.count
-          log_activity('environment_variables_updated', 
-                      details: "Updated environment variables for deployment: #{@deployment.display_name} - #{count} variable#{'s' unless count == 1} set")
-          toast_success("Environment variables updated successfully! #{count} variable#{'s' unless count == 1} configured.", 
-                       title: "Variables Updated")
-        else
-          log_activity('environment_variables_sync_failed', 
-                      details: "Failed to sync environment variables for deployment: #{@deployment.display_name} - #{result[:error]}")
-          toast_error("Failed to sync environment variables to server: #{result[:error]}", title: "Sync Failed")
-          # Rollback the transaction since server sync failed
-          raise ActiveRecord::Rollback
+        format.html do
+          toast_info("Environment variables update started. You'll be notified when complete.", title: "Update Started")
+          redirect_to manage_environment_deployment_path(@deployment)
         end
       end
-    rescue ActiveRecord::RecordInvalid => e
-      toast_error("Failed to save environment variables: #{e.record.errors.full_messages.join(', ')}", title: "Validation Error")
     rescue StandardError => e
-      Rails.logger.error "Environment variables update failed: #{e.message}"
-      toast_error("An unexpected error occurred: #{e.message}", title: "Update Error")
+      Rails.logger.error "Failed to start environment variables update: #{e.message}"
+      
+      respond_to do |format|
+        format.json do
+          render json: {
+            success: false,
+            message: "Failed to start environment variables update: #{e.message}"
+          }
+        end
+        format.html do
+          toast_error("Failed to start environment variables update: #{e.message}", title: "Update Failed")
+          redirect_to manage_environment_deployment_path(@deployment)
+        end
+      end
     end
-    
-    redirect_to manage_environment_deployment_path(@deployment)
   end
 
   def check_ssl_status
@@ -546,13 +536,15 @@ class DeploymentsController < ApplicationController
       format.html
       format.json do
         render json: {
-          logs: @deployment.deployment_logs || "",
-          status: @deployment.deployment_status,
+          logs: @deployment.deployment_logs || "No logs available",
+          status: @deployment.deployment_status || "pending",
           status_text: @deployment.status_text,
           status_icon: @deployment.status_icon,
           status_badge_class: @deployment.status_badge_class,
-          last_deployment_at: @deployment.last_deployment_at&.iso8601
-        }
+          last_deployment_at: @deployment.last_deployment_at&.strftime("%Y-%m-%d %H:%M:%S"),
+          deployment_configured: @deployment.deployment_configured?,
+          can_deploy: @deployment.can_deploy?
+        }, status: 200, content_type: 'application/json'
       end
     end
   end
