@@ -319,7 +319,14 @@ Devise.setup do |config|
   google_client_id = ENV['GOOGLE_CLIENT_ID']
   google_client_secret = ENV['GOOGLE_CLIENT_SECRET']
   
+  puts "Devise Config: Checking OAuth credentials in #{Rails.env}"
+  puts "Devise Config: Client ID present: #{google_client_id.present?}"
+  puts "Devise Config: Client secret present: #{google_client_secret.present?}"
+  
   if google_client_id && google_client_secret
     config.omniauth :google_oauth2, google_client_id, google_client_secret
+    puts "Devise Config: Google OAuth configured successfully"
+  else
+    puts "Devise Config: OAuth not configured - missing credentials"
   end
 end
