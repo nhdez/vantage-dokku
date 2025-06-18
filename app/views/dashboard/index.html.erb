@@ -11,8 +11,10 @@
           <p class="text-muted mb-0">Welcome back, <%= current_user.email.split('@').first.titleize %>!</p>
         </div>
         <div>
-          <%= link_to dashboard_trigger_health_checks_path, method: :post, class: "btn btn-outline-success me-2" do %>
-            <i class="fas fa-heartbeat me-2"></i>Refresh Health Status
+          <% if @monitored_deployments.present? %>
+            <%= button_to dashboard_trigger_health_checks_path, method: :post, class: "btn btn-outline-success me-2" do %>
+              <i class="fas fa-heartbeat me-2"></i>Refresh Health Status
+            <% end %>
           <% end %>
           <%= link_to new_deployment_path, class: "btn btn-primary" do %>
             <i class="fas fa-plus me-2"></i>New Application

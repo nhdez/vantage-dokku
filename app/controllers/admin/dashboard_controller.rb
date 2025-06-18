@@ -179,7 +179,9 @@ class Admin::DashboardController < ApplicationController
           if key == 'google_oauth_enabled'
             setting.update!(enabled: value == 'true', value: value)
           else
-            setting.update!(value: value)
+            # Strip whitespace from OAuth credential values to prevent configuration errors
+            cleaned_value = value.to_s.strip
+            setting.update!(value: cleaned_value)
           end
         end
       end
