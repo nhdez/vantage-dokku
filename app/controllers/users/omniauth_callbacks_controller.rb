@@ -3,31 +3,32 @@ class Users::OmniauthCallbacksController < Devise::OmniauthCallbacksController
   include Toastable
   
   def google_oauth2
-    unless OauthSetting.google_enabled?
-      toast_error("Google sign-in is currently disabled", "Authentication Error")
-      redirect_to new_user_session_path and return
-    end
-    
-    @user = User.from_omniauth(request.env["omniauth.auth"])
-    
-    if @user.persisted?
-      # Log the authentication
-      log_activity(@user.provider.present? ? 'oauth_signin' : 'oauth_signup',
-                  details: "Signed #{@user.provider.present? ? 'in' : 'up'} with Google OAuth",
-                  user: @user)
-      
-      sign_in_and_redirect @user, event: :authentication
-      
-      if @user.provider.present?
-        toast_success("Successfully signed in with Google!", "Welcome back")
-      else
-        toast_success("Welcome! Your account has been created with Google.", "Account Created")
-      end
+    user = User.from_google(from_google_params)
+
+    if user.present?
+      sign_out_all_scopes
+      flash[:notice] = t 'devise.omniauth_callbacks.success', kind: 'Google'
+      sign_in_and_redirect user, event: :authentication
     else
-      session["devise.google_data"] = request.env["omniauth.auth"].except("extra")
-      toast_error("There was an error creating your account. Please try again.", "Authentication Error")
-      redirect_to new_user_registration_url
+      flash[:alert] = t 'devise.omniauth_callbacks.failure', kind: 'Google', reason: "#{auth.info.email} is not authorized."
+      redirect_to new_user_session_path
     end
+  end
+
+  private
+
+  def from_google_params
+    @from_google_params ||= {
+      uid: auth.uid,
+      email: auth.info.email,
+      first_name: auth.info.first_name,
+      last_name: auth.info.last_name,
+      image: auth.info.image
+    }
+  end
+
+  def auth
+    @auth ||= request.env['omniauth.auth']
   end
 
   def failure

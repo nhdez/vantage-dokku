@@ -393,10 +393,10 @@
         </div>
         
         <div class="d-grid">
-          <%= link_to "/users/auth/google_oauth2", 
-              method: :post,
+          <%= button_to user_google_oauth2_omniauth_authorize_path, 
+              method: :post, 
               class: "btn btn-google btn-lg d-flex align-items-center justify-content-center",
-              data: { turbo: false } do %>
+              data: { turbo: "false" } do %>
             <i class="fab fa-google me-2" style="color: #dc3545;"></i>
             Sign up with Google
           <% end %>
