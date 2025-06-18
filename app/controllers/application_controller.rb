@@ -19,77 +19,36 @@ class ApplicationController < ActionController::Base
 
   def generate_ssh_key
     begin
-      Rails.logger.info "[SSH Key Generation] Starting SSH key generation"
-      Rails.logger.info "[SSH Key Generation] Current user: #{ENV['USER']}"
-      Rails.logger.info "[SSH Key Generation] Current HOME: #{ENV['HOME']}"
+      Rails.logger.info "[SSH Key Generation] Starting SSH key generation for Vantage Dokku"
       
       # Check if SSH key already exists
-      if ENV['DOKKU_SSH_KEY_PATH'].present? && File.exist?(ENV['DOKKU_SSH_KEY_PATH'])
+      if ENV['DOKKU_SSH_KEY_PATH'].present?
         render json: {
           success: false,
-          message: "SSH key already exists at #{ENV['DOKKU_SSH_KEY_PATH']}"
+          message: "SSH key already configured at #{ENV['DOKKU_SSH_KEY_PATH']}"
         }
         return
       end
 
-      # Determine the appropriate SSH directory
-      # Try multiple approaches to find a writable directory
-      possible_homes = [
-        ENV['HOME'],
-        (Dir.home rescue nil),
-        ENV['USERPROFILE'], # Windows
-        "/home/#{ENV['USER']}",
-        "/Users/#{ENV['USER']}", # macOS
-        Dir.pwd # Current working directory as last resort
-      ].compact
+      # Generate SSH key pair for Vantage Dokku to use when connecting to servers
+      # This key will be used by the Rails application to connect to Dokku servers
       
-      ssh_dir = nil
+      # Use a dedicated directory for Vantage SSH keys
+      ssh_dir = '/tmp/vantage_dokku_keys'
       
-      # Try each possible home directory
-      possible_homes.each do |home_dir|
-        next unless home_dir && Dir.exist?(home_dir)
-        
-        test_ssh_dir = File.join(home_dir, '.ssh')
-        Rails.logger.info "[SSH Key Generation] Testing SSH directory: #{test_ssh_dir}"
-        
-        begin
-          # Test if we can create the directory or if it's writable
-          if Dir.exist?(test_ssh_dir)
-            # Check if directory is writable
-            if File.writable?(test_ssh_dir)
-              ssh_dir = test_ssh_dir
-              Rails.logger.info "[SSH Key Generation] Using existing writable SSH directory: #{ssh_dir}"
-              break
-            end
-          else
-            # Try to create the directory
-            Dir.mkdir(test_ssh_dir, 0700)
-            ssh_dir = test_ssh_dir
-            Rails.logger.info "[SSH Key Generation] Created new SSH directory: #{ssh_dir}"
-            break
-          end
-        rescue => e
-          Rails.logger.warn "[SSH Key Generation] Cannot use #{test_ssh_dir}: #{e.message}"
-          next
-        end
-      end
-      
-      # If no home directory worked, use /tmp as fallback
-      if ssh_dir.nil?
-        ssh_dir = '/tmp/vantage_ssh'
-        Rails.logger.info "[SSH Key Generation] Using fallback directory: #{ssh_dir}"
-        
-        unless Dir.exist?(ssh_dir)
-          Dir.mkdir(ssh_dir, 0700)
-        end
+      # Ensure directory exists
+      unless Dir.exist?(ssh_dir)
+        Dir.mkdir(ssh_dir, 0700)
       end
 
       # Set paths for the key files
-      private_key_path = File.join(ssh_dir, 'id_ed25519')
+      private_key_path = File.join(ssh_dir, 'vantage_dokku_key')
       public_key_path = "#{private_key_path}.pub"
 
+      Rails.logger.info "[SSH Key Generation] Generating key pair at #{private_key_path}"
+
       # Generate the SSH key using system command
-      command = "ssh-keygen -t ed25519 -f #{private_key_path} -N '' -C 'vantage-dokku@#{Socket.gethostname}'"
+      command = "ssh-keygen -t ed25519 -f #{private_key_path} -N '' -C 'vantage-dokku-client@#{Socket.gethostname}'"
       
       if system(command)
         # Read the generated public key
@@ -100,35 +59,21 @@ class ApplicationController < ActionController::Base
           File.chmod(0600, private_key_path) if File.exist?(private_key_path)
           File.chmod(0644, public_key_path)
 
-          # Set environment variables in a persistent way
-          # You might want to update your .env file or use a different method
-          # depending on how you manage environment variables
-          
-          # For now, we'll write to a temporary env file that can be sourced
-          env_updates = <<~ENV
-            # Vantage Dokku SSH Key Configuration (Generated #{Time.current})
-            export DOKKU_SSH_KEY_PATH=#{private_key_path}
-            export DOKKU_SSH_PUBLIC_KEY='#{public_key_content}'
-          ENV
-          
-          # Write to a file that can be sourced
-          env_file_path = '/tmp/vantage_ssh_env.sh'
-          File.write(env_file_path, env_updates)
-          
-          # Also try to update the current process environment
+          # Set environment variables for the current process
           ENV['DOKKU_SSH_KEY_PATH'] = private_key_path
           ENV['DOKKU_SSH_PUBLIC_KEY'] = public_key_content
 
-          Rails.logger.info "[SSH Key Generation] Generated new SSH key at #{private_key_path}"
-          Rails.logger.info "[SSH Key Generation] Environment file created at #{env_file_path}"
+          Rails.logger.info "[SSH Key Generation] Generated SSH key pair successfully"
+          Rails.logger.info "[SSH Key Generation] Private key: #{private_key_path}"
+          Rails.logger.info "[SSH Key Generation] Public key: #{public_key_content[0..50]}..."
 
           render json: {
             success: true,
-            message: "SSH key generated successfully",
+            message: "SSH key generated successfully for Vantage Dokku client",
             private_key_path: private_key_path,
             public_key_path: public_key_path,
             public_key: public_key_content,
-            env_file: env_file_path
+            note: "This key will be used by Vantage to connect to your Dokku servers. You may need to add the public key to your servers' authorized_keys."
           }
         else
           render json: {
@@ -137,6 +82,15 @@ class ApplicationController < ActionController::Base
           }
         end
       else
+        # Check if ssh-keygen is available
+        unless system('which ssh-keygen > /dev/null 2>&1')
+          render json: {
+            success: false,
+            message: "ssh-keygen command not found. Please install OpenSSH client tools."
+          }
+          return
+        end
+        
         render json: {
           success: false,
           message: "Failed to generate SSH key using ssh-keygen command"
