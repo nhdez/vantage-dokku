@@ -19,6 +19,10 @@ class ApplicationController < ActionController::Base
 
   def generate_ssh_key
     begin
+      Rails.logger.info "[SSH Key Generation] Starting SSH key generation"
+      Rails.logger.info "[SSH Key Generation] Current user: #{ENV['USER']}"
+      Rails.logger.info "[SSH Key Generation] Current HOME: #{ENV['HOME']}"
+      
       # Check if SSH key already exists
       if ENV['DOKKU_SSH_KEY_PATH'].present? && File.exist?(ENV['DOKKU_SSH_KEY_PATH'])
         render json: {
@@ -28,10 +32,56 @@ class ApplicationController < ActionController::Base
         return
       end
 
-      # Ensure SSH directory exists
-      ssh_dir = '/home/root/.ssh'
-      unless Dir.exist?(ssh_dir)
-        Dir.mkdir(ssh_dir, 0700)
+      # Determine the appropriate SSH directory
+      # Try multiple approaches to find a writable directory
+      possible_homes = [
+        ENV['HOME'],
+        (Dir.home rescue nil),
+        ENV['USERPROFILE'], # Windows
+        "/home/#{ENV['USER']}",
+        "/Users/#{ENV['USER']}", # macOS
+        Dir.pwd # Current working directory as last resort
+      ].compact
+      
+      ssh_dir = nil
+      
+      # Try each possible home directory
+      possible_homes.each do |home_dir|
+        next unless home_dir && Dir.exist?(home_dir)
+        
+        test_ssh_dir = File.join(home_dir, '.ssh')
+        Rails.logger.info "[SSH Key Generation] Testing SSH directory: #{test_ssh_dir}"
+        
+        begin
+          # Test if we can create the directory or if it's writable
+          if Dir.exist?(test_ssh_dir)
+            # Check if directory is writable
+            if File.writable?(test_ssh_dir)
+              ssh_dir = test_ssh_dir
+              Rails.logger.info "[SSH Key Generation] Using existing writable SSH directory: #{ssh_dir}"
+              break
+            end
+          else
+            # Try to create the directory
+            Dir.mkdir(test_ssh_dir, 0700)
+            ssh_dir = test_ssh_dir
+            Rails.logger.info "[SSH Key Generation] Created new SSH directory: #{ssh_dir}"
+            break
+          end
+        rescue => e
+          Rails.logger.warn "[SSH Key Generation] Cannot use #{test_ssh_dir}: #{e.message}"
+          next
+        end
+      end
+      
+      # If no home directory worked, use /tmp as fallback
+      if ssh_dir.nil?
+        ssh_dir = '/tmp/vantage_ssh'
+        Rails.logger.info "[SSH Key Generation] Using fallback directory: #{ssh_dir}"
+        
+        unless Dir.exist?(ssh_dir)
+          Dir.mkdir(ssh_dir, 0700)
+        end
       end
 
       # Set paths for the key files
