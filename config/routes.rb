@@ -74,8 +74,8 @@ Rails.application.routes.draw do
     omniauth_callbacks: 'users/omniauth_callbacks'
   }
 
-  # Public routes
-  root "home#index"
+  # Public routes - redirect to login
+  root to: redirect('/users/sign_in')
   
   # Authenticated user routes
   authenticated :user do
@@ -87,9 +87,6 @@ Rails.application.routes.draw do
   get "projects", to: "dashboard#projects"
   get "analytics", to: "dashboard#analytics"
   get "settings", to: "dashboard#settings"
-  
-  # SSH key generation
-  post "generate_ssh_key", to: "application#generate_ssh_key"
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
   # Can be used by load balancers and uptime monitors to verify that the app is live.

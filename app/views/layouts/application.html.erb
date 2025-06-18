@@ -40,6 +40,59 @@
     <%# Includes all stylesheet files in app/assets/stylesheets %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
     
+    <!-- Mobile Menu Styles -->
+    <style>
+      /* Ensure mobile menu works properly */
+      .navbar-collapse {
+        transition: height 0.35s ease;
+      }
+      
+      .navbar-collapse.show {
+        display: block !important;
+      }
+      
+      .navbar-collapse.collapsing {
+        height: auto;
+        transition: none;
+      }
+      
+      /* Make sure burger menu is visible */
+      .navbar-toggler {
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 4px 8px;
+      }
+      
+      .navbar-toggler:focus {
+        box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.25);
+      }
+      
+      /* Responsive adjustments */
+      @media (max-width: 991.98px) {
+        .navbar-nav {
+          padding-top: 0.5rem;
+        }
+        
+        .navbar-nav .nav-link {
+          padding: 0.5rem 1rem;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .navbar-nav .nav-link:last-child {
+          border-bottom: none;
+        }
+        
+        /* User dropdown adjustments for mobile */
+        .dropdown-menu {
+          position: static !important;
+          float: none;
+          width: 100%;
+          margin-top: 0;
+          background-color: rgba(255, 255, 255, 0.95);
+          border: none;
+        }
+      }
+    </style>
+    
     <!-- MDB JavaScript - Load before importmap -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/mdb-ui-kit@9.0.0/js/mdb.umd.min.js"></script>
     <%= javascript_importmap_tags %>
@@ -68,26 +121,57 @@
           document.querySelectorAll('[data-mdb-modal-init]').forEach((modal) => {
             if (mdb.Modal) new mdb.Modal(modal);
           });
+
+          // Initialize collapse (for mobile menu)
+          document.querySelectorAll('[data-mdb-toggle="collapse"]').forEach((trigger) => {
+            if (mdb.Collapse) new mdb.Collapse(trigger);
+          });
+        }
+      }
+
+      // Mobile menu toggle fallback (in case MDB doesn't work)
+      function initializeMobileMenu() {
+        const toggler = document.querySelector('.navbar-toggler');
+        const navbarNav = document.querySelector('#navbarNav');
+        
+        if (toggler && navbarNav) {
+          toggler.addEventListener('click', function() {
+            const isExpanded = navbarNav.classList.contains('show');
+            
+            if (isExpanded) {
+              navbarNav.classList.remove('show');
+              toggler.setAttribute('aria-expanded', 'false');
+            } else {
+              navbarNav.classList.add('show');
+              toggler.setAttribute('aria-expanded', 'true');
+            }
+          });
         }
       }
 
       // Run on initial load
-      document.addEventListener('DOMContentLoaded', initializeMDB);
+      document.addEventListener('DOMContentLoaded', function() {
+        initializeMDB();
+        initializeMobileMenu();
+      });
       
       // Run after Turbo navigation
-      document.addEventListener('turbo:load', initializeMDB);
+      document.addEventListener('turbo:load', function() {
+        initializeMDB();
+        initializeMobileMenu();
+      });
       document.addEventListener('turbo:frame-load', initializeMDB);
     </script>
 
   </head>
 
   <body data-theme="<%= current_user_theme %>" data-controller="theme" data-theme-current-value="<%= current_user_theme %>" data-theme-endpoint-value="<%= user_signed_in? ? update_theme_path : '' %>">
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <!-- Navigation (hidden on auth pages) -->
+    <% unless devise_controller? %>
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(rgba(0, 0, 0, 0.69), rgba(0, 0, 0, 0.69)), url('/img/raychan-jrNY1BZhnJg-unsplash.jpg') center/cover no-repeat; position: relative;">
       <div class="container-fluid">
         <%= link_to root_path, class: "navbar-brand d-flex align-items-center" do %>
           <%= image_tag "/img/vantage_logo.svg", alt: "Vantage Dokku", style: "height: 40px; width: auto;", class: "me-2" %>
-          <span class="navbar-brand-text">Vantage</span>
         <% end %>
         
         <!-- Toggler/collapsibe Button -->
@@ -179,10 +263,11 @@
         </div>
       </div>
     </nav>
+    <% end %>
 
     <!-- Main Content -->
-    <main class="container-fluid <%= 'py-4' if controller_name != 'home' %>" style="<%= '--mdb-gutter-x: 0rem !important;' if controller_name == 'home' %>">
-      <%= render 'shared/breadcrumbs' if user_signed_in? %>
+    <main class="<%= devise_controller? ? '' : 'container-fluid' %> <%= 'py-4' if controller_name != 'home' && !devise_controller? %>" style="<%= '--mdb-gutter-x: 0rem !important;' if controller_name == 'home' %>">
+      <%= render 'shared/breadcrumbs' if user_signed_in? && !devise_controller? %>
       <%= yield %>
     </main>
 
@@ -192,12 +277,14 @@
     <!-- Flash Message Toasts -->
     <%= render_flash_toasts %>
 
-    <!-- Footer -->
+    <!-- Footer (hidden on auth pages) -->
+    <% unless devise_controller? %>
     <footer class="bg-light text-center text-lg-start mt-5">
       <div class="text-center p-3" style="background-color: rgba(0, 0, 0, 0.2);">
         © <%= Date.current.year %> Vantage Dokku by
         <%= link_to "DataPolaris", "https://datapolaris.com/", class: "text-dark" %>
       </div>
     </footer>
+    <% end %>
   </body>
 </html>

@@ -592,5 +592,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Admin Panel**: `/admin` - System administration (admin only)
 
 ### Default Credentials
-- **Admin**: `admin@vantage.com` / `password123`
+- **Admin**: `admin@example.com` / `password123`
 - **Change immediately after first login!**
+
+## 📸 Credits
+
+### Images
+- **Navigation Background**: Photo by [Ray Chan](https://unsplash.com/@wx1993) on [Unsplash](https://unsplash.com/photos/black-flat-screen-computer-monitor-jrNY1BZhnJg)
+  - Used under [Unsplash License](https://unsplash.com/license) with modifications (overlay and scaling)

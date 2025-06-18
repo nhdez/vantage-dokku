@@ -125,52 +125,80 @@
     <div class="card-body">
       <div class="row">
         <div class="col-md-6">
-          <h6 class="text-muted">Authentication Methods</h6>
+          <h6 class="text-muted">Required Environment Variables</h6>
           <div class="small">
             <div class="mb-2">
               <% if ENV['DOKKU_SSH_KEY_PATH'].present? %>
                 <i class="fas fa-check-circle text-success me-2"></i>
-                <strong>SSH Key:</strong> <code><%= ENV['DOKKU_SSH_KEY_PATH'] %></code>
-                <div class="text-muted small mt-1">
-                  Public key: <code><%= ENV['DOKKU_SSH_PUBLIC_KEY']&.truncate(50) || 'Available' %></code>
-                </div>
+                <strong>DOKKU_SSH_KEY_PATH:</strong> <code><%= ENV['DOKKU_SSH_KEY_PATH'] %></code>
               <% else %>
                 <i class="fas fa-times-circle text-danger me-2"></i>
-                <strong>SSH Key:</strong> Not configured
-                <div class="mt-2">
-                  <button type="button" class="btn btn-sm btn-outline-primary" onclick="generateSSHKey()">
-                    <i class="fas fa-key me-2"></i>Generate SSH Key
-                  </button>
-                  <div class="form-text mt-1">
-                    This will create a new ED25519 SSH key in your SSH directory
-                  </div>
-                </div>
+                <strong>DOKKU_SSH_KEY_PATH:</strong> Not set
               <% end %>
             </div>
-            <div>
+            <div class="mb-2">
+              <% if ENV['DOKKU_SSH_PUBLIC_KEY'].present? %>
+                <i class="fas fa-check-circle text-success me-2"></i>
+                <strong>DOKKU_SSH_PUBLIC_KEY:</strong> <code><%= ENV['DOKKU_SSH_PUBLIC_KEY']&.truncate(40) %>...</code>
+              <% else %>
+                <i class="fas fa-times-circle text-danger me-2"></i>
+                <strong>DOKKU_SSH_PUBLIC_KEY:</strong> Not set
+              <% end %>
+            </div>
+            <div class="mb-2">
               <% if @server&.password.present? %>
                 <i class="fas fa-check-circle text-success me-2"></i>
-                <strong>Password:</strong> Configured (encrypted)
+                <strong>Password (Optional):</strong> Configured (encrypted)
               <% else %>
                 <i class="fas fa-times-circle text-muted me-2"></i>
-                <strong>Password:</strong> Not set
+                <strong>Password (Optional):</strong> Not set
               <% end %>
             </div>
           </div>
-          <div class="alert alert-info py-2 mt-2">
-            <small>
-              <i class="fas fa-info-circle me-2"></i>
-              Connection will try SSH key first, then fallback to password if provided.
-            </small>
-          </div>
+          
+          <% unless ENV['DOKKU_SSH_KEY_PATH'].present? && ENV['DOKKU_SSH_PUBLIC_KEY'].present? %>
+            <div class="alert alert-warning py-2 mt-2">
+              <small>
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Setup Required:</strong> You must configure SSH environment variables before adding servers.
+              </small>
+            </div>
+          <% else %>
+            <div class="alert alert-success py-2 mt-2">
+              <small>
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Ready:</strong> SSH environment variables are configured.
+              </small>
+            </div>
+          <% end %>
         </div>
         <div class="col-md-6">
-          <h6 class="text-muted">Connection Test</h6>
-          <p class="small">After saving, you can test the connection to ensure your server is reachable.</p>
-          <% if @server.persisted? %>
-            <button type="button" class="btn btn-sm btn-outline-info" onclick="testConnection('<%= test_connection_server_path(@server) %>')">
-              <i class="fas fa-plug me-2"></i>Test Connection
-            </button>
+          <% unless ENV['DOKKU_SSH_KEY_PATH'].present? && ENV['DOKKU_SSH_PUBLIC_KEY'].present? %>
+            <h6 class="text-warning">SSH Setup Instructions</h6>
+            <div class="small">
+              <p class="mb-2">Before adding servers, you need to configure SSH keys:</p>
+              <ol class="mb-2">
+                <li>Generate an SSH key pair on your system:
+                  <br><code class="text-info">ssh-keygen -t ed25519 -f ~/.ssh/dokku_key</code>
+                </li>
+                <li>Set the environment variables:
+                  <br><code class="text-info">DOKKU_SSH_KEY_PATH=~/.ssh/dokku_key</code>
+                  <br><code class="text-info">DOKKU_SSH_PUBLIC_KEY="ssh-ed25519 AAAA..."</code>
+                </li>
+                <li>Add the public key to your Dokku servers:
+                  <br><code class="text-info">ssh-copy-id -i ~/.ssh/dokku_key.pub root@your-server</code>
+                </li>
+              </ol>
+              <p class="text-muted">After setting up, restart the application and reload this page.</p>
+            </div>
+          <% else %>
+            <h6 class="text-muted">Connection Test</h6>
+            <p class="small">After saving, you can test the connection to ensure your server is reachable.</p>
+            <% if @server.persisted? %>
+              <button type="button" class="btn btn-sm btn-outline-info" onclick="testConnection('<%= test_connection_server_path(@server) %>')">
+                <i class="fas fa-plug me-2"></i>Test Connection
+              </button>
+            <% end %>
           <% end %>
         </div>
       </div>
@@ -185,9 +213,14 @@
       <% end %>
     </div>
     <div>
-      <%= f.submit (@server.persisted? ? "Update Server" : "Create Server"), 
-          class: "btn btn-primary" do %>
-        <i class="fas fa-<%= @server.persisted? ? 'save' : 'plus' %> me-2"></i>
+      <% if ENV['DOKKU_SSH_KEY_PATH'].present? && ENV['DOKKU_SSH_PUBLIC_KEY'].present? %>
+        <%= f.submit (@server.persisted? ? "Update Server" : "Create Server"), 
+            class: "btn btn-primary" %>
+      <% else %>
+        <button type="button" class="btn btn-warning" onclick="window.location.reload()">
+          <i class="fas fa-sync-alt me-2"></i>Reload ENV Variables
+        </button>
+        <small class="d-block text-muted mt-1">Configure SSH environment variables first</small>
       <% end %>
     </div>
   </div>
@@ -286,46 +319,4 @@ function testConnection(url) {
   });
 }
 
-function generateSSHKey() {
-  const btn = event.target;
-  const originalText = btn.innerHTML;
-  
-  if (!confirm('This will generate a new SSH key pair for Vantage Dokku. Are you sure?')) {
-    return;
-  }
-  
-  // Show loading state
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating...';
-  
-  fetch('/generate_ssh_key', {
-    method: 'POST',
-    headers: {
-      'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-      'Content-Type': 'application/json',
-    }
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      // Show success message
-      alert('SSH key generated successfully! Environment variables have been set. Please restart the application to use the new key.');
-      
-      // Optionally reload the page to show the updated status
-      window.location.reload();
-    } else {
-      alert('SSH key generation failed: ' + data.message);
-      
-      // Reset button
-      btn.disabled = false;
-      btn.innerHTML = originalText;
-    }
-  })
-  .catch(error => {
-    console.error('Error:', error);
-    btn.disabled = false;
-    btn.innerHTML = originalText;
-    alert('An unexpected error occurred while generating SSH key.');
-  });
-}
 </script>
