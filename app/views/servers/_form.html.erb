@@ -131,9 +131,20 @@
               <% if ENV['DOKKU_SSH_KEY_PATH'].present? %>
                 <i class="fas fa-check-circle text-success me-2"></i>
                 <strong>SSH Key:</strong> <code><%= ENV['DOKKU_SSH_KEY_PATH'] %></code>
+                <div class="text-muted small mt-1">
+                  Public key: <code><%= ENV['DOKKU_SSH_PUBLIC_KEY']&.truncate(50) || 'Available' %></code>
+                </div>
               <% else %>
                 <i class="fas fa-times-circle text-danger me-2"></i>
                 <strong>SSH Key:</strong> Not configured
+                <div class="mt-2">
+                  <button type="button" class="btn btn-sm btn-outline-primary" onclick="generateSSHKey()">
+                    <i class="fas fa-key me-2"></i>Generate SSH Key
+                  </button>
+                  <div class="form-text mt-1">
+                    This will create a new ED25519 SSH key in /home/root/.ssh/
+                  </div>
+                </div>
               <% end %>
             </div>
             <div>
@@ -272,6 +283,49 @@ function testConnection(url) {
     btn.disabled = false;
     btn.innerHTML = originalText;
     alert('An unexpected error occurred while testing the connection.');
+  });
+}
+
+function generateSSHKey() {
+  const btn = event.target;
+  const originalText = btn.innerHTML;
+  
+  if (!confirm('This will generate a new SSH key pair for Vantage Dokku. Are you sure?')) {
+    return;
+  }
+  
+  // Show loading state
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating...';
+  
+  fetch('/generate_ssh_key', {
+    method: 'POST',
+    headers: {
+      'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+      'Content-Type': 'application/json',
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Show success message
+      alert('SSH key generated successfully! Environment variables have been set. Please restart the application to use the new key.');
+      
+      // Optionally reload the page to show the updated status
+      window.location.reload();
+    } else {
+      alert('SSH key generation failed: ' + data.message);
+      
+      // Reset button
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    alert('An unexpected error occurred while generating SSH key.');
   });
 }
 </script>
