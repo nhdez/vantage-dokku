@@ -314,14 +314,7 @@ Devise.setup do |config|
   # ==> OmniAuth
   # Add a new OmniAuth provider. Check the wiki for more information on setting
   # up on your models and hooks.
-  config.omniauth :google_oauth2, 
-    lambda { OauthSetting.google_client_id },
-    lambda { OauthSetting.google_client_secret },
-    {
-      scope: 'userinfo.email,userinfo.profile',
-      prompt: 'consent',
-      image_aspect_ratio: 'square',
-      image_size: 50,
-      skip_jwt: true
-    }
+  
+  # OAuth providers are configured dynamically in config/initializers/oauth_dynamic_setup.rb
+  # This allows for database-driven configuration that can be updated at runtime
 end

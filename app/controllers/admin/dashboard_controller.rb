@@ -184,13 +184,14 @@ class Admin::DashboardController < ApplicationController
         end
       end
       
-      # Log the update
-      log_activity(
-        action: 'admin_oauth_settings_updated',
-        details: 'Updated OAuth settings configuration'
-      )
+      # Reconfigure OAuth providers with new settings
+      reconfigure_oauth_providers
       
-      toast_success("OAuth settings updated successfully!", title: "Settings Updated")
+      # Log the update
+      log_activity('admin_oauth_settings_updated',
+                  details: 'Updated OAuth settings configuration')
+      
+      toast_success("OAuth settings updated successfully! Server restart recommended for changes to take full effect.", title: "Settings Updated")
       redirect_to admin_oauth_settings_path
     rescue => e
       toast_error("Error updating OAuth settings: #{e.message}", title: "Update Failed")
@@ -199,6 +200,45 @@ class Admin::DashboardController < ApplicationController
   end
 
   private
+
+  def reconfigure_oauth_providers
+    # Get current OAuth settings
+    google_enabled = OauthSetting.google_enabled?
+    google_client_id = OauthSetting.google_client_id
+    google_client_secret = OauthSetting.google_client_secret
+    
+    # Also check environment variables which take precedence
+    google_client_id = ENV['GOOGLE_CLIENT_ID'].presence || google_client_id
+    google_client_secret = ENV['GOOGLE_CLIENT_SECRET'].presence || google_client_secret
+    
+    # Clear existing Google OAuth provider
+    if Devise.omniauth_providers.include?(:google_oauth2)
+      # Note: We can't actually remove providers at runtime easily
+      # This is a limitation of Devise/OmniAuth
+      Rails.logger.info "OAuth settings updated - server restart recommended for changes to take effect"
+    end
+    
+    # Configure Google OAuth if enabled and credentials are available
+    if google_enabled && google_client_id.present? && google_client_secret.present?
+      begin
+        Devise.setup do |config|
+          config.omniauth :google_oauth2,
+            google_client_id,
+            google_client_secret,
+            {
+              scope: 'userinfo.email,userinfo.profile',
+              prompt: 'consent',
+              image_aspect_ratio: 'square',
+              image_size: 50,
+              skip_jwt: true
+            }
+        end
+        Rails.logger.info "Google OAuth reconfigured with client ID: #{google_client_id[0..10]}..."
+      rescue => e
+        Rails.logger.error "Failed to reconfigure Google OAuth: #{e.message}"
+      end
+    end
+  end
 
   def ensure_admin
     redirect_to root_path, alert: "Access denied" unless current_user&.admin?
