@@ -27,8 +27,8 @@ Rails.application.configure do
       rescue => e
         Rails.logger.error "Failed to schedule health monitoring job: #{e.message}"
       end
-    elsif Rails.env.development? && ENV['ENABLE_RECURRING_HEALTH_CHECKS'] == 'true'
-      # In development, only enable if explicitly requested
+    elsif Rails.env.development?
+      # In development, always enable health checks
       begin
         ApplicationHealthCheckJob.set(wait: 1.minute).perform_later
         Rails.logger.info "Scheduled initial health monitoring job (development)"

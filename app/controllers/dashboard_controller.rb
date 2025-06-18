@@ -41,6 +41,28 @@ class DashboardController < ApplicationController
     end
   end
 
+  def trigger_health_checks
+    begin
+      ApplicationHealthCheckJob.perform_later
+      
+      respond_to do |format|
+        format.json { render json: { success: true, message: "Health checks started" } }
+        format.html do
+          toast_success("Health checks started. Results will update shortly.", title: "Health Check Triggered")
+          redirect_to dashboard_path
+        end
+      end
+    rescue StandardError => e
+      respond_to do |format|
+        format.json { render json: { success: false, message: e.message } }
+        format.html do
+          toast_error("Failed to start health checks: #{e.message}", title: "Health Check Failed")
+          redirect_to dashboard_path
+        end
+      end
+    end
+  end
+
   def settings
     # Settings will be handled by Devise user registration controller
     redirect_to edit_user_registration_path

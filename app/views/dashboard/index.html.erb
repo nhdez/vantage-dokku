@@ -11,6 +11,9 @@
           <p class="text-muted mb-0">Welcome back, <%= current_user.email.split('@').first.titleize %>!</p>
         </div>
         <div>
+          <%= link_to dashboard_trigger_health_checks_path, method: :post, class: "btn btn-outline-success me-2" do %>
+            <i class="fas fa-heartbeat me-2"></i>Refresh Health Status
+          <% end %>
           <%= link_to new_deployment_path, class: "btn btn-primary" do %>
             <i class="fas fa-plus me-2"></i>New Application
           <% end %>
@@ -144,6 +147,14 @@
                               target: "_blank", class: "text-decoration-none", rel: "noopener" %>
                         </small>
                       </div>
+                      <% if app_status[:deployment].latest_health_check %>
+                        <div class="mt-1">
+                          <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>
+                            Last checked: <%= time_ago_in_words(app_status[:deployment].latest_health_check.checked_at) %> ago
+                          </small>
+                        </div>
+                      <% end %>
                     </div>
                   </div>
                 </div>

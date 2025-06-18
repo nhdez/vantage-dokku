@@ -81,6 +81,12 @@ module ApplicationHelper
       elsif action_name == 'logs' && @deployment
         add_breadcrumb @deployment.name, deployment_path(@deployment)
         add_breadcrumb 'Deployment Logs', nil, icon: 'fas fa-terminal'
+      elsif action_name == 'execute_commands' && @deployment
+        add_breadcrumb @deployment.name, deployment_path(@deployment)
+        add_breadcrumb 'Execute Commands', nil, icon: 'fas fa-terminal'
+      elsif action_name == 'server_logs' && @deployment
+        add_breadcrumb @deployment.name, deployment_path(@deployment)
+        add_breadcrumb 'Server Logs', nil, icon: 'fas fa-file-alt'
       end
     when 'servers'
       add_breadcrumb 'Dashboard', dashboard_path
