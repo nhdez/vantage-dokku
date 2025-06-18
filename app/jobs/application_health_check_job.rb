@@ -34,7 +34,7 @@ class ApplicationHealthCheckJob < ApplicationJob
       Rails.logger.info "Completed health checks for #{checked_count} deployments"
       
       # Schedule the next health check run in 5 minutes (for recurring monitoring)
-      if Rails.env.production? || ENV['ENABLE_RECURRING_HEALTH_CHECKS'] == 'true'
+      if Rails.env.production? || Rails.env.development?
         ApplicationHealthCheckJob.set(wait: 5.minutes).perform_later
         Rails.logger.info "Scheduled next health check run in 5 minutes"
       end

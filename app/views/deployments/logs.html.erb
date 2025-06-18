@@ -135,10 +135,69 @@
           <% end %>
         </div>
       </div>
+
+
+      <!-- Help -->
+      <div class="card shadow mt-3">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-question-circle me-2"></i>Understanding Logs
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <h6 class="text-success">Success Messages</h6>
+            <p class="small text-muted">Look for ✓ markers indicating successful steps.</p>
+          </div>
+
+          <div class="mb-3">
+            <h6 class="text-danger">Error Messages</h6>
+            <p class="small text-muted">✗ markers and ERROR messages indicate issues that need attention.</p>
+          </div>
+
+          <div class="mb-3">
+            <h6 class="text-info">Process Flow</h6>
+            <p class="small text-muted">Logs show repository cloning, Dokku app creation, and deployment steps.</p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Status & Actions -->
     <div class="col-lg-3">
+      <!-- Actions -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-success">
+            <i class="fas fa-cogs me-2"></i>Actions
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <% if @deployment.deployment_status == 'deploying' %>
+              <button class="btn btn-warning w-100" disabled>
+                <i class="fas fa-spinner fa-spin me-2"></i>Deploying...
+              </button>
+            <% elsif @deployment.can_deploy? && @deployment.deployment_configured? %>
+              <%= form_with url: deploy_deployment_path(@deployment), method: :post, local: true do |f| %>
+                <%= submit_tag "Deploy Again", class: "btn btn-success w-100",
+                               data: { confirm: "Start a new deployment? This will override any existing deployment." } %>
+              <% end %>
+            <% end %>
+
+            <%= link_to git_configuration_deployment_path(@deployment), class: "btn btn-outline-primary" do %>
+              <i class="fab fa-git-alt me-2"></i>Git Configuration
+            <% end %>
+
+            <% if @deployment.dokku_url.present? %>
+              <%= link_to @deployment.dokku_url, target: "_blank", rel: "noopener", class: "btn btn-outline-success" do %>
+                <i class="fas fa-external-link-alt me-2"></i>Visit App
+              <% end %>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
       <!-- Current Status -->
       <div class="card shadow mb-4">
         <div class="card-header py-3">
@@ -238,63 +297,6 @@
         </div>
       <% end %>
 
-      <!-- Actions -->
-      <div class="card shadow mb-4">
-        <div class="card-header py-3">
-          <h6 class="m-0 font-weight-bold text-success">
-            <i class="fas fa-cogs me-2"></i>Actions
-          </h6>
-        </div>
-        <div class="card-body">
-          <div class="d-grid gap-2">
-            <% if @deployment.deployment_status == 'deploying' %>
-              <button class="btn btn-warning" disabled>
-                <i class="fas fa-spinner fa-spin me-2"></i>Deploying...
-              </button>
-            <% elsif @deployment.can_deploy? && @deployment.deployment_configured? %>
-              <%= form_with url: deploy_deployment_path(@deployment), method: :post, local: true do |f| %>
-                <%= submit_tag "Deploy Again", class: "btn btn-success", 
-                    data: { confirm: "Start a new deployment? This will override any existing deployment." } %>
-              <% end %>
-            <% end %>
-            
-            <%= link_to git_configuration_deployment_path(@deployment), class: "btn btn-outline-primary" do %>
-              <i class="fab fa-git-alt me-2"></i>Git Configuration
-            <% end %>
-            
-            <% if @deployment.dokku_url.present? %>
-              <%= link_to @deployment.dokku_url, target: "_blank", rel: "noopener", class: "btn btn-outline-success" do %>
-                <i class="fas fa-external-link-alt me-2"></i>Visit App
-              <% end %>
-            <% end %>
-          </div>
-        </div>
-      </div>
-
-      <!-- Help -->
-      <div class="card shadow">
-        <div class="card-header py-3">
-          <h6 class="m-0 font-weight-bold text-primary">
-            <i class="fas fa-question-circle me-2"></i>Understanding Logs
-          </h6>
-        </div>
-        <div class="card-body">
-          <div class="mb-3">
-            <h6 class="text-success">Success Messages</h6>
-            <p class="small text-muted">Look for ✓ markers indicating successful steps.</p>
-          </div>
-          
-          <div class="mb-3">
-            <h6 class="text-danger">Error Messages</h6>
-            <p class="small text-muted">✗ markers and ERROR messages indicate issues that need attention.</p>
-          </div>
-          
-          <div class="mb-3">
-            <h6 class="text-info">Process Flow</h6>
-            <p class="small text-muted">Logs show repository cloning, Dokku app creation, and deployment steps.</p>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </div>

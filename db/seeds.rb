@@ -25,14 +25,14 @@ OauthSetting.setup_defaults!
 puts "Created default OAuth settings"
 
 # Create a default admin user if none exists
-if User.where(email: "admin@vantage.com").empty?
+if User.where(email: "admin@example.com").empty?
   admin_user = User.create!(
-    email: "admin@vantage.com",
+    email: "admin@example.com",
     password: "password123",
     password_confirmation: "password123",
     first_name: "System",
     last_name: "Administrator"
   )
   admin_user.add_role(:admin)
-  puts "Created admin user: admin@vantage.com (password: password123)"
+  puts "Created admin user: admin@example.com (password: password123)"
 end

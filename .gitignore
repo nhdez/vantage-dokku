@@ -46,3 +46,5 @@
 .idea
 /.idea/*
 /config/credentials/production.key
+.kamal
+/.kamal

@@ -1,3 +1,5 @@
+require 'timeout'
+
 class ServersController < ApplicationController
   include ActivityTrackable
   
@@ -11,6 +13,10 @@ class ServersController < ApplicationController
 
   def show
     @deployments = @server.deployments.includes(:domains, :application_healths).order(:name)
+    
+    # Check server connectivity status without blocking the page load
+    @server_status = check_server_status_safely
+    
     log_activity('server_viewed', details: "Viewed server: #{@server.display_name}")
   end
 
@@ -182,5 +188,36 @@ class ServersController < ApplicationController
 
   def server_params
     params.require(:server).permit(:name, :ip, :username, :internal_ip, :port, :service_provider, :password)
+  end
+
+  def check_server_status_safely
+    # Perform a quick, non-blocking check of server status
+    # Return cached status or perform a very quick check with short timeout
+    
+    begin
+      # Quick ping-like check with very short timeout
+      Timeout::timeout(3) do
+        service = SshConnectionService.new(@server)
+        connection_result = service.test_connection
+        
+        return {
+          online: connection_result[:success],
+          message: connection_result[:message] || (connection_result[:success] ? "Server is responding" : "Server appears to be offline"),
+          last_checked: Time.current
+        }
+      end
+    rescue Timeout::Error
+      return {
+        online: false,
+        message: "Server connection timeout (may be restarting or offline)",
+        last_checked: Time.current
+      }
+    rescue StandardError => e
+      return {
+        online: false,
+        message: "Server status unknown: #{e.message}",
+        last_checked: Time.current
+      }
+    end
   end
 end

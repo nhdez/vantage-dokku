@@ -179,18 +179,18 @@ class Admin::DashboardController < ApplicationController
           if key == 'google_oauth_enabled'
             setting.update!(enabled: value == 'true', value: value)
           else
-            setting.update!(value: value)
+            # Strip whitespace from OAuth credential values to prevent configuration errors
+            cleaned_value = value.to_s.strip
+            setting.update!(value: cleaned_value)
           end
         end
       end
       
       # Log the update
-      log_activity(
-        action: 'admin_oauth_settings_updated',
-        details: 'Updated OAuth settings configuration'
-      )
+      log_activity('admin_oauth_settings_updated',
+                  details: 'Updated OAuth settings configuration')
       
-      toast_success("OAuth settings updated successfully!", title: "Settings Updated")
+      toast_success("OAuth settings updated successfully! Server restart recommended for changes to take full effect.", title: "Settings Updated")
       redirect_to admin_oauth_settings_path
     rescue => e
       toast_error("Error updating OAuth settings: #{e.message}", title: "Update Failed")
@@ -199,6 +199,7 @@ class Admin::DashboardController < ApplicationController
   end
 
   private
+
 
   def ensure_admin
     redirect_to root_path, alert: "Access denied" unless current_user&.admin?

@@ -34,6 +34,15 @@
           </h6>
         </div>
         <div class="card-body">
+          <!-- Server Status Alert -->
+          <% if @server_status %>
+            <div class="alert alert-<%= @server_status[:online] ? 'success' : 'warning' %> mb-3">
+              <i class="fas fa-<%= @server_status[:online] ? 'check-circle' : 'exclamation-triangle' %> me-2"></i>
+              <strong>Server Status:</strong> <%= @server_status[:message] %>
+              <small class="d-block mt-1">Last checked: <%= time_ago_in_words(@server_status[:last_checked]) %> ago</small>
+            </div>
+          <% end %>
+          
           <div class="row">
             <div class="col-md-6 mb-3">
               <h6 class="text-muted">Server Name</h6>
@@ -127,34 +136,43 @@
           </div>
           
           <div class="row mt-3">
-            <div class="col-md-6">
+            <div class="col-md-12">
               <h6 class="text-muted">Authentication Methods</h6>
-              <div class="mb-2">
-                <% if ENV['DOKKU_SSH_KEY_PATH'].present? %>
-                  <div class="alert alert-success py-2">
-                    <i class="fas fa-key me-2"></i>
-                    <strong>SSH Key:</strong> <%= ENV['DOKKU_SSH_KEY_PATH'] %>
+
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-2">
+                    <% if ENV['DOKKU_SSH_KEY_PATH'].present? %>
+                      <div class="alert alert-success py-2">
+                        <i class="fas fa-key me-2"></i>
+                        <strong>SSH Key:</strong> <%= ENV['DOKKU_SSH_KEY_PATH'] %>
+                      </div>
+                    <% else %>
+                      <div class="alert alert-warning py-2">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>SSH Key:</strong> Not configured
+                      </div>
+                    <% end %>
                   </div>
-                <% else %>
-                  <div class="alert alert-warning py-2">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>SSH Key:</strong> Not configured
+                </div>
+
+                <div class="col-md-6">
+                  <div>
+                    <% if @server.has_password_auth? %>
+                      <div class="alert alert-success py-2">
+                        <i class="fas fa-lock me-2"></i>
+                        <strong>Password:</strong> Configured (encrypted)
+                      </div>
+                    <% else %>
+                      <div class="alert alert-secondary py-2">
+                        <i class="fas fa-times me-2"></i>
+                        <strong>Password:</strong> Not configured
+                      </div>
+                    <% end %>
                   </div>
-                <% end %>
+                </div>
               </div>
-              <div>
-                <% if @server.has_password_auth? %>
-                  <div class="alert alert-success py-2">
-                    <i class="fas fa-lock me-2"></i>
-                    <strong>Password:</strong> Configured (encrypted)
-                  </div>
-                <% else %>
-                  <div class="alert alert-secondary py-2">
-                    <i class="fas fa-times me-2"></i>
-                    <strong>Password:</strong> Not configured
-                  </div>
-                <% end %>
-              </div>
+
               <% if @server.has_key_auth? || @server.has_password_auth? %>
                 <small class="text-muted">
                   <i class="fas fa-info-circle me-1"></i>
@@ -166,13 +184,6 @@
                   <strong>Warning:</strong> No authentication method configured!
                 </div>
               <% end %>
-            </div>
-            <div class="col-md-6">
-              <h6 class="text-muted">Connection Status</h6>
-              <div class="alert alert-info py-2">
-                <i class="fas fa-info-circle me-2"></i>
-                Connection testing will be implemented in the next phase
-              </div>
             </div>
           </div>
         </div>
@@ -237,8 +248,9 @@
                             <div class="mb-2">
                               <h6 class="text-muted mb-1" style="font-size: 0.75rem;">Domains:</h6>
                               <% deployment.domains.limit(2).each do |domain| %>
-                                <span class="badge bg-<%= domain.real_ssl_status_color %> me-1" style="font-size: 0.7rem;">
-                                  <i class="<%= domain.real_ssl_status_icon %> me-1"></i>
+                                <span class="badge bg-secondary me-1" style="font-size: 0.7rem;" 
+                                      title="<%= domain.name %> - SSL status will be checked in background">
+                                  <i class="fas fa-globe me-1"></i>
                                   <%= domain.name %>
                                 </span>
                               <% end %>

@@ -1,8 +1,8 @@
 class DeploymentsController < ApplicationController
   include ActivityTrackable
   
-  before_action :set_deployment, only: [:show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command]
-  before_action :authorize_deployment, only: [:show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command]
+  before_action :set_deployment, only: [:show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command, :server_logs, :start_log_streaming, :stop_log_streaming]
+  before_action :authorize_deployment, only: [:show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command, :server_logs, :start_log_streaming, :stop_log_streaming]
   
   def index
     @pagy, @deployments = pagy(current_user.deployments.includes(:server).recent, limit: 15)
@@ -199,55 +199,44 @@ class DeploymentsController < ApplicationController
     begin
       database_params = params[:database_configuration] || {}
       
-      @database_configuration = @deployment.database_configuration || @deployment.build_database_configuration
+      # Convert parameters to a serializable hash for the job
+      database_hash = database_params.to_unsafe_h
       
-      # Set the parameters
-      @database_configuration.assign_attributes(
-        database_type: database_params[:database_type],
-        redis_enabled: database_params[:redis_enabled] == '1'
-      )
+      # Start the database configuration in the background
+      UpdateDatabaseConfigurationJob.perform_later(@deployment.id, current_user.id, database_hash)
       
-      if @database_configuration.save
-        # Configure database on server
-        service = SshConnectionService.new(@deployment.server)
-        result = service.configure_database(@deployment.dokku_app_name, @database_configuration)
-        
-        if result[:success]
-          @database_configuration.update!(
-            configured: true,
-            configuration_output: result[:output],
-            error_message: nil
-          )
-          
-          log_activity('database_configured', 
-                      details: "Configured #{@database_configuration.display_name} database for deployment: #{@deployment.display_name}")
-          
-          success_message = "Database configured successfully! "
-          success_message += "#{@database_configuration.display_name} (#{@database_configuration.database_name})"
-          success_message += " and #{@database_configuration.redis_display_name}" if @database_configuration.redis_enabled?
-          success_message += " are now available."
-          
-          toast_success(success_message, title: "Database Configured")
-        else
-          @database_configuration.update!(
-            configured: false,
-            configuration_output: result[:output],
-            error_message: result[:error]
-          )
-          
-          log_activity('database_configuration_failed', 
-                      details: "Failed to configure database for deployment: #{@deployment.display_name} - #{result[:error]}")
-          toast_error("Failed to configure database: #{result[:error]}", title: "Configuration Failed")
+      log_activity('database_configuration_started', 
+                  details: "Started database configuration for deployment: #{@deployment.display_name}")
+      
+      respond_to do |format|
+        format.json do
+          render json: {
+            success: true,
+            message: "Database configuration started in background. You'll be notified when complete.",
+            deployment_uuid: @deployment.uuid
+          }
         end
-      else
-        toast_error("Failed to save database configuration: #{@database_configuration.errors.full_messages.join(', ')}", title: "Validation Error")
+        format.html do
+          toast_info("Database configuration started. You'll be notified when complete.", title: "Configuration Started")
+          redirect_to configure_databases_deployment_path(@deployment)
+        end
       end
     rescue StandardError => e
-      Rails.logger.error "Database configuration failed: #{e.message}"
-      toast_error("An unexpected error occurred: #{e.message}", title: "Configuration Error")
+      Rails.logger.error "Failed to start database configuration: #{e.message}"
+      
+      respond_to do |format|
+        format.json do
+          render json: {
+            success: false,
+            message: "Failed to start database configuration: #{e.message}"
+          }
+        end
+        format.html do
+          toast_error("Failed to start database configuration: #{e.message}", title: "Configuration Failed")
+          redirect_to configure_databases_deployment_path(@deployment)
+        end
+      end
     end
-    
-    redirect_to configure_databases_deployment_path(@deployment)
   end
 
   def delete_database_configuration
@@ -604,6 +593,71 @@ class DeploymentsController < ApplicationController
       format.html do
         toast_error("Failed to execute command: #{e.message}", title: "Execution Failed")
         redirect_to execute_commands_deployment_path(@deployment)
+      end
+    end
+  end
+
+  def server_logs
+    # Show the server logs interface
+    log_activity('server_logs_viewed', details: "Viewed server logs interface for deployment: #{@deployment.display_name}")
+  end
+
+  def start_log_streaming
+    # Start streaming server logs in background
+    ServerLogsStreamingJob.perform_later(@deployment, current_user)
+    
+    log_activity('server_logs_streaming_started', details: "Started server logs streaming for deployment: #{@deployment.display_name}")
+    
+    respond_to do |format|
+      format.json do
+        render json: {
+          success: true,
+          message: "Server logs streaming started. You'll see live output below.",
+          deployment_uuid: @deployment.uuid
+        }
+      end
+      format.html do
+        toast_info("Server logs streaming started. You'll see live output below.", title: "Streaming Started")
+        redirect_to server_logs_deployment_path(@deployment)
+      end
+    end
+  rescue StandardError => e
+    Rails.logger.error "Failed to start server logs streaming: #{e.message}"
+    
+    respond_to do |format|
+      format.json do
+        render json: {
+          success: false,
+          message: "Failed to start server logs streaming: #{e.message}"
+        }
+      end
+      format.html do
+        toast_error("Failed to start server logs streaming: #{e.message}", title: "Streaming Failed")
+        redirect_to server_logs_deployment_path(@deployment)
+      end
+    end
+  end
+
+  def stop_log_streaming
+    # Stop streaming server logs
+    # We'll broadcast a stop signal to the streaming job
+    ActionCable.server.broadcast("server_logs_#{@deployment.uuid}", {
+      type: 'stop_streaming',
+      message: 'Log streaming stopped by user'
+    })
+    
+    log_activity('server_logs_streaming_stopped', details: "Stopped server logs streaming for deployment: #{@deployment.display_name}")
+    
+    respond_to do |format|
+      format.json do
+        render json: {
+          success: true,
+          message: "Server logs streaming stopped."
+        }
+      end
+      format.html do
+        toast_info("Server logs streaming stopped.", title: "Streaming Stopped")
+        redirect_to server_logs_deployment_path(@deployment)
       end
     end
   end

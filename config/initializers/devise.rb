@@ -314,14 +314,12 @@ Devise.setup do |config|
   # ==> OmniAuth
   # Add a new OmniAuth provider. Check the wiki for more information on setting
   # up on your models and hooks.
-  config.omniauth :google_oauth2, 
-    lambda { OauthSetting.google_client_id },
-    lambda { OauthSetting.google_client_secret },
-    {
-      scope: 'userinfo.email,userinfo.profile',
-      prompt: 'consent',
-      image_aspect_ratio: 'square',
-      image_size: 50,
-      skip_jwt: true
-    }
+  
+  # Get OAuth credentials from environment (set by initializer or directly)
+  google_client_id = ENV['GOOGLE_CLIENT_ID']
+  google_client_secret = ENV['GOOGLE_CLIENT_SECRET']
+  
+  if google_client_id && google_client_secret
+    config.omniauth :google_oauth2, google_client_id, google_client_secret
+  end
 end

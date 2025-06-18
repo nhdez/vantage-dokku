@@ -84,30 +84,15 @@ class User < ApplicationRecord
   end
   
   # OAuth methods
-  def self.from_omniauth(auth)
-    user = where(email: auth.info.email).first
-    
-    if user
-      # Update existing user with OAuth info
-      user.update(
-        provider: auth.provider,
-        uid: auth.uid,
-        google_avatar_url: auth.info.image
-      )
-    else
-      # Create new user
-      user = create!(
-        email: auth.info.email,
-        password: Devise.friendly_token[0, 20],
-        first_name: auth.info.first_name,
-        last_name: auth.info.last_name,
-        provider: auth.provider,
-        uid: auth.uid,
-        google_avatar_url: auth.info.image
-      )
-    end
-    
-    user
+  def self.from_google(u)
+    create_with(
+      uid: u[:uid], 
+      provider: 'google_oauth2',
+      password: Devise.friendly_token[0, 20],
+      first_name: u[:first_name],
+      last_name: u[:last_name],
+      google_avatar_url: u[:image]
+    ).find_or_create_by!(email: u[:email])
   end
   
   def google_user?
