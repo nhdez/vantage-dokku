@@ -95,6 +95,18 @@ class DeploymentPolicy < ApplicationPolicy
     user.present? && (record.user == user || user.admin?)
   end
 
+  def server_logs?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def start_log_streaming?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def stop_log_streaming?
+    user.present? && (record.user == user || user.admin?)
+  end
+
   class Scope < Scope
     def resolve
       if user.admin?

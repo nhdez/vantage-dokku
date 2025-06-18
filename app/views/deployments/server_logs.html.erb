@@ -1,0 +1,536 @@
+<% content_for :title, "Server Logs - #{@deployment.name}" %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-file-alt me-2 text-primary"></i>
+            Server Logs
+          </h1>
+          <p class="text-muted mb-0">
+            Live server logs for: <strong><%= @deployment.name %></strong>
+          </p>
+        </div>
+        <div>
+          <%= link_to @deployment, class: "btn btn-outline-secondary" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to App
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Logs Display -->
+    <div class="col-lg-9">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">
+              <i class="fas fa-terminal me-2"></i>Live Server Logs
+            </h6>
+            <div>
+              <button class="btn btn-success btn-sm me-2" id="start-streaming-btn" onclick="startLogStreaming()">
+                <i class="fas fa-play me-2"></i>Start Streaming
+              </button>
+              <button class="btn btn-danger btn-sm me-2" id="stop-streaming-btn" onclick="stopLogStreaming()" style="display: none;">
+                <i class="fas fa-stop me-2"></i>Stop Streaming
+              </button>
+              <button class="btn btn-outline-primary btn-sm me-2" onclick="toggleAutoScroll()">
+                <i class="fas fa-sync-alt me-2"></i>
+                <span id="auto-scroll-text">Auto-scroll: On</span>
+              </button>
+              <button class="btn btn-outline-secondary btn-sm" onclick="clearLogs()">
+                <i class="fas fa-eraser me-2"></i>Clear
+              </button>
+            </div>
+          </div>
+          <div class="mt-2">
+            <small class="text-muted">
+              <i class="fas fa-info-circle me-1"></i>
+              Streaming command: <code>sudo dokku logs <%= @deployment.dokku_app_name %> -t</code>
+            </small>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="bg-dark text-white p-3" style="height: 600px; overflow-y: auto; font-family: 'Courier New', monospace;" id="logs-output">
+            <div class="text-muted">
+              <i class="fas fa-info-circle me-2"></i>Click "Start Streaming" to begin viewing live server logs...
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Help -->
+      <div class="card shadow mt-3">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-question-circle me-2"></i>Log Information
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <h6 class="text-success">What You'll See</h6>
+            <p class="small text-muted">
+              Application stdout/stderr, web server logs, process restarts, and container events.
+            </p>
+          </div>
+
+          <div class="mb-3">
+            <h6 class="text-info">Log Format</h6>
+            <p class="small text-muted">
+              Logs include timestamps and are streamed in real-time with the <code>-t</code> flag.
+            </p>
+          </div>
+
+          <div class="mb-3">
+            <h6 class="text-warning">Performance Note</h6>
+            <p class="small text-muted">
+              Stop streaming when not needed to reduce server load.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Control Panel -->
+    <div class="col-lg-3">
+      <!-- Quick Actions -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-warning">
+            <i class="fas fa-lightning-bolt me-2"></i>Quick Actions
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <%= link_to execute_commands_deployment_path(@deployment), class: "btn btn-outline-info btn-sm" do %>
+              <i class="fas fa-terminal me-2"></i>Execute Commands
+            <% end %>
+
+            <%= link_to logs_deployment_path(@deployment), class: "btn btn-outline-primary btn-sm" do %>
+              <i class="fas fa-list me-2"></i>Deployment Logs
+            <% end %>
+
+            <% if @deployment.dokku_url.present? %>
+              <%= link_to @deployment.dokku_url, target: "_blank", rel: "noopener", class: "btn btn-outline-success btn-sm" do %>
+                <i class="fas fa-external-link-alt me-2"></i>Visit App
+              <% end %>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Application Info -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-info-circle me-2"></i>Application Info
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <h6 class="text-muted">App Name</h6>
+            <code class="text-info"><%= @deployment.dokku_app_name %></code>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-muted">Server</h6>
+            <p class="mb-0"><%= @deployment.server.name %></p>
+            <small class="text-muted"><%= @deployment.server.ip %></small>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="text-muted">Status</h6>
+            <span class="badge <%= @deployment.status_badge_class %>">
+              <i class="<%= @deployment.status_icon %> me-1"></i>
+              <%= @deployment.status_text %>
+            </span>
+          </div>
+
+          <div class="mb-3">
+            <h6 class="text-muted">Streaming Status</h6>
+            <span class="badge bg-secondary" id="streaming-status">
+              <i class="fas fa-circle me-1"></i>Not Streaming
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Log Controls -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-success">
+            <i class="fas fa-sliders-h me-2"></i>Log Controls
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label">Log Level Filter</label>
+            <select class="form-select form-select-sm" id="log-level-filter" onchange="filterLogLevel()">
+              <option value="all">All Logs</option>
+              <option value="error">Errors Only</option>
+              <option value="warn">Warnings & Errors</option>
+              <option value="info">Info & Above</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Search Logs</label>
+            <input type="text" class="form-control form-control-sm" id="log-search" placeholder="Search in logs..." onkeyup="searchLogs()">
+          </div>
+
+          <div class="mb-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="timestamp-toggle" checked onchange="toggleTimestamps()">
+              <label class="form-check-label" for="timestamp-toggle">
+                Show Timestamps
+              </label>
+            </div>
+          </div>
+
+          <div class="d-grid gap-2">
+            <button class="btn btn-outline-info btn-sm" onclick="downloadLogs()">
+              <i class="fas fa-download me-2"></i>Download Logs
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let autoScroll = true;
+  let serverLogsChannel = null;
+  let streamingActive = false;
+  let allLogs = [];
+  let filteredLogs = [];
+
+  // Toggle auto-scroll
+  function toggleAutoScroll() {
+    autoScroll = !autoScroll;
+    const text = document.getElementById('auto-scroll-text');
+    text.textContent = `Auto-scroll: ${autoScroll ? 'On' : 'Off'}`;
+    
+    if (autoScroll) {
+      scrollToBottom();
+    }
+  }
+
+  // Scroll to bottom of logs
+  function scrollToBottom() {
+    const container = document.getElementById('logs-output');
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }
+
+  // Clear logs
+  function clearLogs() {
+    const output = document.getElementById('logs-output');
+    output.innerHTML = '<div class="text-muted"><i class="fas fa-eraser me-2"></i>Logs cleared</div>';
+    allLogs = [];
+    filteredLogs = [];
+  }
+
+  // Start log streaming
+  function startLogStreaming() {
+    if (streamingActive) {
+      return;
+    }
+
+    const startBtn = document.getElementById('start-streaming-btn');
+    const stopBtn = document.getElementById('stop-streaming-btn');
+    const status = document.getElementById('streaming-status');
+
+    startBtn.style.display = 'none';
+    stopBtn.style.display = 'inline-block';
+    status.innerHTML = '<i class="fas fa-circle text-success me-1"></i>Streaming';
+    status.className = 'badge bg-success';
+
+    streamingActive = true;
+
+    // Subscribe to server logs channel
+    subscribeToServerLogs();
+
+    // Start streaming on server
+    fetch('<%= start_log_streaming_deployment_path(@deployment) %>', {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        addLogMessage(data.message, 'success');
+      } else {
+        addLogMessage(`Error: ${data.message}`, 'error');
+        stopLogStreaming();
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      addLogMessage(`Error: ${error.message}`, 'error');
+      stopLogStreaming();
+    });
+  }
+
+  // Stop log streaming
+  function stopLogStreaming() {
+    if (!streamingActive) {
+      return;
+    }
+
+    const startBtn = document.getElementById('start-streaming-btn');
+    const stopBtn = document.getElementById('stop-streaming-btn');
+    const status = document.getElementById('streaming-status');
+
+    startBtn.style.display = 'inline-block';
+    stopBtn.style.display = 'none';
+    status.innerHTML = '<i class="fas fa-circle me-1"></i>Not Streaming';
+    status.className = 'badge bg-secondary';
+
+    streamingActive = false;
+
+    // Unsubscribe from channel
+    if (serverLogsChannel) {
+      serverLogsChannel.unsubscribe();
+    }
+
+    // Stop streaming on server
+    fetch('<%= stop_log_streaming_deployment_path(@deployment) %>', {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      addLogMessage(data.message, 'info');
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    });
+  }
+
+  // Subscribe to server logs channel
+  function subscribeToServerLogs() {
+    if (serverLogsChannel) {
+      serverLogsChannel.unsubscribe();
+    }
+
+    const deploymentUuid = '<%= @deployment.uuid %>';
+    
+    serverLogsChannel = window.actionCableConsumer.subscriptions.create(
+      {
+        channel: "ServerLogsChannel",
+        deployment_uuid: deploymentUuid
+      },
+      {
+        received: function(data) {
+          console.log('Received server log data:', data);
+          
+          if (data.type === 'log_message') {
+            addLogMessage(data.message);
+          } else if (data.type === 'stop_streaming') {
+            addLogMessage(data.message, 'warning');
+            stopLogStreaming();
+          } else if (data.type === 'error') {
+            addLogMessage(`Error: ${data.message}`, 'error');
+          }
+        },
+        
+        connected: function() {
+          console.log('Connected to server logs channel');
+        },
+        
+        disconnected: function() {
+          console.log('Disconnected from server logs channel');
+          if (streamingActive) {
+            addLogMessage('Connection lost. Stopping stream.', 'warning');
+            stopLogStreaming();
+          }
+        }
+      }
+    );
+  }
+
+  // Add log message to display
+  function addLogMessage(message, type = 'info') {
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = {
+      message: message,
+      type: type,
+      timestamp: timestamp,
+      raw: message.toLowerCase()
+    };
+
+    allLogs.push(logEntry);
+    
+    // Apply current filters
+    if (shouldShowLog(logEntry)) {
+      displayLogMessage(logEntry);
+    }
+  }
+
+  // Display a log message
+  function displayLogMessage(logEntry) {
+    const output = document.getElementById('logs-output');
+    const colorClass = getLogColorClass(logEntry.type);
+    const showTimestamps = document.getElementById('timestamp-toggle').checked;
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `log-line ${colorClass}`;
+    
+    let content = '';
+    if (showTimestamps) {
+      content += `<span class="text-muted">[${logEntry.timestamp}]</span> `;
+    }
+    content += escapeHtml(logEntry.message);
+    
+    messageDiv.innerHTML = content;
+    output.appendChild(messageDiv);
+    
+    // Auto-scroll if enabled
+    if (autoScroll) {
+      scrollToBottom();
+    }
+  }
+
+  // Get color class for log type
+  function getLogColorClass(type) {
+    switch(type) {
+      case 'error': return 'text-danger';
+      case 'warning': return 'text-warning';
+      case 'success': return 'text-success';
+      default: return 'text-white';
+    }
+  }
+
+  // Check if log should be shown based on filters
+  function shouldShowLog(logEntry) {
+    const levelFilter = document.getElementById('log-level-filter').value;
+    const searchTerm = document.getElementById('log-search').value.toLowerCase();
+    
+    // Apply level filter
+    if (levelFilter !== 'all') {
+      const message = logEntry.raw;
+      switch(levelFilter) {
+        case 'error':
+          if (!message.includes('error') && !message.includes('fatal')) return false;
+          break;
+        case 'warn':
+          if (!message.includes('error') && !message.includes('fatal') && 
+              !message.includes('warn') && !message.includes('warning')) return false;
+          break;
+        case 'info':
+          if (message.includes('debug') || message.includes('trace')) return false;
+          break;
+      }
+    }
+    
+    // Apply search filter
+    if (searchTerm && !logEntry.raw.includes(searchTerm)) {
+      return false;
+    }
+    
+    return true;
+  }
+
+  // Filter by log level
+  function filterLogLevel() {
+    refreshLogDisplay();
+  }
+
+  // Search in logs
+  function searchLogs() {
+    refreshLogDisplay();
+  }
+
+  // Toggle timestamps
+  function toggleTimestamps() {
+    refreshLogDisplay();
+  }
+
+  // Refresh log display with current filters
+  function refreshLogDisplay() {
+    const output = document.getElementById('logs-output');
+    output.innerHTML = '';
+    
+    allLogs.forEach(logEntry => {
+      if (shouldShowLog(logEntry)) {
+        displayLogMessage(logEntry);
+      }
+    });
+  }
+
+  // Download logs
+  function downloadLogs() {
+    const content = allLogs.map(log => `[${log.timestamp}] ${log.message}`).join('\n');
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `<%= @deployment.dokku_app_name %>-server-logs-${new Date().toISOString().slice(0,10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  }
+
+  // Escape HTML to prevent XSS
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // Initialize on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    // Stop streaming when user leaves the page
+    window.addEventListener('beforeunload', function() {
+      if (streamingActive) {
+        stopLogStreaming();
+      }
+    });
+  });
+</script>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+.log-line {
+  margin-bottom: 2px;
+  white-space: pre-wrap;
+  line-height: 1.4;
+  padding: 1px 0;
+}
+.log-line:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+#logs-output::-webkit-scrollbar {
+  width: 8px;
+}
+#logs-output::-webkit-scrollbar-track {
+  background: #2d3748;
+}
+#logs-output::-webkit-scrollbar-thumb {
+  background: #4a5568;
+  border-radius: 4px;
+}
+#logs-output::-webkit-scrollbar-thumb:hover {
+  background: #718096;
+}
+</style>

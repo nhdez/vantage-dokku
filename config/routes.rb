@@ -25,6 +25,9 @@ Rails.application.routes.draw do
       post :check_ssl_status
       get :execute_commands
       post :run_command
+      get :server_logs
+      post :start_log_streaming
+      post :stop_log_streaming
     end
   end
   resources :ssh_keys

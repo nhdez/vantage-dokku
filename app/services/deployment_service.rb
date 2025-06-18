@@ -248,10 +248,19 @@ class DeploymentService
     
     result = ""
     ssh.exec!(command) do |channel, stream, data|
-      result += data
+      # Force UTF-8 encoding and handle invalid characters
+      clean_data = data.force_encoding('UTF-8')
+      
+      # Replace invalid UTF-8 sequences with replacement character
+      unless clean_data.valid_encoding?
+        clean_data = data.encode('UTF-8', 'UTF-8', invalid: :replace, undef: :replace, replace: '?')
+      end
+      
+      result += clean_data
+      
       # Log output in real-time for long commands
       if command.include?('git push') || command.include?('git clone')
-        data.split("\n").each { |line| log(">> #{line}") if line.strip.present? }
+        clean_data.split("\n").each { |line| log(">> #{line}") if line.strip.present? }
       end
     end
     
@@ -433,13 +442,24 @@ class DeploymentService
   end
 
   def log(message)
+    # Ensure message is UTF-8 and handle invalid characters
+    clean_message = message.to_s.force_encoding('UTF-8')
+    unless clean_message.valid_encoding?
+      clean_message = message.to_s.encode('UTF-8', 'UTF-8', invalid: :replace, undef: :replace, replace: '?')
+    end
+    
     timestamp = Time.current.strftime("%H:%M:%S")
-    formatted_message = "[#{timestamp}] #{message}"
+    formatted_message = "[#{timestamp}] #{clean_message}"
     @logs << formatted_message
-    Rails.logger.info "[DeploymentService] [#{@deployment.uuid}] [Attempt ##{@deployment_attempt.attempt_number}] #{message}"
+    Rails.logger.info "[DeploymentService] [#{@deployment.uuid}] [Attempt ##{@deployment_attempt.attempt_number}] #{clean_message}"
+    
+    # Ensure logs array is UTF-8 safe before joining
+    safe_logs = @logs.map { |log_line| 
+      log_line.force_encoding('UTF-8').valid_encoding? ? log_line : log_line.encode('UTF-8', invalid: :replace, undef: :replace, replace: '?')
+    }
     
     # Update deployment attempt logs in real-time
-    @deployment_attempt.update_column(:logs, @logs.join("\n"))
+    @deployment_attempt.update_column(:logs, safe_logs.join("\n"))
     
     # Broadcast log message in real-time via ActionCable
     ActionCable.server.broadcast("deployment_logs_#{@deployment.uuid}", {
@@ -454,7 +474,7 @@ class DeploymentService
     ActionCable.server.broadcast("deployment_attempt_logs_#{@deployment_attempt.id}", {
       type: 'log_message',
       message: formatted_message,
-      full_logs: @logs.join("\n"),
+      full_logs: safe_logs.join("\n"),
       timestamp: Time.current.iso8601
     })
   end

@@ -67,7 +67,7 @@
           </h6>
         </div>
         <div class="card-body">
-          <%= form_with model: @database_configuration, url: update_database_configuration_deployment_path(@deployment), method: :post, local: true, id: "database-form" do |form| %>
+          <%= form_with model: @database_configuration, url: update_database_configuration_deployment_path(@deployment), method: :post, local: false, id: "database-form" do |form| %>
             <% unless @has_conflicts %>
               <div class="alert alert-info">
                 <i class="fas fa-info-circle me-2"></i>
@@ -338,36 +338,182 @@
 
 
 <script>
+let databaseConfigurationChannel = null;
+
 document.addEventListener('DOMContentLoaded', function() {
-  // Handle form submission loading state
+  // Handle form submission with AJAX
   const form = document.getElementById('database-form');
   if (form) {
     form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
       const submitBtn = document.getElementById('database-submit-btn');
       const loadingText = submitBtn.getAttribute('data-loading-text');
       const originalText = submitBtn.getAttribute('data-original-text');
       
-      submitBtn.value = loadingText;
+      // Update button state
       submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>' + loadingText;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Starting Configuration...';
       
-      // Show additional loading message
-      const loadingDiv = document.createElement('div');
-      loadingDiv.className = 'alert alert-info mt-3';
-      loadingDiv.innerHTML = `
-        <i class="fas fa-spinner fa-spin me-2"></i>
-        <strong>Configuring database...</strong> This process includes:
-        <ul class="mb-0 mt-2">
-          <li>Installing database plugins on the server</li>
-          <li>Creating database instances</li>
-          <li>Linking databases to your application</li>
-          <li>Setting up environment variables</li>
-        </ul>
-        <small class="d-block mt-2">Please do not close this page or navigate away.</small>
-      `;
-      form.appendChild(loadingDiv);
+      // Subscribe to database configuration updates
+      subscribeToDatabaseConfiguration();
+      
+      // Show background processing message
+      showBackgroundProcessingMessage();
+      
+      // Submit the form via AJAX
+      fetch(form.action, {
+        method: 'POST',
+        body: new FormData(form),
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          showNotification(data.message, 'success');
+        } else {
+          showNotification(`Error: ${data.message}`, 'error');
+          resetForm();
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        showNotification(`Error: ${error.message}`, 'error');
+        resetForm();
+      });
     });
   }
+
+  function showBackgroundProcessingMessage() {
+    // Remove any existing message
+    const existingMessage = document.getElementById('background-processing-message');
+    if (existingMessage) {
+      existingMessage.remove();
+    }
+
+    const messageDiv = document.createElement('div');
+    messageDiv.id = 'background-processing-message';
+    messageDiv.className = 'alert alert-info mt-3';
+    messageDiv.innerHTML = `
+      <i class="fas fa-cogs fa-spin me-2"></i>
+      <strong>Database Configuration Started</strong>
+      <p class="mb-2">Your database is being configured in the background. This process includes:</p>
+      <ul class="mb-0">
+        <li>Installing database plugins on the server</li>
+        <li>Creating database instances</li>
+        <li>Linking databases to your application</li>
+        <li>Setting up environment variables</li>
+      </ul>
+      <div class="mt-2">
+        <small class="text-muted">
+          <i class="fas fa-info-circle me-1"></i>
+          You can continue using the application while this runs in the background.
+        </small>
+      </div>
+    `;
+    
+    const form = document.getElementById('database-form');
+    form.appendChild(messageDiv);
+  }
+
+  function resetForm() {
+    const submitBtn = document.getElementById('database-submit-btn');
+    const originalText = submitBtn.getAttribute('data-original-text');
+    
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = originalText;
+    
+    // Remove background processing message
+    const message = document.getElementById('background-processing-message');
+    if (message) {
+      message.remove();
+    }
+    
+    // Unsubscribe from channel
+    if (databaseConfigurationChannel) {
+      databaseConfigurationChannel.unsubscribe();
+    }
+  }
+
+  function showNotification(message, type) {
+    // Create toast notification
+    const toastDiv = document.createElement('div');
+    toastDiv.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    toastDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toastDiv.innerHTML = `
+      ${message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toastDiv);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      if (toastDiv.parentNode) {
+        toastDiv.remove();
+      }
+    }, 5000);
+  }
+
+  function subscribeToDatabaseConfiguration() {
+    if (databaseConfigurationChannel) {
+      databaseConfigurationChannel.unsubscribe();
+    }
+
+    const deploymentUuid = '<%= @deployment.uuid %>';
+    
+    databaseConfigurationChannel = window.actionCableConsumer.subscriptions.create(
+      {
+        channel: "DatabaseConfigurationChannel",
+        deployment_uuid: deploymentUuid
+      },
+      {
+        received: function(data) {
+          console.log('Received database configuration update:', data);
+          
+          if (data.type === 'update') {
+            updateProgressMessage(data.message);
+          } else if (data.type === 'success') {
+            showNotification(data.message, 'success');
+            setTimeout(() => {
+              window.location.reload();
+            }, 2000);
+          } else if (data.type === 'error') {
+            showNotification(data.message, 'error');
+            resetForm();
+          }
+        },
+        
+        connected: function() {
+          console.log('Connected to database configuration channel');
+        },
+        
+        disconnected: function() {
+          console.log('Disconnected from database configuration channel');
+        }
+      }
+    );
+  }
+
+  function updateProgressMessage(message) {
+    const messageDiv = document.getElementById('background-processing-message');
+    if (messageDiv) {
+      const progressDiv = messageDiv.querySelector('.progress-update') || (() => {
+        const div = document.createElement('div');
+        div.className = 'progress-update mt-2 p-2 bg-light rounded';
+        messageDiv.appendChild(div);
+        return div;
+      })();
+      
+      progressDiv.innerHTML = `
+        <i class="fas fa-info-circle text-primary me-2"></i>
+        <strong>Progress:</strong> ${message}
+      `;
+    }
+  }
+}
   
   // Handle database type selection highlighting
   document.addEventListener('change', function(e) {

@@ -58,6 +58,7 @@
                   <%= @deployment.status_text %>
                 </span>
               </p>
+              <sup><strong>Last deployed:</strong> <%= time_ago_in_words(@deployment.last_deployment_at) %> ago</sup>
             </div>
             <div class="col-md-6 mb-3">
               <h6 class="text-muted">Target Server</h6>
@@ -83,7 +84,220 @@
               </div>
             </div>
           <% end %>
-          
+        </div>
+      </div>
+
+      <!-- Configuration Overview -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-cog me-2"></i>Configuration Information
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <!-- Git Repository -->
+            <div class="col-md-6 mb-3">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-code-branch text-primary me-2"></i>
+                <div class="flex-grow-1">
+                  <h6 class="mb-0">Git Repository</h6>
+                  <% if @deployment.repository_url.present? %>
+                    <small class="text-success">
+                      <i class="fas fa-check-circle me-1"></i>
+                      <%= @deployment.deployment_method.humanize %>
+                    </small>
+                    <div class="text-muted small">
+                      <%= truncate(@deployment.repository_url, length: 40) %>
+                      <% if @deployment.repository_branch.present? %>
+                        (branch: <%= @deployment.repository_branch %>)
+                      <% end %>
+                    </div>
+                  <% else %>
+                    <small class="text-warning">
+                      <i class="fas fa-exclamation-triangle me-1"></i>
+                      Not configured
+                    </small>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+
+            <!-- Environment Variables -->
+            <div class="col-md-6 mb-3">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-list-ul text-info me-2"></i>
+                <div class="flex-grow-1">
+                  <h6 class="mb-0">Environment Variables</h6>
+                  <% env_count = @deployment.environment_variables.count %>
+                  <% if env_count > 0 %>
+                    <small class="text-success">
+                      <i class="fas fa-check-circle me-1"></i>
+                      <%= pluralize(env_count, 'variable') %> configured
+                    </small>
+                  <% else %>
+                    <small class="text-muted">
+                      <i class="fas fa-circle me-1"></i>
+                      No variables set
+                    </small>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <!-- Database Configuration -->
+            <div class="col-md-6 mb-3">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-database text-success me-2"></i>
+                <div class="flex-grow-1">
+                  <h6 class="mb-0">Database</h6>
+                  <% if @deployment.database_configuration&.configured? %>
+                    <small class="text-success">
+                      <i class="fas fa-check-circle me-1"></i>
+                      <%= @deployment.database_configuration.display_name %>
+                      <% if @deployment.database_configuration.redis_enabled? %>
+                        + Redis
+                      <% end %>
+                    </small>
+                  <% elsif @deployment.database_configuration&.persisted? %>
+                    <small class="text-warning">
+                      <i class="fas fa-exclamation-triangle me-1"></i>
+                      <%= @deployment.database_configuration.display_name %> (pending)
+                    </small>
+                  <% else %>
+                    <small class="text-muted">
+                      <i class="fas fa-circle me-1"></i>
+                      Not configured
+                    </small>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+
+            <!-- SSH Keys -->
+            <div class="col-md-6 mb-3">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-key text-warning me-2"></i>
+                <div class="flex-grow-1">
+                  <h6 class="mb-0">SSH Keys</h6>
+                  <% ssh_count = @deployment.ssh_keys.count %>
+                  <% if ssh_count > 0 %>
+                    <small class="text-success">
+                      <i class="fas fa-check-circle me-1"></i>
+                      <%= pluralize(ssh_count, 'key') %> attached
+                    </small>
+                  <% else %>
+                    <small class="text-muted">
+                      <i class="fas fa-circle me-1"></i>
+                      No keys attached
+                    </small>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <!-- Domains -->
+            <div class="col-md-6 mb-3">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-globe text-info me-2"></i>
+                <div class="flex-grow-1">
+                  <h6 class="mb-0">Domains</h6>
+                  <% domain_count = @deployment.domains.count %>
+                  <% if domain_count > 0 %>
+                    <small class="text-success">
+                      <i class="fas fa-check-circle me-1"></i>
+                      <%= pluralize(domain_count, 'domain') %> configured
+                    </small>
+                    <% if @deployment.domains.any? %>
+                      <div class="text-muted small">
+                        <%= @deployment.domains.limit(2).pluck(:name).join(', ') %>
+                        <% if domain_count > 2 %>
+                          and <%= domain_count - 2 %> more...
+                        <% end %>
+                      </div>
+                    <% end %>
+                  <% else %>
+                    <small class="text-muted">
+                      <i class="fas fa-circle me-1"></i>
+                      No custom domains
+                    </small>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+
+            <!-- Deployment Readiness -->
+            <div class="col-md-6 mb-3">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-rocket text-<%= @deployment.can_deploy? ? 'success' : 'warning' %> me-2"></i>
+                <div class="flex-grow-1">
+                  <h6 class="mb-0">Deployment Ready</h6>
+                  <% if @deployment.can_deploy? %>
+                    <small class="text-success">
+                      <i class="fas fa-check-circle me-1"></i>
+                      Ready to deploy
+                    </small>
+                  <% else %>
+                    <small class="text-warning">
+                      <i class="fas fa-exclamation-triangle me-1"></i>
+                      Configuration needed
+                    </small>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Configuration Progress Bar -->
+          <div class="row mt-3">
+            <div class="col-12">
+              <%
+                config_items = [
+                  @deployment.repository_url.present?,
+                  @deployment.database_configuration&.configured?,
+                  @deployment.ssh_keys.any?,
+                  @deployment.domains.any?
+                ]
+                completed_items = config_items.count(true)
+                total_items = config_items.length
+                progress_percentage = (completed_items.to_f / total_items * 100).round
+              %>
+
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="text-muted mb-0">Configuration Progress</h6>
+                <small class="text-muted"><%= completed_items %>/<%= total_items %> completed</small>
+              </div>
+
+              <div class="progress mb-2" style="height: 8px;">
+                <div class="progress-bar bg-<%= progress_percentage == 100 ? 'success' : progress_percentage >= 50 ? 'info' : 'warning' %>"
+                     role="progressbar"
+                     style="width: <%= progress_percentage %>%"
+                     aria-valuenow="<%= progress_percentage %>"
+                     aria-valuemin="0"
+                     aria-valuemax="100">
+                </div>
+              </div>
+
+              <% if progress_percentage < 100 %>
+                <small class="text-muted">
+                  <i class="fas fa-info-circle me-1"></i>
+                  Complete remaining configurations to optimize your deployment setup.
+                </small>
+              <% else %>
+                <small class="text-success">
+                  <i class="fas fa-check-circle me-1"></i>
+                  All main configurations completed! Your deployment is fully configured.
+                </small>
+              <% end %>
+            </div>
+          </div>
+
+          <hr class="my-4">
+
           <div class="row">
             <div class="col-md-6 mb-3">
               <h6 class="text-muted">Created</h6>
@@ -102,7 +316,6 @@
           </div>
         </div>
       </div>
-
       <!-- Deployment URL -->
       <div class="card shadow mb-4">
         <div class="card-header py-3">
@@ -147,12 +360,12 @@
       <div class="card shadow">
         <div class="card-header py-3">
           <h6 class="m-0 font-weight-bold text-primary">
-            <i class="fas fa-terminal me-2"></i>Deployment Instructions
+            <i class="fas fa-terminal me-2"></i>Manual Deployment Instructions
           </h6>
         </div>
         <div class="card-body">
           <p class="text-muted mb-3">
-            Deploy your application to Dokku using Git. Make sure you have SSH access to the server.
+            You can deploy your application to Dokku using Git. Make sure you have SSH access to the server.
           </p>
           
           <h6>1. Add Dokku remote to your Git repository:</h6>
@@ -207,13 +420,13 @@
         <div class="card-body">
           <div class="d-grid gap-2">
             <% if @deployment.deployment_status == 'deploying' %>
-              <%= link_to logs_deployment_path(@deployment), class: "btn btn-warning" do %>
+              <%= link_to logs_deployment_path(@deployment), class: "btn btn-warning w-100" do %>
                 <i class="fas fa-spinner fa-spin me-2"></i>View Deployment
               <% end %>
             <% elsif @deployment.can_deploy? && @deployment.deployment_configured? %>
               <%= form_with url: deploy_deployment_path(@deployment), method: :post, local: true do |f| %>
-                <%= submit_tag "Deploy Now", class: "btn btn-success", 
-                    data: { confirm: "Start deployment? This will clone the repository and deploy to Dokku." } %>
+                <%= submit_tag "Deploy Now", class: "btn btn-success w-100",
+                    data: { confirm: "Start deployment? This will clone the repository and deploy to Dokku.", turbo: false } %>
               <% end %>
             <% end %>
             
@@ -226,13 +439,13 @@
             <%= link_to edit_deployment_path(@deployment), class: "btn btn-outline-primary" do %>
               <i class="fas fa-edit me-2"></i>Edit Application
             <% end %>
-            
-            <%= link_to deployment_path(@deployment), method: :delete, 
-                class: "btn btn-outline-danger",
-                data: { 
-                  confirm: "Are you sure you want to delete '#{@deployment.name}'? This action cannot be undone.",
-                  turbo_method: :delete
-                } do %>
+
+            <%= link_to deployment_path(@deployment),
+                        class: "btn btn-outline-danger",
+                        data: {
+                          turbo_method: :delete,
+                          turbo_confirm: "Are you sure you want to delete '#{@deployment.name}'? This action cannot be undone."
+                        } do %>
               <i class="fas fa-trash me-2"></i>Delete Application
             <% end %>
           </div>
@@ -243,12 +456,43 @@
       <div class="card shadow mb-4">
         <div class="card-header py-3">
           <h6 class="m-0 font-weight-bold text-primary">
-            <i class="fas fa-cog me-2"></i>Configuration
+            <i class="fas fa-cog me-2"></i>Management & Configuration
           </h6>
         </div>
         <div class="card-body">
+          <% if @deployment.deployment_status == 'deploying' %>
+            <div class="alert alert-warning py-2">
+              <i class="fas fa-spinner fa-spin me-2"></i>
+              <strong>Deployment in progress!</strong>
+              <%= link_to "View logs", logs_deployment_path(@deployment), class: "alert-link" %> to monitor progress.
+            </div>
+          <% elsif @deployment.can_deploy? && @deployment.deployment_configured? %>
+            <div class="alert alert-success py-2">
+              <i class="fas fa-check-circle me-2"></i>
+              <strong>Ready to deploy!</strong> Configuration complete and server connected.
+            </div>
+          <% elsif !@deployment.deployment_configured? %>
+            <div class="alert alert-info py-2">
+              <i class="fas fa-cogs me-2"></i>
+              <strong>Configuration needed:</strong>
+              <%= link_to "Configure Git repository", git_configuration_deployment_path(@deployment), class: "alert-link" %> to enable deployment.
+            </div>
+          <% elsif !@deployment.can_deploy? %>
+            <div class="alert alert-warning py-2">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              <strong>Server not ready:</strong>
+              <% unless @deployment.server.dokku_installed? %>
+                Install Dokku on the server first.
+              <% end %>
+              <% unless @deployment.server.connection_status == 'connected' %>
+                Verify server connection.
+              <% end %>
+            </div>
+          <% end %>
+
           <div class="d-grid gap-2">
-            <%= link_to git_configuration_deployment_path(@deployment), class: "btn btn-outline-success" do %>
+            <%= link_to git_configuration_deployment_path(@deployment), class: "btn btn-outline-success",
+                        data: { turbo: false } do %>
               <i class="fab fa-git-alt me-2"></i>Git Configuration
             <% end %>
             
@@ -270,9 +514,18 @@
               <i class="fas fa-database me-2"></i>Configure Databases
             <% end %>
             
-            <%= link_to execute_commands_deployment_path(@deployment), class: "btn btn-outline-info",
+            <%= link_to execute_commands_deployment_path(@deployment), class: "btn btn-outline-primary",
                         data: { turbo: false } do %>
               <i class="fas fa-terminal me-2"></i>Execute Commands
+            <% end %>
+            
+            <%= link_to server_logs_deployment_path(@deployment), class: "btn btn-outline-primary",
+                        data: { turbo: false } do %>
+              <i class="fas fa-file-alt me-2"></i>View Server Logs
+            <% end %>
+
+            <%= link_to logs_deployment_path(@deployment), class: "btn btn-outline-primary" do %>
+              <i class="fas fa-list me-2"></i>Deployment Logs
             <% end %>
             
             <%= link_to @deployment.server, class: "btn btn-outline-warning" do %>
@@ -315,60 +568,6 @@
               <i class="<%= @deployment.server.connection_status_icon %> me-1"></i>
               <%= @deployment.server.connection_status.titleize %>
             </span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Deployment Status -->
-      <div class="card shadow">
-        <div class="card-header py-3">
-          <h6 class="m-0 font-weight-bold text-primary">
-            <i class="fas fa-chart-line me-2"></i>Deployment Status
-          </h6>
-        </div>
-        <div class="card-body">
-          <div class="text-center mb-3">
-            <span class="badge <%= @deployment.status_badge_class %> fs-6 px-3 py-2">
-              <i class="<%= @deployment.status_icon %> me-2"></i><%= @deployment.status_text %>
-            </span>
-          </div>
-          
-          <% if @deployment.deployment_status == 'deploying' %>
-            <div class="alert alert-warning py-2">
-              <i class="fas fa-spinner fa-spin me-2"></i>
-              <strong>Deployment in progress!</strong> 
-              <%= link_to "View logs", logs_deployment_path(@deployment), class: "alert-link" %> to monitor progress.
-            </div>
-          <% elsif @deployment.can_deploy? && @deployment.deployment_configured? %>
-            <div class="alert alert-success py-2">
-              <i class="fas fa-check-circle me-2"></i>
-              <strong>Ready to deploy!</strong> Configuration complete and server connected.
-            </div>
-          <% elsif !@deployment.deployment_configured? %>
-            <div class="alert alert-info py-2">
-              <i class="fas fa-cogs me-2"></i>
-              <strong>Configuration needed:</strong> 
-              <%= link_to "Configure Git repository", git_configuration_deployment_path(@deployment), class: "alert-link" %> to enable deployment.
-            </div>
-          <% elsif !@deployment.can_deploy? %>
-            <div class="alert alert-warning py-2">
-              <i class="fas fa-exclamation-triangle me-2"></i>
-              <strong>Server not ready:</strong> 
-              <% unless @deployment.server.dokku_installed? %>
-                Install Dokku on the server first.
-              <% end %>
-              <% unless @deployment.server.connection_status == 'connected' %>
-                Verify server connection.
-              <% end %>
-            </div>
-          <% end %>
-          
-          <div class="small text-muted mt-2">
-            <i class="fas fa-info-circle me-1"></i>
-            <strong>Method:</strong> <%= @deployment.deployment_method_text %>
-            <% if @deployment.last_deployment_at.present? %>
-              <br><strong>Last deployed:</strong> <%= time_ago_in_words(@deployment.last_deployment_at) %> ago
-            <% end %>
           </div>
         </div>
       </div>
