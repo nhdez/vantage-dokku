@@ -30,23 +30,20 @@
       <%= form_with url: admin_users_path, method: :get, local: true do |f| %>
         <div class="row">
           <div class="col-md-3 mb-3">
-            <div class="form-outline">
+            <div class="form">
               <%= f.search_field "q[email_cont]", value: @q[:email_cont], placeholder: "Search by email...", class: "form-control" %>
-              <label for="q_email_cont" class="form-label">Email</label>
             </div>
           </div>
           
           <div class="col-md-3 mb-3">
-            <div class="form-outline">
+            <div class="form">
               <%= f.search_field "q[first_name_cont]", value: @q[:first_name_cont], placeholder: "Search by first name...", class: "form-control" %>
-              <label for="q_first_name_cont" class="form-label">First Name</label>
             </div>
           </div>
           
           <div class="col-md-3 mb-3">
-            <div class="form-outline">
+            <div class="form">
               <%= f.search_field "q[last_name_cont]", value: @q[:last_name_cont], placeholder: "Search by last name...", class: "form-control" %>
-              <label for="q_last_name_cont" class="form-label">Last Name</label>
             </div>
           </div>
           
@@ -122,9 +119,6 @@
                 <td>
                   <div>
                     <div class="font-weight-bold"><%= user.full_name %></div>
-                    <% if user.date_of_birth %>
-                      <small class="text-muted">Age: <%= Date.current.year - user.date_of_birth.year %></small>
-                    <% end %>
                   </div>
                 </td>
                 <td><%= user.email %></td>

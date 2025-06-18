@@ -86,17 +86,6 @@
                 </div>
               </div>
 
-              <div class="row mb-3">
-                <div class="col-sm-4 font-weight-bold">Date of Birth:</div>
-                <div class="col-sm-8">
-                  <% if @user.date_of_birth %>
-                    <%= @user.date_of_birth.strftime("%B %d, %Y") %>
-                    <small class="text-muted">(Age: <%= Date.current.year - @user.date_of_birth.year %>)</small>
-                  <% else %>
-                    Not provided
-                  <% end %>
-                </div>
-              </div>
 
               <div class="row mb-3">
                 <div class="col-sm-4 font-weight-bold">Member Since:</div>

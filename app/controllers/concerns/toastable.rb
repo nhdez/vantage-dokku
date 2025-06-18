@@ -52,11 +52,11 @@ module Toastable
 
   def toast_login_success(user_name = nil)
     message = user_name ? "Welcome back, #{user_name}!" : "You have been signed in successfully!"
-    toast_success(message, title: "Welcome!")
+    toast_success(message)
   end
 
   def toast_logout_success
-    toast_success("You have been signed out successfully. See you soon!", title: "Goodbye!")
+    toast_success("You have been signed out successfully. See you soon!")
   end
 
   def toast_permission_denied

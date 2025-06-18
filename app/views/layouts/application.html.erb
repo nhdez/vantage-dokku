@@ -169,8 +169,8 @@
   </head>
 
   <body data-theme="<%= current_user_theme %>" data-controller="theme" data-theme-current-value="<%= current_user_theme %>" data-theme-endpoint-value="<%= user_signed_in? ? update_theme_path : '' %>">
-    <!-- Navigation (hidden on auth pages) -->
-    <% unless devise_controller? %>
+    <!-- Navigation (hidden on auth pages except edit) -->
+    <% unless devise_controller? && !(controller_name == 'registrations' && action_name == 'edit') %>
     <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(rgba(0, 0, 0, 0.69), rgba(0, 0, 0, 0.69)), url('/img/raychan-jrNY1BZhnJg-unsplash.jpg') center/cover no-repeat; position: relative;">
       <div class="container-fluid">
         <%= link_to root_path, class: "navbar-brand d-flex align-items-center" do %>
@@ -269,8 +269,8 @@
     <% end %>
 
     <!-- Main Content -->
-    <main class="<%= devise_controller? ? '' : 'container-fluid' %> <%= 'py-4' if controller_name != 'home' && !devise_controller? %>" style="<%= '--mdb-gutter-x: 0rem !important;' if controller_name == 'home' %>">
-      <%= render 'shared/breadcrumbs' if user_signed_in? && !devise_controller? %>
+    <main class="<%= (devise_controller? && !(controller_name == 'registrations' && action_name == 'edit')) ? '' : 'container-fluid' %> <%= 'py-4' if controller_name != 'home' && !(devise_controller? && !(controller_name == 'registrations' && action_name == 'edit')) %>" style="<%= '--mdb-gutter-x: 0rem !important;' if controller_name == 'home' %>">
+      <%= render 'shared/breadcrumbs' if user_signed_in? && !(devise_controller? && !(controller_name == 'registrations' && action_name == 'edit')) %>
       <%= yield %>
     </main>
 
@@ -280,8 +280,8 @@
     <!-- Flash Message Toasts -->
     <%= render_flash_toasts %>
 
-    <!-- Footer (hidden on auth pages) -->
-    <% unless devise_controller? %>
+    <!-- Footer (hidden on auth pages except edit) -->
+    <% unless devise_controller? && !(controller_name == 'registrations' && action_name == 'edit') %>
     <footer class="bg-light text-center text-lg-start mt-5">
       <div class="text-center p-3" style="background-color: rgba(0, 0, 0, 0.2);">
         © <%= Date.current.year %> Vantage Dokku by
