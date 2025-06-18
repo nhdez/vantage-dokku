@@ -12,7 +12,7 @@
         </div>
         <div>
           <% if @monitored_deployments.present? %>
-            <%= button_to dashboard_trigger_health_checks_path, method: :post, class: "btn btn-outline-success me-2" do %>
+            <%= link_to dashboard_trigger_health_checks_path, data: { 'turbo-method': :post }, class: "btn btn-outline-success me-2" do %>
               <i class="fas fa-heartbeat me-2"></i>Refresh Health Status
             <% end %>
           <% end %>
@@ -274,9 +274,6 @@
             <% end %>
             <%= link_to new_ssh_key_path, class: "btn btn-outline-secondary" do %>
               <i class="fas fa-key me-2"></i>Add SSH Key
-            <% end %>
-            <%= link_to settings_path, class: "btn btn-outline-secondary" do %>
-              <i class="fas fa-cog me-2"></i>Settings
             <% end %>
           </div>
         </div>
