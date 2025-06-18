@@ -85,6 +85,8 @@ Rails.application.routes.draw do
   # Dashboard and app routes
   get "dashboard", to: "dashboard#index"
   post "dashboard/trigger_health_checks", to: "dashboard#trigger_health_checks"
+  get "oauth_debug", to: "oauth_debug#debug"
+  get "test_oauth_redirect", to: redirect("/users/auth/google_oauth2")
   get "projects", to: "dashboard#projects"
   get "analytics", to: "dashboard#analytics"
   get "settings", to: "dashboard#settings"

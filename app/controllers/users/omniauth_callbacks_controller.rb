@@ -12,11 +12,9 @@ class Users::OmniauthCallbacksController < Devise::OmniauthCallbacksController
     
     if @user.persisted?
       # Log the authentication
-      log_activity(
-        user: @user,
-        action: @user.provider.present? ? 'oauth_signin' : 'oauth_signup',
-        details: "Signed #{@user.provider.present? ? 'in' : 'up'} with Google OAuth"
-      )
+      log_activity(@user.provider.present? ? 'oauth_signin' : 'oauth_signup',
+                  details: "Signed #{@user.provider.present? ? 'in' : 'up'} with Google OAuth",
+                  user: @user)
       
       sign_in_and_redirect @user, event: :authentication
       

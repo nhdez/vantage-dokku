@@ -315,6 +315,37 @@ Devise.setup do |config|
   # Add a new OmniAuth provider. Check the wiki for more information on setting
   # up on your models and hooks.
   
-  # OAuth providers are configured dynamically in config/initializers/oauth_dynamic_setup.rb
-  # This allows for database-driven configuration that can be updated at runtime
+  # Try to get OAuth credentials from environment variables first, then database
+  google_client_id = ENV['GOOGLE_CLIENT_ID'].presence
+  google_client_secret = ENV['GOOGLE_CLIENT_SECRET'].presence
+  
+  # Fallback to database settings if environment variables not available
+  unless google_client_id && google_client_secret
+    begin
+      if defined?(OauthSetting) && OauthSetting.table_exists?
+        google_client_id ||= OauthSetting.google_client_id
+        google_client_secret ||= OauthSetting.google_client_secret
+      end
+    rescue => e
+      Rails.logger.warn "Could not load OAuth settings from database: #{e.message}"
+    end
+  end
+  
+  # Configure Google OAuth if credentials are available
+  if google_client_id.present? && google_client_secret.present?
+    config.omniauth :google_oauth2,
+      google_client_id,
+      google_client_secret,
+      {
+        scope: 'userinfo.email,userinfo.profile',
+        prompt: 'consent',
+        image_aspect_ratio: 'square',
+        image_size: 50,
+        skip_jwt: true
+      }
+    
+    Rails.logger.info "Google OAuth configured in Devise initializer"
+  else
+    Rails.logger.info "Google OAuth not configured - missing credentials"
+  end
 end
