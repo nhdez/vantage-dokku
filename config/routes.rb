@@ -74,13 +74,13 @@ Rails.application.routes.draw do
     omniauth_callbacks: 'users/omniauth_callbacks'
   }
 
-  # Public routes - redirect to login
-  root to: redirect('/users/sign_in')
-  
-  # Authenticated user routes
+  # Authenticated user routes (must come first)
   authenticated :user do
     root "dashboard#index", as: :authenticated_root
   end
+  
+  # Public routes - redirect to login
+  root to: redirect('/users/sign_in')
   
   # Dashboard and app routes
   get "dashboard", to: "dashboard#index"
