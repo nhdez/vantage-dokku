@@ -315,24 +315,11 @@ Devise.setup do |config|
   # Add a new OmniAuth provider. Check the wiki for more information on setting
   # up on your models and hooks.
   
-  # Try to get OAuth credentials from environment variables first, then database
+  # Configure OAuth from environment variables if available
   google_client_id = ENV['GOOGLE_CLIENT_ID'].presence
   google_client_secret = ENV['GOOGLE_CLIENT_SECRET'].presence
   
-  # Fallback to database settings if environment variables not available
-  unless google_client_id && google_client_secret
-    begin
-      if defined?(OauthSetting) && OauthSetting.table_exists?
-        google_client_id ||= OauthSetting.google_client_id
-        google_client_secret ||= OauthSetting.google_client_secret
-      end
-    rescue => e
-      Rails.logger.warn "Could not load OAuth settings from database: #{e.message}"
-    end
-  end
-  
-  # Configure Google OAuth if credentials are available
-  if google_client_id.present? && google_client_secret.present?
+  if google_client_id && google_client_secret
     config.omniauth :google_oauth2,
       google_client_id,
       google_client_secret,
@@ -344,8 +331,8 @@ Devise.setup do |config|
         skip_jwt: true
       }
     
-    Rails.logger.info "Google OAuth configured in Devise initializer"
+    Rails.logger.info "Devise: Google OAuth configured from credentials"
   else
-    Rails.logger.info "Google OAuth not configured - missing credentials"
+    Rails.logger.info "Devise: No OAuth credentials available"
   end
 end
