@@ -58,7 +58,9 @@
                   <%= @deployment.status_text %>
                 </span>
               </p>
-              <sup><strong>Last deployed:</strong> <%= time_ago_in_words(@deployment.last_deployment_at) %> ago</sup>
+              <% if @deployment.last_deployment_at.present? %>
+                <sup><strong>Last deployed:</strong> <%= time_ago_in_words(@deployment.last_deployment_at) %> ago</sup>
+              <% end %>
             </div>
             <div class="col-md-6 mb-3">
               <h6 class="text-muted">Target Server</h6>

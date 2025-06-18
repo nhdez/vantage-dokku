@@ -36,7 +36,7 @@
                 <div class="">
                   <%= f.email_field :email, autofocus: true, autocomplete: "email", 
                       class: "form-control form-control-lg", 
-                      id: "user_email" %>
+                      id: "user_email", disabled: true %>
                   <%= f.label :email, "Email Address", class: "form-label", for: "user_email" %>
                 </div>
                 <% if devise_mapping.confirmable? && resource.pending_reconfirmation? %>
