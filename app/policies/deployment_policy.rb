@@ -39,6 +39,10 @@ class DeploymentPolicy < ApplicationPolicy
     user.present? && (record.user == user || user.admin?)
   end
 
+  def delete_domain?
+    user.present? && (record.user == user || user.admin?)
+  end
+
   def attach_ssh_keys?
     user.present? && (record.user == user || user.admin?)
   end

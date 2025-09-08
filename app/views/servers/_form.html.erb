@@ -82,7 +82,7 @@
     <div class="col-md-6 mb-3">
       <div class="form">
         <%= f.text_field :username, class: "form-control", id: "server_username", required: true %>
-        <%= f.label :username, "SSH Username", class: "form-label", for: "server_username" %>
+        <%= f.label :username, "Username", class: "form-label", for: "server_username" %>
       </div>
       <div class="form-text">Usually 'root' for Dokku servers</div>
     </div>
@@ -91,7 +91,7 @@
     <div class="col-md-6 mb-3">
       <div class="form">
         <%= f.number_field :port, class: "form-control", id: "server_port", required: true, min: 1, max: 65535 %>
-        <%= f.label :port, "SSH Port", class: "form-label", for: "server_port" %>
+        <%= f.label :port, "Port", class: "form-label", for: "server_port" %>
       </div>
       <div class="form-text">Default SSH port is 22</div>
     </div>
@@ -101,106 +101,12 @@
     <!-- Password -->
     <div class="col-md-12 mb-3">
       <div class="form">
-        <%= f.password_field :password, class: "form-control", id: "server_password", autocomplete: "new-password" %>
-        <%= f.label :password, "Root Password (Optional)", class: "form-label", for: "server_password" %>
+        <%= f.password_field :password, class: "form-control", id: "server_password", autocomplete: "new-password", required: true %>
+        <%= f.label :password, "Root Password", class: "form-label", for: "server_password" %>
       </div>
       <div class="form-text">
-        <i class="fas fa-info-circle me-1"></i>
-        <strong>Fallback Authentication:</strong> Used when SSH key authentication fails. Leave blank if you only want to use SSH keys.
-        <br>
         <i class="fas fa-shield-alt me-1 text-success"></i>
         This password is encrypted and stored securely.
-      </div>
-    </div>
-  </div>
-
-  <!-- Connection Info -->
-  <div class="card border-info mb-4">
-    <div class="card-header bg-info text-white">
-      <h6 class="mb-0">
-        <i class="fas fa-info-circle me-2"></i>
-        Connection Information
-      </h6>
-    </div>
-    <div class="card-body">
-      <div class="row">
-        <div class="col-md-6">
-          <h6 class="text-muted">Required Environment Variables</h6>
-          <div class="small">
-            <div class="mb-2">
-              <% if ENV['DOKKU_SSH_KEY_PATH'].present? %>
-                <i class="fas fa-check-circle text-success me-2"></i>
-                <strong>DOKKU_SSH_KEY_PATH:</strong> <code><%= ENV['DOKKU_SSH_KEY_PATH'] %></code>
-              <% else %>
-                <i class="fas fa-times-circle text-danger me-2"></i>
-                <strong>DOKKU_SSH_KEY_PATH:</strong> Not set
-              <% end %>
-            </div>
-            <div class="mb-2">
-              <% if ENV['DOKKU_SSH_PUBLIC_KEY'].present? %>
-                <i class="fas fa-check-circle text-success me-2"></i>
-                <strong>DOKKU_SSH_PUBLIC_KEY:</strong> <code><%= ENV['DOKKU_SSH_PUBLIC_KEY']&.truncate(40) %>...</code>
-              <% else %>
-                <i class="fas fa-times-circle text-danger me-2"></i>
-                <strong>DOKKU_SSH_PUBLIC_KEY:</strong> Not set
-              <% end %>
-            </div>
-            <div class="mb-2">
-              <% if @server&.password.present? %>
-                <i class="fas fa-check-circle text-success me-2"></i>
-                <strong>Password (Optional):</strong> Configured (encrypted)
-              <% else %>
-                <i class="fas fa-times-circle text-muted me-2"></i>
-                <strong>Password (Optional):</strong> Not set
-              <% end %>
-            </div>
-          </div>
-          
-          <% unless ENV['DOKKU_SSH_KEY_PATH'].present? && ENV['DOKKU_SSH_PUBLIC_KEY'].present? %>
-            <div class="alert alert-warning py-2 mt-2">
-              <small>
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong>Setup Required:</strong> You must configure SSH environment variables before adding servers.
-              </small>
-            </div>
-          <% else %>
-            <div class="alert alert-success py-2 mt-2">
-              <small>
-                <i class="fas fa-check-circle me-2"></i>
-                <strong>Ready:</strong> SSH environment variables are configured.
-              </small>
-            </div>
-          <% end %>
-        </div>
-        <div class="col-md-6">
-          <% unless ENV['DOKKU_SSH_KEY_PATH'].present? && ENV['DOKKU_SSH_PUBLIC_KEY'].present? %>
-            <h6 class="text-warning">SSH Setup Instructions</h6>
-            <div class="small">
-              <p class="mb-2">Before adding servers, you need to configure SSH keys:</p>
-              <ol class="mb-2">
-                <li>Generate an SSH key pair on your system:
-                  <br><code class="text-info">ssh-keygen -t ed25519 -f ~/.ssh/dokku_key</code>
-                </li>
-                <li>Set the environment variables:
-                  <br><code class="text-info">DOKKU_SSH_KEY_PATH=~/.ssh/dokku_key</code>
-                  <br><code class="text-info">DOKKU_SSH_PUBLIC_KEY="ssh-ed25519 AAAA..."</code>
-                </li>
-                <li>Add the public key to your Dokku servers:
-                  <br><code class="text-info">ssh-copy-id -i ~/.ssh/dokku_key.pub root@your-server</code>
-                </li>
-              </ol>
-              <p class="text-muted">After setting up, restart the application and reload this page.</p>
-            </div>
-          <% else %>
-            <h6 class="text-muted">Connection Test</h6>
-            <p class="small">After saving, you can test the connection to ensure your server is reachable.</p>
-            <% if @server.persisted? %>
-              <button type="button" class="btn btn-sm btn-outline-info" onclick="testConnection('<%= test_connection_server_path(@server) %>')">
-                <i class="fas fa-plug me-2"></i>Test Connection
-              </button>
-            <% end %>
-          <% end %>
-        </div>
       </div>
     </div>
   </div>
@@ -213,15 +119,8 @@
       <% end %>
     </div>
     <div>
-      <% if ENV['DOKKU_SSH_KEY_PATH'].present? && ENV['DOKKU_SSH_PUBLIC_KEY'].present? %>
-        <%= f.submit (@server.persisted? ? "Update Server" : "Create Server"), 
-            class: "btn btn-primary" %>
-      <% else %>
-        <button type="button" class="btn btn-warning" onclick="window.location.reload()">
-          <i class="fas fa-sync-alt me-2"></i>Reload ENV Variables
-        </button>
-        <small class="d-block text-muted mt-1">Configure SSH environment variables first</small>
-      <% end %>
+      <%= f.submit (@server.persisted? ? "Update Server" : "Create Server"), 
+          class: "btn btn-primary" %>
     </div>
   </div>
 <% end %>

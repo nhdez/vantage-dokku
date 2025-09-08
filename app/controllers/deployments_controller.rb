@@ -1,8 +1,8 @@
 class DeploymentsController < ApplicationController
   include ActivityTrackable
   
-  before_action :set_deployment, only: [:show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command, :server_logs, :start_log_streaming, :stop_log_streaming]
-  before_action :authorize_deployment, only: [:show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command, :server_logs, :start_log_streaming, :stop_log_streaming]
+  before_action :set_deployment, only: [:show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :delete_domain, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command, :server_logs, :start_log_streaming, :stop_log_streaming]
+  before_action :authorize_deployment, only: [:show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :delete_domain, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command, :server_logs, :start_log_streaming, :stop_log_streaming]
   
   def index
     @pagy, @deployments = pagy(current_user.deployments.includes(:server).recent, limit: 15)
@@ -61,10 +61,51 @@ class DeploymentsController < ApplicationController
 
   def destroy
     deployment_name = @deployment.name
-    @deployment.destroy
-    log_activity('deployment_deleted', details: "Deleted deployment: #{deployment_name}")
-    toast_success("Deployment '#{deployment_name}' deleted successfully!", title: "Deployment Deleted")
-    redirect_to deployments_path
+
+    # Queue the deletion job to run in background
+    DestroyDeploymentJob.perform_later(@deployment.id, current_user.id)
+
+    log_activity('deployment_deletion_started',
+                details: "Started deletion of deployment: #{deployment_name}")
+
+    respond_to do |format|
+      format.html do
+        toast_info("Deployment deletion started. The app will be removed from the server.", title: "Deletion Started")
+        redirect_to deployments_path
+      end
+
+      format.json do
+        render json: {
+          success: true,
+          message: "Deployment deletion started. The app will be removed from the server.",
+          deployment_id: @deployment.id
+        }
+      end
+      format.any do
+        # Fallback for when Accept header is */*, which happens with some AJAX requests
+        render json: {
+          success: true,
+          message: "Deployment deletion started. The app will be removed from the server.",
+          deployment_id: @deployment.id
+        }
+      end
+    end
+  rescue StandardError => e
+    Rails.logger.error "Failed to start deployment deletion: #{e.message}"
+
+    respond_to do |format|
+      format.html do
+        toast_error("Failed to delete deployment: #{e.message}", title: "Deletion Error")
+        redirect_to deployments_path
+      end
+
+      format.json do
+        render json: {
+          success: false,
+          message: "Failed to delete deployment: #{e.message}"
+        }, status: :internal_server_error
+      end
+    end
   end
 
   def create_dokku_app
@@ -91,6 +132,56 @@ class DeploymentsController < ApplicationController
   def configure_domain
     @domains = @deployment.domains.ordered
     log_activity('domains_viewed', details: "Viewed domain configuration for deployment: #{@deployment.display_name}")
+  end
+
+  def delete_domain
+    begin
+      domain_name = params[:domain_name]
+
+      if domain_name.blank?
+        respond_to do |format|
+          format.json { render json: { success: false, error: "Domain name is required" }, status: :bad_request }
+        end
+        return
+      end
+
+      # Find and verify the domain belongs to this deployment
+      domain = @deployment.domains.find_by(name: domain_name)
+
+      unless domain
+        respond_to do |format|
+          format.json { render json: { success: false, error: "Domain not found" }, status: :not_found }
+        end
+        return
+      end
+
+      # Remove domain from Dokku and clean up SSL
+      DeleteDomainJob.perform_later(@deployment.id, domain.id, current_user.id)
+
+      log_activity('domain_deletion_started',
+                  details: "Started deletion of domain #{domain_name} from deployment: #{@deployment.display_name}")
+
+      respond_to do |format|
+        format.json do
+          render json: {
+            success: true,
+            message: "Domain deletion started. SSL certificates will be cleaned up.",
+            domain_name: domain_name
+          }
+        end
+      end
+    rescue StandardError => e
+      Rails.logger.error "Failed to delete domain: #{e.message}"
+
+      respond_to do |format|
+        format.json do
+          render json: {
+            success: false,
+            error: "Failed to delete domain: #{e.message}"
+          }, status: :internal_server_error
+        end
+      end
+    end
   end
 
   def update_domains
@@ -242,51 +333,69 @@ class DeploymentsController < ApplicationController
   def delete_database_configuration
     begin
       @database_configuration = @deployment.database_configuration
-      
+
       if @database_configuration.nil?
-        toast_error("No database configuration found to delete", title: "Not Found")
-        redirect_to configure_databases_deployment_path(@deployment)
+        respond_to do |format|
+          format.html do
+            toast_error("No database configuration found to delete", title: "Not Found")
+            redirect_to configure_databases_deployment_path(@deployment)
+          end
+          format.json do
+            render json: { success: false, message: "No database configuration found to delete" }, status: :not_found
+          end
+        end
         return
       end
-      
+
       unless @database_configuration.can_be_deleted?
-        toast_error("Database configuration cannot be deleted in its current state", title: "Cannot Delete")
-        redirect_to configure_databases_deployment_path(@deployment)
+        respond_to do |format|
+          format.html do
+            toast_error("Database configuration cannot be deleted in its current state", title: "Cannot Delete")
+            redirect_to configure_databases_deployment_path(@deployment)
+          end
+          format.json do
+            render json: { success: false, message: "Database configuration cannot be deleted in its current state" }, status: :unprocessable_entity
+          end
+        end
         return
       end
-      
-      # Detach and delete database on server
-      service = SshConnectionService.new(@deployment.server)
-      result = service.delete_database_configuration(@deployment.dokku_app_name, @database_configuration)
-      
-      if result[:success]
-        # Delete the database configuration record
-        db_name = @database_configuration.database_name
-        redis_name = @database_configuration.redis_name if @database_configuration.redis_enabled?
-        display_name = @database_configuration.display_name
-        
-        @database_configuration.destroy!
-        
-        log_activity('database_deleted', 
-                    details: "Deleted #{display_name} database configuration for deployment: #{@deployment.display_name}")
-        
-        success_message = "Database configuration deleted successfully! "
-        success_message += "#{display_name} database (#{db_name})"
-        success_message += " and Redis instance (#{redis_name})" if redis_name
-        success_message += " have been detached and deleted."
-        
-        toast_success(success_message, title: "Database Deleted")
-      else
-        log_activity('database_deletion_failed', 
-                    details: "Failed to delete database configuration for deployment: #{@deployment.display_name} - #{result[:error]}")
-        toast_error("Failed to delete database: #{result[:error]}", title: "Deletion Failed")
+
+      # Queue the deletion job to run in background
+      DeleteDatabaseConfigurationJob.perform_later(@deployment.id, current_user.id)
+
+      log_activity('database_deletion_started',
+                  details: "Started deletion of database configuration for deployment: #{@deployment.display_name}")
+
+      respond_to do |format|
+        format.html do
+          toast_info("Database deletion started in background. You'll be notified when complete.", title: "Deletion Started")
+          redirect_to configure_databases_deployment_path(@deployment)
+        end
+        format.json do
+          render json: {
+            success: true,
+            message: "Database deletion started in background",
+            redirect: configure_databases_deployment_path(@deployment)
+          }, status: :ok
+        end
       end
+
     rescue StandardError => e
-      Rails.logger.error "Database deletion failed: #{e.message}"
-      toast_error("An unexpected error occurred: #{e.message}", title: "Deletion Error")
+      Rails.logger.error "Failed to start database deletion: #{e.message}"
+
+      respond_to do |format|
+        format.html do
+          toast_error("An unexpected error occurred: #{e.message}", title: "Deletion Error")
+          redirect_to configure_databases_deployment_path(@deployment)
+        end
+        format.json do
+          render json: {
+            success: false,
+            message: "An unexpected error occurred: #{e.message}"
+          }, status: :internal_server_error
+        end
+      end
     end
-    
-    redirect_to configure_databases_deployment_path(@deployment)
   end
 
   def manage_environment

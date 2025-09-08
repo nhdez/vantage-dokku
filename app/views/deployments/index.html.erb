@@ -103,14 +103,10 @@
                           <%= link_to edit_deployment_path(deployment), class: "btn btn-sm btn-outline-secondary" do %>
                             <i class="fas fa-edit"></i>
                           <% end %>
-                          <%= link_to deployment_path(deployment), method: :delete,
-                              class: "btn btn-sm btn-outline-danger",
-                              data: { 
-                                confirm: "Are you sure you want to delete '#{deployment.name}'? This action cannot be undone.",
-                                turbo_method: :delete
-                              } do %>
+                          <button type="button" class="btn btn-sm btn-outline-danger"
+                                  onclick="confirmDeploymentDeletion('<%= deployment.uuid %>', '<%= deployment.name %>', '<%= deployment.dokku_app_name %>', '<%= deployment.server.name %>', this)">
                             <i class="fas fa-trash"></i>
-                          <% end %>
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -140,6 +136,202 @@
     </div>
   </div>
 </div>
+
+<script>
+function confirmDeploymentDeletion(deploymentUuid, deploymentName, dokkuAppName, serverName, buttonElement) {
+  // Create a detailed confirmation dialog
+  let warningMessage = "⚠️ CRITICAL WARNING: PERMANENT APP DELETION ⚠️\n\n";
+  warningMessage += "You are about to PERMANENTLY DELETE:\n\n";
+  warningMessage += `📱 Application: ${deploymentName}\n`;
+  warningMessage += `🔧 Dokku App: ${dokkuAppName}\n`;
+  warningMessage += `💻 From Server: ${serverName}\n\n`;
+
+  warningMessage += "⚡ THIS ACTION WILL:\n";
+  warningMessage += "━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+  warningMessage += "1. DESTROY the Dokku application on the server\n";
+  warningMessage += "2. DELETE all application data and containers\n";
+  warningMessage += "3. REMOVE all environment variables\n";
+  warningMessage += "4. DELETE all associated domains and SSL certificates\n";
+  warningMessage += "5. REMOVE all database connections\n";
+  warningMessage += "6. DELETE all deployment history and logs\n\n";
+
+  warningMessage += "⛔ THIS CANNOT BE UNDONE!\n";
+  warningMessage += "━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
+  warningMessage += "💡 IMPORTANT NOTES:\n";
+  warningMessage += "• The application will be completely removed from the server\n";
+  warningMessage += "• Any databases will remain but will be unlinked\n";
+  warningMessage += "• You will need to redeploy from scratch if needed\n\n";
+  warningMessage += `Type 'DELETE ${deploymentName}' to confirm:`;
+
+  const userInput = prompt(warningMessage);
+
+  if (userInput === `DELETE ${deploymentName}`) {
+    // Final confirmation
+    const finalConfirm = confirm(
+      `FINAL CONFIRMATION\n\n` +
+      `This will IMMEDIATELY and PERMANENTLY:\n` +
+      `• Destroy Dokku app '${dokkuAppName}' on server '${serverName}'\n` +
+      `• Delete the deployment '${deploymentName}' from your account\n` +
+      `• Remove ALL associated data\n\n` +
+      `Are you absolutely certain?`
+    );
+
+    if (finalConfirm) {
+      // Use the passed button element instead of event.target
+      const deleteBtn = buttonElement;
+      const originalHtml = deleteBtn.innerHTML;
+      deleteBtn.disabled = true;
+      deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+      // Submit deletion via AJAX (bypassing Turbo) - using UUID in URL
+      fetch(`/deployments/${deploymentUuid}`, {
+        method: 'DELETE',
+        headers: {
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      })
+      .then(response => {
+        // Check if response is ok and is JSON
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("Response is not JSON");
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.success) {
+          // Show success toast
+          showDeploymentToast('info', data.message, 'Deletion Started');
+
+          // Remove the row from the table with animation
+          const row = deleteBtn.closest('tr');
+          if (row) {
+            row.style.transition = 'opacity 0.5s';
+            row.style.opacity = '0.5';
+
+            setTimeout(() => {
+              row.remove();
+
+              // Check if table is now empty
+              const tbody = document.querySelector('tbody');
+              if (tbody && tbody.children.length === 0) {
+                // Reload page to show empty state
+                window.location.reload();
+              }
+            }, 500);
+          }
+        } else {
+          // Show error and restore button
+          showDeploymentToast('error', data.message || 'Failed to delete deployment', 'Error');
+          deleteBtn.disabled = false;
+          deleteBtn.innerHTML = originalHtml;
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+
+        // Check if this is a parsing error - might mean deletion actually started
+        if (error.message.includes('Response is not JSON') || error.message.includes('JSON')) {
+          // Assume it worked but returned HTML (redirect)
+          showDeploymentToast('info', 'Deletion request sent. The app will be removed from the server.', 'Processing');
+
+          // Remove the row anyway
+          const row = deleteBtn.closest('tr');
+          if (row) {
+            row.style.transition = 'opacity 0.5s';
+            row.style.opacity = '0.5';
+
+            setTimeout(() => {
+              row.remove();
+
+              // Check if table is now empty
+              const tbody = document.querySelector('tbody');
+              if (tbody && tbody.children.length === 0) {
+                window.location.reload();
+              }
+            }, 1000);
+          }
+        } else {
+          showDeploymentToast('error', 'An unexpected error occurred: ' + error.message, 'Error');
+          deleteBtn.disabled = false;
+          deleteBtn.innerHTML = originalHtml;
+        }
+      });
+    }
+  } else if (userInput !== null) {
+    // User entered wrong confirmation
+    showDeploymentToast('warning', `You must type exactly 'DELETE ${deploymentName}' to confirm`, 'Cancelled');
+  }
+}
+
+function showDeploymentToast(type, message, title) {
+  // Create toast notification
+  const toastHtml = `
+    <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'error' ? 'danger' : type === 'warning' ? 'warning' : 'info'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">
+          <strong>${title}:</strong> ${message}
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-mdb-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  `;
+
+  let toastContainer = document.querySelector('.toast-container');
+  if (!toastContainer) {
+    toastContainer = document.createElement('div');
+    toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+    document.body.appendChild(toastContainer);
+  }
+
+  toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+  const toastElement = toastContainer.lastElementChild;
+
+  // Initialize and show toast with MDB or fallback
+  if (typeof mdb !== 'undefined' && mdb.Toast) {
+    const toast = new mdb.Toast(toastElement);
+    toast.show();
+
+    toastElement.addEventListener('hidden.mdb.toast', () => {
+      toastElement.remove();
+    });
+  } else {
+    // Fallback for non-MDB environments
+    setTimeout(() => {
+      toastElement.remove();
+    }, 5000);
+  }
+}
+
+// Subscribe to deployment deletion updates for real-time notifications
+document.addEventListener('DOMContentLoaded', function() {
+  if (window.actionCableConsumer) {
+    const userId = '<%= current_user.id %>';
+
+    window.deploymentDeletionChannel = window.actionCableConsumer.subscriptions.create(
+      {
+        channel: "DeploymentDeletionChannel",
+        user_id: userId
+      },
+      {
+        received: function(data) {
+          if (data.type === 'success') {
+            showDeploymentToast('success', data.message, 'Deployment Deleted');
+          } else if (data.type === 'error') {
+            showDeploymentToast('error', data.message, 'Deletion Failed');
+          }
+        }
+      }
+    );
+  }
+});
+</script>
 
 <style>
 .text-gray-800 {

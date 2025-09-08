@@ -131,6 +131,139 @@ class SshConnectionService
     result
   end
 
+  def debug_dokku_domains(app_name)
+    result = {
+      success: false,
+      error: nil,
+      output: ''
+    }
+
+    begin
+      Timeout::timeout(COMMAND_TIMEOUT) do
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options
+        ) do |ssh|
+          debug_output = "=== Dokku Domain Debug for #{app_name} ===\n\n"
+
+          # Check if app exists
+          app_check = execute_command(ssh, "sudo dokku apps:list | grep #{app_name} || echo 'NOT_FOUND'")
+          debug_output += "App exists: #{!app_check&.include?('NOT_FOUND')}\n\n"
+
+          # Get domain configuration
+          debug_output += "=== Domain Configuration ===\n"
+          domains = execute_command(ssh, "sudo dokku domains:report #{app_name} 2>&1")
+          debug_output += domains if domains
+          debug_output += "\n"
+
+          # Check nginx configuration
+          debug_output += "=== Nginx Configuration ===\n"
+          nginx_conf = execute_command(ssh, "sudo cat /home/dokku/#{app_name}/nginx.conf 2>&1 | head -50")
+          debug_output += nginx_conf if nginx_conf
+          debug_output += "\n"
+
+          # Check SSL status
+          debug_output += "=== Let's Encrypt Status ===\n"
+          ssl_status = execute_command(ssh, "sudo dokku letsencrypt:list | grep #{app_name} || echo 'NO_SSL'")
+          debug_output += ssl_status if ssl_status
+          debug_output += "\n"
+
+          # Check certificate details
+          debug_output += "=== Certificate Details ===\n"
+          cert_info = execute_command(ssh, "sudo dokku letsencrypt:info #{app_name} 2>&1")
+          debug_output += cert_info if cert_info
+          debug_output += "\n"
+
+          # Check proxy ports
+          debug_output += "=== Proxy Ports ===\n"
+          ports = execute_command(ssh, "sudo dokku proxy:ports #{app_name} 2>&1")
+          debug_output += ports if ports
+          debug_output += "\n"
+
+          # List all apps and their domains for comparison
+          debug_output += "=== All Apps on Server ===\n"
+          all_apps = execute_command(ssh, "sudo dokku apps:list 2>&1")
+          debug_output += all_apps if all_apps
+          debug_output += "\n"
+
+          # Check for domain conflicts
+          debug_output += "=== Checking Domain Conflicts ===\n"
+          all_domains = execute_command(ssh, "for app in $(sudo dokku apps:list 2>/dev/null | grep -v '====' | grep .); do echo \"App: $app\"; sudo dokku domains:report $app --domains-app-vhosts 2>/dev/null; echo '---'; done")
+          debug_output += all_domains if all_domains
+
+          result[:output] = debug_output
+          result[:success] = true
+        end
+      end
+    rescue StandardError => e
+      result[:error] = "Debug failed: #{e.message}"
+    end
+
+    result
+  end
+
+  def destroy_dokku_app(app_name)
+    result = {
+      success: false,
+      error: nil,
+      output: ''
+    }
+
+    begin
+      Timeout::timeout(COMMAND_TIMEOUT) do
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options
+        ) do |ssh|
+          Rails.logger.info "Destroying Dokku app '#{app_name}' on #{@server.name}"
+
+          # Check if app exists first
+          check_app = execute_command(ssh, "sudo dokku apps:exists #{app_name} 2>&1")
+
+          if check_app.nil? || check_app.include?("does not exist")
+            Rails.logger.info "Dokku app '#{app_name}' does not exist on server, skipping destruction"
+            result[:success] = true
+            result[:output] = "App does not exist on server (already deleted or never created)"
+          else
+            # Destroy the app with --force to skip confirmation
+            destroy_output = execute_command(ssh, "sudo dokku apps:destroy #{app_name} --force 2>&1")
+
+            if destroy_output
+              result[:output] = destroy_output
+              result[:success] = !destroy_output.include?("ERROR") && !destroy_output.include?("failed")
+
+              if result[:success]
+                Rails.logger.info "Successfully destroyed Dokku app '#{app_name}' on #{@server.name}"
+              else
+                result[:error] = "Failed to destroy app: #{destroy_output}"
+                Rails.logger.error result[:error]
+              end
+            else
+              result[:error] = "No response from destroy command"
+            end
+          end
+
+          # Update last connected timestamp
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue Net::SSH::AuthenticationFailed => e
+      result[:error] = "Authentication failed. Please check your SSH key or password."
+    rescue Net::SSH::ConnectionTimeout, Timeout::Error => e
+      result[:error] = "Connection timeout. Server may be unreachable."
+    rescue Errno::ECONNREFUSED => e
+      result[:error] = "Connection refused. Check if SSH service is running on port #{@connection_details[:port]}."
+    rescue Errno::EHOSTUNREACH => e
+      result[:error] = "Host unreachable. Check the IP address and network connectivity."
+    rescue StandardError => e
+      result[:error] = "Failed to destroy app: #{e.message}"
+    end
+
+    result
+  end
+
   def create_dokku_app(app_name)
     result = {
       success: false,
@@ -239,6 +372,118 @@ class SshConnectionService
       result[:error] = "Environment variables sync failed: #{e.message}"
     end
     
+    result
+  end
+
+  def remove_domain_from_app(app_name, domain_to_remove)
+    result = {
+      success: false,
+      error: nil,
+      output: ''
+    }
+
+    begin
+      Timeout::timeout(DOMAIN_TIMEOUT) do
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options
+        ) do |ssh|
+          removal_output = "=== Removing Domain #{domain_to_remove} from App #{app_name} ===\n\n"
+
+          # Check if app exists
+          app_check = execute_command(ssh, "sudo dokku apps:list | grep '^#{app_name}$' || echo 'APP_NOT_FOUND'")
+          if app_check&.include?('APP_NOT_FOUND')
+            removal_output += "App '#{app_name}' does not exist.\n"
+            result[:success] = true  # Consider it success if app doesn't exist
+            result[:output] = removal_output
+            return result
+          end
+
+          # Get current domains
+          removal_output += "Getting current domains...\n"
+          current_domains_cmd = "sudo dokku domains:report #{app_name} --domains-app-vhosts 2>/dev/null"
+          current_domains_result = execute_command(ssh, current_domains_cmd)
+
+          if current_domains_result
+            current_domains = current_domains_result.split.reject { |d| d.empty? }
+            removal_output += "Current domains: #{current_domains.join(', ')}\n"
+
+            # Remove the specified domain
+            remaining_domains = current_domains - [domain_to_remove]
+
+            if remaining_domains.empty?
+              # If no domains left, clear all domains and disable SSL
+              removal_output += "\n=== No domains remaining, clearing all domains and SSL ===\n"
+
+              # Disable SSL first
+              removal_output += "Disabling SSL...\n"
+              disable_ssl = execute_command(ssh, "sudo dokku letsencrypt:disable #{app_name} 2>&1")
+              removal_output += disable_ssl if disable_ssl
+
+              # Clear all domains
+              removal_output += "Clearing all domains...\n"
+              clear_cmd = "sudo dokku domains:clear #{app_name} 2>&1"
+              clear_result = execute_command(ssh, clear_cmd)
+              removal_output += clear_result if clear_result
+
+              removal_output += "\nApp will now use default Dokku domain.\n"
+            else
+              # Update domains to remaining ones
+              removal_output += "\n=== Updating domains to remove #{domain_to_remove} ===\n"
+
+              # First disable SSL to avoid certificate conflicts
+              removal_output += "Temporarily disabling SSL...\n"
+              disable_ssl = execute_command(ssh, "sudo dokku letsencrypt:disable #{app_name} 2>&1")
+
+              # Set the new domain list
+              domains_string = remaining_domains.join(' ')
+              set_cmd = "sudo dokku domains:set #{app_name} #{domains_string} 2>&1"
+              removal_output += "Setting domains to: #{domains_string}\n"
+              set_result = execute_command(ssh, set_cmd)
+              removal_output += set_result if set_result
+
+              # Re-enable SSL for remaining domains (if app is deployed)
+              ps_check = execute_command(ssh, "sudo dokku ps:report #{app_name} --ps-running 2>&1")
+              if ps_check && ps_check.include?("true")
+                removal_output += "\n=== Re-enabling SSL for remaining domains ===\n"
+
+                # Clear any app-specific server setting that might be wrong
+                clear_server = "sudo dokku letsencrypt:set #{app_name} server 2>&1"
+                execute_command(ssh, clear_server)
+
+                # Enable SSL
+                ssl_cmd = "sudo dokku letsencrypt:enable #{app_name} 2>&1"
+                ssl_result = execute_long_command(ssh, ssl_cmd, 300)
+                removal_output += ssl_result if ssl_result
+
+                if ssl_result && (ssl_result.include?("Certificate retrieved successfully") || ssl_result.include?("done"))
+                  removal_output += "\n✅ SSL re-enabled for remaining domains.\n"
+                else
+                  removal_output += "\n⚠️ SSL may need manual configuration.\n"
+                end
+              else
+                removal_output += "\n⚠️ App not running, skipping SSL reconfiguration.\n"
+              end
+            end
+
+            removal_output += "\n✅ Domain #{domain_to_remove} removed successfully!\n"
+          else
+            removal_output += "Could not retrieve current domains.\n"
+          end
+
+          result[:output] = removal_output
+          result[:success] = true
+
+          # Update last connected timestamp
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue StandardError => e
+      result[:error] = "Domain removal failed: #{e.message}"
+      Rails.logger.error result[:error]
+    end
+
     result
   end
 
@@ -408,26 +653,27 @@ class SshConnectionService
       verify_host_key: :never, # For development - in production you might want to verify
       non_interactive: true
     }
-    
-    # Try SSH key first if available
+
+    # Initialize auth_methods array
+    options[:auth_methods] = []
+
+    # Prioritize password authentication if available
+    if @connection_details[:password].present?
+      options[:password] = @connection_details[:password]
+      options[:auth_methods] << 'password'
+    end
+
+    # Add public key authentication if keys are available
     if @connection_details[:keys].present?
       options[:keys] = @connection_details[:keys]
-      options[:auth_methods] = ['publickey']
-      
-      # Add password as fallback if available
-      if @connection_details[:password].present?
-        options[:password] = @connection_details[:password]
-        options[:auth_methods] << 'password'
-      end
-    elsif @connection_details[:password].present?
-      # Only password authentication
-      options[:password] = @connection_details[:password]
-      options[:auth_methods] = ['password']
-    else
-      # No authentication method available
+      options[:auth_methods] << 'publickey'
+    end
+
+    # If no auth methods are configured, raise an error
+    if options[:auth_methods].empty?
       raise StandardError, "No authentication method available (no SSH key or password configured)"
     end
-    
+
     options
   end
   
@@ -831,26 +1077,45 @@ class SshConnectionService
   
   def setup_initial_dokku_config(ssh)
     config_output = ""
-    
+
     # Set up the public key for Dokku (if we have one)
     if ENV['DOKKU_SSH_PUBLIC_KEY'].present?
       public_key = ENV['DOKKU_SSH_PUBLIC_KEY'].strip
-      
+
       # Add the public key to Dokku
       add_key_to_dokku = "echo '#{public_key}' | sudo dokku ssh-keys:add admin"
       config_output += ssh.exec!(add_key_to_dokku) || ""
       config_output += "✅ SSH key added to Dokku for admin user\n"
     end
-    
+
+    # Set global Let's Encrypt email for all apps on this server
+    if ENV['DOKKU_LETSENCRYPT_EMAIL'].present?
+      email = ENV['DOKKU_LETSENCRYPT_EMAIL'].strip
+      config_output += "\n=== Configuring Let's Encrypt Global Email ===\n"
+
+      # First install the Let's Encrypt plugin if not already installed
+      config_output += "Installing Let's Encrypt plugin...\n"
+      install_plugin = ssh.exec!("sudo dokku plugin:install https://github.com/dokku/dokku-letsencrypt.git 2>&1 || echo 'Plugin already installed'")
+      config_output += install_plugin || ""
+
+      # Set the global email for Let's Encrypt
+      set_email_cmd = "sudo dokku letsencrypt:set --global email #{email}"
+      email_output = ssh.exec!(set_email_cmd)
+      config_output += email_output || ""
+      config_output += "\n✅ Let's Encrypt global email set to: #{email}\n"
+    else
+      config_output += "\n⚠️ DOKKU_LETSENCRYPT_EMAIL not configured - SSL certificates will require manual email setup\n"
+    end
+
     # Set global domain (optional, can be configured later)
     # config_output += ssh.exec!("sudo dokku domains:set-global #{@server.ip}.nip.io") || ""
-    
-    config_output += "✅ Initial Dokku configuration completed\n"
+
+    config_output += "\n✅ Initial Dokku configuration completed\n"
     config_output += "\nNext steps:\n"
     config_output += "- Access Dokku at: http://#{@server.ip}\n"
     config_output += "- Use 'dokku apps:create myapp' to create your first app\n"
     config_output += "- Configure domains with 'dokku domains:set myapp yourdomain.com'\n"
-    
+
     config_output
   end
   
@@ -944,45 +1209,85 @@ class SshConnectionService
       
       if domain_names.any?
         sync_output += "Setting #{domain_names.count} domain#{'s' unless domain_names.count == 1}...\n"
-        
-        # Clear existing domains and set new ones
+
+        # First, clear existing domains to avoid conflicts
+        clear_cmd = "sudo dokku domains:clear #{app_name}"
+        clear_result = execute_command(ssh, clear_cmd + " 2>&1")
+        sync_output += "Clearing existing domains...\n"
+
+        # Set all domains at once
         domains_string = domain_names.join(' ')
         domains_cmd = "sudo dokku domains:set #{app_name} #{domains_string}"
-        
+
         # Execute the domains command
         domains_result = execute_command(ssh, domains_cmd + " 2>&1")
         sync_output += "Domain configuration:\n#{domains_result}\n" if domains_result
-        
-        # Enable SSL for each domain
-        domain_names.each do |domain_name|
-          sync_output += "\n=== Configuring SSL for #{domain_name} ===\n"
-          
-          # Install letsencrypt plugin if not already installed
-          letsencrypt_check = execute_command(ssh, "sudo dokku plugin:list | grep letsencrypt || echo 'NOT_INSTALLED'")
-          if letsencrypt_check&.include?('NOT_INSTALLED')
-            sync_output += "Installing Let's Encrypt plugin...\n"
-            install_result = execute_long_command(ssh, "sudo dokku plugin:install https://github.com/dokku/dokku-letsencrypt.git 2>&1", 300) # 5 minutes for plugin install
-            sync_output += install_result if install_result
-            sync_output += "\n"
-          end
-          
-          # Configure Let's Encrypt email (using a default)
-          email_cmd = "sudo dokku letsencrypt:set #{app_name} email admin@#{domain_name}"
+
+        # Now configure SSL for ALL domains at once
+        sync_output += "\n=== Configuring SSL for all domains ===\n"
+
+        # Install letsencrypt plugin if not already installed
+        letsencrypt_check = execute_command(ssh, "sudo dokku plugin:list | grep letsencrypt || echo 'NOT_INSTALLED'")
+        if letsencrypt_check&.include?('NOT_INSTALLED')
+          sync_output += "Installing Let's Encrypt plugin...\n"
+          install_result = execute_long_command(ssh, "sudo dokku plugin:install https://github.com/dokku/dokku-letsencrypt.git 2>&1", 300) # 5 minutes for plugin install
+          sync_output += install_result if install_result
+          sync_output += "\n"
+        end
+
+        # First, disable SSL if it was previously enabled (to clear old certificates)
+        sync_output += "Cleaning up any existing SSL configuration...\n"
+        disable_ssl_cmd = "sudo dokku letsencrypt:disable #{app_name}"
+        disable_result = execute_command(ssh, disable_ssl_cmd + " 2>&1")
+        # Don't show error if SSL wasn't enabled before
+
+        # Use configured Let's Encrypt email if available
+        letsencrypt_email = ENV['DOKKU_LETSENCRYPT_EMAIL']
+
+        if letsencrypt_email.present?
+          sync_output += "Setting Let's Encrypt email to: #{letsencrypt_email}\n"
+          # Set the email at app level to ensure it's used
+          email_cmd = "sudo dokku letsencrypt:set #{app_name} email #{letsencrypt_email}"
           email_result = execute_command(ssh, email_cmd + " 2>&1")
-          sync_output += "Email configuration: #{email_result}\n" if email_result
-          
-          # Enable SSL (this can take several minutes to request and validate certificates)
-          ssl_cmd = "sudo dokku letsencrypt:enable #{app_name}"
-          ssl_result = execute_long_command(ssh, ssl_cmd + " 2>&1", 300) # 5 minutes for SSL certificate generation
-          sync_output += "SSL configuration: #{ssl_result}\n" if ssl_result
-          
+          sync_output += email_result if email_result && email_result.include?("Setting")
+        else
+          sync_output += "⚠️ Warning: DOKKU_LETSENCRYPT_EMAIL not configured\n"
+          sync_output += "Using server's global Let's Encrypt email configuration\n"
+        end
+
+        # Ensure the app doesn't have a conflicting server setting
+        clear_server_cmd = "sudo dokku letsencrypt:set #{app_name} server"
+        execute_command(ssh, clear_server_cmd + " 2>&1")
+
+        # Note: Don't set the server unless using staging for testing
+        # The default production server is what we want
+        # For testing you could use: https://acme-staging-v02.api.letsencrypt.org/directory
+
+        # Enable auto-renewal
+        auto_renew_cmd = "sudo dokku letsencrypt:set #{app_name} auto-renew true"
+        auto_renew_result = execute_command(ssh, auto_renew_cmd + " 2>&1")
+        sync_output += "Enabling auto-renewal...\n"
+
+        # Enable SSL for ALL domains at once (this is the key - run ONCE after all domains are set)
+        sync_output += "\nRequesting SSL certificates for all domains...\n"
+        sync_output += "This may take a few minutes while Let's Encrypt validates the domains...\n"
+        ssl_cmd = "sudo dokku letsencrypt:enable #{app_name}"
+        ssl_result = execute_long_command(ssh, ssl_cmd + " 2>&1", 300) # 5 minutes for SSL certificate generation
+
+        if ssl_result
+          sync_output += "SSL Result:\n#{ssl_result}\n"
+
           # Check if SSL was successful
-          ssl_check = execute_command(ssh, "sudo dokku letsencrypt:list | grep #{app_name} || echo 'SSL_NOT_ENABLED'")
-          if ssl_check && !ssl_check.include?('SSL_NOT_ENABLED')
-            sync_output += "✅ SSL enabled successfully for #{domain_name}\n"
+          if ssl_result.include?("Certificate retrieved successfully") || ssl_result.include?("done")
+            sync_output += "✅ SSL certificates generated successfully for all domains!\n"
+          elsif ssl_result.include?("already exists")
+            sync_output += "✅ SSL certificates already exist and are valid.\n"
           else
-            sync_output += "⚠️ SSL configuration may have failed for #{domain_name}\n"
-            sync_output += "Note: Ensure DNS A record points to #{@server.ip} and domain is accessible\n"
+            sync_output += "⚠️ SSL configuration may have encountered issues.\n"
+            sync_output += "Common causes:\n"
+            sync_output += "• DNS A records not pointing to #{@server.ip}\n"
+            sync_output += "• Port 80/443 not accessible from internet\n"
+            sync_output += "• Rate limiting (too many certificate requests)\n"
           end
         end
         
@@ -993,10 +1298,29 @@ class SshConnectionService
           sync_output += verify_result
           sync_output += "\n"
         end
-        
+
+        # Check SSL status
+        ssl_status = execute_command(ssh, "sudo dokku letsencrypt:list | grep #{app_name} || echo 'NO_SSL'")
+        if ssl_status && !ssl_status.include?('NO_SSL')
+          sync_output += "=== SSL Status ===\n"
+          sync_output += ssl_status
+          sync_output += "\n"
+        end
+
+        # Show nginx ports to verify SSL is active
+        ports_check = execute_command(ssh, "sudo dokku proxy:ports #{app_name} 2>&1")
+        if ports_check
+          sync_output += "=== Port Configuration ===\n"
+          sync_output += ports_check
+          sync_output += "\n"
+        end
+
         sync_output += "\n✅ Domain configuration completed!\n"
         sync_output += "Domains are now configured with SSL certificates.\n"
-        sync_output += "\n📋 Important: Ensure DNS A records point to #{@server.ip}\n"
+        sync_output += "\n📋 Important Notes:\n"
+        sync_output += "• Ensure DNS A records point to #{@server.ip}\n"
+        sync_output += "• SSL certificates are shared per app, not per domain\n"
+        sync_output += "• Auto-renewal is enabled (certificates renew automatically)\n"
       else
         # Clear all domains (reset to default)
         clear_cmd = "sudo dokku domains:clear #{app_name}"

@@ -191,33 +191,20 @@ class ServersController < ApplicationController
   end
 
   def check_server_status_safely
-    # Perform a quick, non-blocking check of server status
-    # Return cached status or perform a very quick check with short timeout
-    
-    begin
-      # Quick ping-like check with very short timeout
-      Timeout::timeout(3) do
-        service = SshConnectionService.new(@server)
-        connection_result = service.test_connection
-        
-        return {
-          online: connection_result[:success],
-          message: connection_result[:message] || (connection_result[:success] ? "Server is responding" : "Server appears to be offline"),
-          last_checked: Time.current
-        }
-      end
-    rescue Timeout::Error
-      return {
-        online: false,
-        message: "Server connection timeout (may be restarting or offline)",
-        last_checked: Time.current
-      }
-    rescue StandardError => e
-      return {
-        online: false,
-        message: "Server status unknown: #{e.message}",
-        last_checked: Time.current
-      }
-    end
+    status = @server.connection_status
+    message = case status
+              when 'connected'
+                "Server is connected. Last checked: #{@server.last_connected_ago}."
+              when 'failed'
+                "Connection failed. Last attempt: #{@server.last_connected_ago}."
+              else # 'unknown'
+                "Server status is unknown. Test the connection to update."
+              end
+
+    {
+      online: @server.connected?,
+      message: message,
+      last_checked: @server.last_connected_at
+    }
   end
 end
