@@ -178,16 +178,58 @@ class SslVerificationService
       ssl_context = OpenSSL::SSL::SSLContext.new
       ssl_context.verify_mode = OpenSSL::SSL::VERIFY_NONE  # Just get cert info, don't verify
       ssl_socket = OpenSSL::SSL::SSLSocket.new(socket, ssl_context)
-      
+
       Timeout::timeout(TIMEOUT_SECONDS) do
         ssl_socket.connect
       end
-      
+
       cert = ssl_socket.peer_cert
-      
+
+      # Extract the common name and SANs from the certificate
+      common_name = nil
+      subject_alt_names = []
+
+      cert.subject.each do |name, value|
+        common_name = value if name[0] == 'CN'
+      end
+
+      # Get Subject Alternative Names (SANs)
+      begin
+        cert.extensions.each do |ext|
+          if ext.oid == 'subjectAltName'
+            # Parse the SAN extension
+            san_string = ext.value
+            # Extract DNS names from the SAN string
+            san_string.scan(/DNS:([^,\s]+)/).each do |match|
+              subject_alt_names << match[0]
+            end
+          end
+        end
+      rescue => e
+        Rails.logger.warn "Failed to parse SANs: #{e.message}"
+      end
+
+      # Check if the requested domain matches any of the certificate domains
+      all_cert_domains = [common_name, *subject_alt_names].compact.uniq
+      domain_matches = all_cert_domains.any? do |cert_domain|
+        # Check for exact match or wildcard match
+        if cert_domain.start_with?('*.')
+          # Wildcard certificate
+          wildcard_base = cert_domain[2..-1]
+          @domain_name.end_with?(wildcard_base) && @domain_name.count('.') == cert_domain.count('.')
+        else
+          # Exact match
+          cert_domain.downcase == @domain_name.downcase
+        end
+      end
+
       cert_info = {
         ssl_certificate_info: {
           subject: cert.subject.to_s,
+          common_name: common_name,
+          subject_alt_names: subject_alt_names,
+          all_domains: all_cert_domains,
+          domain_matches: domain_matches,
           issuer: cert.issuer.to_s,
           not_before: cert.not_before,
           not_after: cert.not_after,
@@ -197,10 +239,16 @@ class SslVerificationService
           signature_algorithm: cert.signature_algorithm
         }
       }
-      
+
+      # If domain doesn't match, update the error message
+      unless domain_matches
+        cert_info[:error_message] = "Certificate hostname mismatch: Certificate is for #{all_cert_domains.join(', ')} but requested domain is #{@domain_name}"
+        cert_info[:ssl_valid] = false
+      end
+
       ssl_socket.close
       socket.close
-      
+
       cert_info
       
     rescue => e

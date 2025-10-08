@@ -393,9 +393,17 @@
 
 
 <script>
-let databaseConfigurationChannel = null;
+// Use window scope and check if already exists to avoid redeclaration with Turbo
+if (typeof window.databaseConfigurationChannel === 'undefined') {
+  window.databaseConfigurationChannel = null;
+}
+if (typeof window.databaseDeletionChannel === 'undefined') {
+  window.databaseDeletionChannel = null;
+}
 
 document.addEventListener('DOMContentLoaded', function() {
+  // Subscribe to database deletion updates on page load
+  subscribeToDatabaseDeletion();
   // Handle form submission with AJAX
   const form = document.getElementById('database-form');
   if (form) {
@@ -487,8 +495,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Unsubscribe from channel
-    if (databaseConfigurationChannel) {
-      databaseConfigurationChannel.unsubscribe();
+    if (window.databaseConfigurationChannel) {
+      window.databaseConfigurationChannel.unsubscribe();
+      window.databaseConfigurationChannel = null;
     }
   }
 
@@ -513,13 +522,14 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function subscribeToDatabaseConfiguration() {
-    if (databaseConfigurationChannel) {
-      databaseConfigurationChannel.unsubscribe();
+    if (window.databaseConfigurationChannel) {
+      window.databaseConfigurationChannel.unsubscribe();
+      window.databaseConfigurationChannel = null;
     }
 
     const deploymentUuid = '<%= @deployment.uuid %>';
-    
-    databaseConfigurationChannel = window.actionCableConsumer.subscriptions.create(
+
+    window.databaseConfigurationChannel = window.actionCableConsumer.subscriptions.create(
       {
         channel: "DatabaseConfigurationChannel",
         deployment_uuid: deploymentUuid
@@ -527,16 +537,31 @@ document.addEventListener('DOMContentLoaded', function() {
       {
         received: function(data) {
           console.log('Received database configuration update:', data);
-          
+
           if (data.type === 'update') {
             updateProgressMessage(data.message);
           } else if (data.type === 'success') {
-            showNotification(data.message, 'success');
-            setTimeout(() => {
-              window.location.reload();
-            }, 2000);
+            // Show success notification with proper toast
+            showToast('success', data.message, 'Database Configuration Complete');
+
+            // Update the UI dynamically instead of reloading
+            updateDatabaseStatus('success', data.message);
+            updateCurrentConfiguration(data);
+
+            // Reset form and remove loading states
+            resetForm();
+
+            // Remove the background processing message
+            const bgMessage = document.getElementById('background-processing-message');
+            if (bgMessage) {
+              bgMessage.remove();
+            }
+
+            // Add a success alert to the form area
+            addSuccessAlert(data.message);
           } else if (data.type === 'error') {
-            showNotification(data.message, 'error');
+            showToast('error', data.message, 'Configuration Failed');
+            updateDatabaseStatus('error', data.message);
             resetForm();
           }
         },
@@ -561,17 +586,235 @@ document.addEventListener('DOMContentLoaded', function() {
         messageDiv.appendChild(div);
         return div;
       })();
-      
+
       progressDiv.innerHTML = `
         <i class="fas fa-info-circle text-primary me-2"></i>
         <strong>Progress:</strong> ${message}
       `;
     }
   }
-}
-  
-  // Handle database type selection highlighting
-  document.addEventListener('change', function(e) {
+
+  function showToast(type, message, title) {
+    // Create a proper toast notification using the app's toast system
+    const toastHtml = `
+      <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+          <div class="toast-body">
+            <strong>${title}:</strong> ${message}
+          </div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-mdb-dismiss="toast" aria-label="Close"></button>
+        </div>
+      </div>
+    `;
+
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+      toastContainer = document.createElement('div');
+      toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+      document.body.appendChild(toastContainer);
+    }
+
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+    const toastElement = toastContainer.lastElementChild;
+
+    // Use MDB toast if available, otherwise fallback
+    if (typeof mdb !== 'undefined' && mdb.Toast) {
+      const toast = new mdb.Toast(toastElement);
+      toast.show();
+
+      // Remove toast element after it's hidden
+      toastElement.addEventListener('hidden.mdb.toast', () => {
+        toastElement.remove();
+      });
+    } else {
+      // Fallback: show for 5 seconds then remove
+      setTimeout(() => {
+        toastElement.remove();
+      }, 5000);
+    }
+  }
+
+  function updateDatabaseStatus(status, message) {
+    // Update the Database Status card on the right sidebar
+    const statusCard = document.querySelector('.col-md-4 .card-body');
+    if (!statusCard) return;
+
+    if (status === 'success') {
+      // Parse the message to extract database info
+      const dbMatch = message.match(/(\w+)\s+\(([\w-]+)\)/);
+      const dbType = dbMatch ? dbMatch[1] : 'Database';
+      const dbName = dbMatch ? dbMatch[2] : 'configured';
+      const hasRedis = message.includes('Redis');
+
+      // Update the Database Status card content
+      const statusHtml = `
+        <div class="mb-3">
+          <h6 class="text-muted">Primary Database</h6>
+          <div class="d-flex align-items-center">
+            <i class="fas fa-database text-primary me-2"></i>
+            <div class="flex-grow-1">
+              <strong>${dbType}</strong>
+              <br><small class="text-muted">${dbName}</small>
+            </div>
+            <span class="badge bg-success">Configured</span>
+          </div>
+        </div>
+        ${hasRedis ? `
+        <div class="mb-3">
+          <h6 class="text-muted">Redis Cache</h6>
+          <div class="d-flex align-items-center">
+            <i class="fas fa-memory text-success me-2"></i>
+            <div class="flex-grow-1">
+              <strong>Redis</strong>
+              <br><small class="text-muted">redis-instance</small>
+            </div>
+            <span class="badge bg-success">Enabled</span>
+          </div>
+        </div>
+        ` : ''}
+        <div class="alert alert-success">
+          <i class="fas fa-check-circle me-2"></i>
+          <strong>Ready:</strong> Database is configured and available to your application.
+        </div>
+      `;
+
+      // Find the correct card body for Database Status
+      const databaseStatusCard = Array.from(document.querySelectorAll('.card-header')).find(header =>
+        header.textContent.includes('Database Status')
+      );
+
+      if (databaseStatusCard) {
+        const cardBody = databaseStatusCard.nextElementSibling;
+        if (cardBody) {
+          cardBody.innerHTML = statusHtml;
+        }
+      }
+    }
+  }
+
+  function updateCurrentConfiguration(data) {
+    // Update or add the Current Configuration alert in the main form area
+    const existingAlert = document.querySelector('.alert-success:has(.fa-check-circle)');
+
+    if (!existingAlert) {
+      // Find the form and add the alert before the submit button
+      const submitRow = document.querySelector('.row:has(#database-submit-btn)');
+      if (submitRow) {
+        const configAlert = document.createElement('div');
+        configAlert.className = 'alert alert-success mb-3';
+        configAlert.innerHTML = `
+          <i class="fas fa-check-circle me-2"></i>
+          <strong>Current Configuration:</strong>
+          <ul class="mb-0 mt-2">
+            <li><strong>Database:</strong> Configured successfully</li>
+            <li><strong>Status:</strong>
+              <span class="badge bg-success">Ready</span>
+            </li>
+          </ul>
+        `;
+        submitRow.parentNode.insertBefore(configAlert, submitRow);
+      }
+    }
+  }
+
+  function addSuccessAlert(message) {
+    // Add a success message at the top of the form
+    const formCard = document.querySelector('.col-md-8 .card-body');
+    if (!formCard) return;
+
+    // Remove any existing success alerts
+    const existingSuccessAlert = formCard.querySelector('.configuration-success-alert');
+    if (existingSuccessAlert) {
+      existingSuccessAlert.remove();
+    }
+
+    const successAlert = document.createElement('div');
+    successAlert.className = 'alert alert-success alert-dismissible fade show configuration-success-alert mb-3';
+    successAlert.innerHTML = `
+      <i class="fas fa-check-circle me-2"></i>
+      <strong>Success!</strong> ${message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    // Insert at the beginning of the card body
+    formCard.insertBefore(successAlert, formCard.firstChild);
+  }
+
+  function subscribeToDatabaseDeletion() {
+    if (window.databaseDeletionChannel) {
+      window.databaseDeletionChannel.unsubscribe();
+      window.databaseDeletionChannel = null;
+    }
+
+    const deploymentUuid = '<%= @deployment.uuid %>';
+
+    window.databaseDeletionChannel = window.actionCableConsumer.subscriptions.create(
+      {
+        channel: "DatabaseDeletionChannel",
+        deployment_uuid: deploymentUuid
+      },
+      {
+        received: function(data) {
+          console.log('Received database deletion update:', data);
+
+          if (data.type === 'success') {
+            // Show success notification
+            showToast('success', data.message, 'Database Deleted');
+
+            // Update the Database Status card to show no configuration
+            const databaseStatusCard = Array.from(document.querySelectorAll('.card-header')).find(header =>
+              header.textContent.includes('Database Status')
+            );
+
+            if (databaseStatusCard) {
+              const cardBody = databaseStatusCard.nextElementSibling;
+              if (cardBody) {
+                cardBody.innerHTML = `
+                  <div class="text-center py-3">
+                    <i class="fas fa-database fa-2x text-muted mb-2"></i>
+                    <p class="text-muted mb-0">No database configured</p>
+                    <small class="text-muted">Configure a database to get started</small>
+                  </div>
+                `;
+              }
+            }
+
+            // Remove any existing configuration alerts
+            const configAlert = document.querySelector('.alert-success:has(.fa-check-circle)');
+            if (configAlert && configAlert.textContent.includes('Current Configuration')) {
+              configAlert.remove();
+            }
+
+            // Refresh the page after a short delay to show the clean state
+            setTimeout(() => {
+              window.location.reload();
+            }, 3000);
+          } else if (data.type === 'error') {
+            showToast('error', data.message, 'Deletion Failed');
+
+            // Re-enable the delete button if it exists
+            const deleteBtn = document.querySelector('button[onclick*="confirmDeletion"]');
+            if (deleteBtn) {
+              deleteBtn.disabled = false;
+              deleteBtn.innerHTML = '<i class="fas fa-trash me-2"></i>Delete Database Configuration';
+            }
+          }
+        },
+
+        connected: function() {
+          console.log('Connected to database deletion channel');
+        },
+
+        disconnected: function() {
+          console.log('Disconnected from database deletion channel');
+        }
+      }
+    );
+  }
+});
+
+// Handle database type selection highlighting
+document.addEventListener('change', function(e) {
     if (e.target.name === 'database_configuration[database_type]') {
       // Remove highlighting from all cards
       document.querySelectorAll('.card.border-primary').forEach(function(card) {
@@ -600,34 +843,110 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
   });
-  
-});
 
-// Simple delete confirmation function
+// Enhanced delete confirmation function with detailed information
 function confirmDeletion(event) {
   event.preventDefault();
-  
-  const confirmed = confirm(
-    "⚠️  WARNING: This will permanently delete your database configuration!\n\n" +
-    "This action will:\n" +
-    "• Detach and delete the database from your app\n" +
-    "• Remove all database data (THIS CANNOT BE UNDONE)\n" +
-    "• Remove DATABASE_URL and REDIS_URL environment variables\n\n" +
-    "Are you absolutely sure you want to proceed?"
-  );
-  
-  if (confirmed) {
-    // Submit the form
-    const form = document.getElementById('simple-delete-form');
-    if (form) {
-      // Show loading state
-      const button = event.target.closest('button');
-      if (button) {
-        button.disabled = true;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Deleting...';
+
+  // Get database configuration details from the page
+  const dbTypeElement = document.querySelector('.card-body strong');
+  const dbNameElement = document.querySelector('.card-body small.text-muted');
+  const hasRedis = document.querySelector('.fa-memory') !== null;
+
+  const dbType = dbTypeElement ? dbTypeElement.textContent : 'Database';
+  const dbName = dbNameElement ? dbNameElement.textContent : 'database';
+
+  // Create a more detailed confirmation dialog
+  let warningMessage = "⚠️ CRITICAL WARNING: PERMANENT DATA DELETION ⚠️\n\n";
+  warningMessage += "You are about to PERMANENTLY DELETE:\n\n";
+  warningMessage += `📊 ${dbType} Database: ${dbName}\n`;
+
+  if (hasRedis) {
+    warningMessage += "💾 Redis Cache Instance\n";
+  }
+
+  warningMessage += "\n⚡ THIS ACTION WILL:\n";
+  warningMessage += "━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+  warningMessage += "1. Unlink the database from your application\n";
+  warningMessage += "2. PERMANENTLY DELETE ALL DATA in the database\n";
+  warningMessage += "3. Remove DATABASE_URL environment variable\n";
+
+  if (hasRedis) {
+    warningMessage += "4. Unlink and DELETE the Redis instance\n";
+    warningMessage += "5. Remove REDIS_URL environment variable\n";
+    warningMessage += "6. LOSE ALL CACHED DATA in Redis\n";
+  }
+
+  warningMessage += "\n⛔ THIS CANNOT BE UNDONE!\n";
+  warningMessage += "━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
+  warningMessage += "💡 RECOMMENDATION:\n";
+  warningMessage += "• Create a backup before proceeding\n";
+  warningMessage += "• Ensure your application can handle database removal\n\n";
+  warningMessage += "Type 'DELETE' to confirm this action:";
+
+  const userInput = prompt(warningMessage);
+
+  if (userInput === 'DELETE') {
+    // Double confirmation for extra safety
+    const finalConfirm = confirm(
+      `Final Confirmation:\n\n` +
+      `This will IMMEDIATELY and PERMANENTLY delete:\n` +
+      `• ${dbType} database: ${dbName}\n` +
+      (hasRedis ? `• Redis instance\n` : '') +
+      `• All associated data\n\n` +
+      `Last chance - Are you absolutely certain?`
+    );
+
+    if (finalConfirm) {
+      // Submit the form via AJAX for better user experience
+      const form = document.getElementById('simple-delete-form');
+      if (form) {
+        // Show loading state
+        const button = event.target.closest('button');
+        if (button) {
+          button.disabled = true;
+          button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Starting Deletion Process...';
+        }
+
+        // Submit form via AJAX to handle it in background
+        fetch(form.action, {
+          method: 'DELETE',
+          headers: {
+            'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.redirect) {
+            // Show success and redirect
+            showToast('info', 'Database deletion started in background. You will be notified when complete.', 'Deletion Started');
+            setTimeout(() => {
+              window.location.href = data.redirect;
+            }, 2000);
+          } else {
+            showToast('error', data.message || 'Failed to start deletion', 'Error');
+            // Reset button
+            if (button) {
+              button.disabled = false;
+              button.innerHTML = '<i class="fas fa-trash me-2"></i>Delete Database Configuration';
+            }
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          showToast('error', 'An unexpected error occurred', 'Error');
+          // Reset button
+          if (button) {
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-trash me-2"></i>Delete Database Configuration';
+          }
+        });
       }
-      form.submit();
     }
+  } else if (userInput !== null) {
+    // User entered something other than 'DELETE'
+    showToast('info', 'Deletion cancelled. You must type DELETE to confirm.', 'Cancelled');
   }
 }
 </script>

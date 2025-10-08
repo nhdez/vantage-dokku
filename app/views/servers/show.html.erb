@@ -39,7 +39,9 @@
             <div class="alert alert-<%= @server_status[:online] ? 'success' : 'warning' %> mb-3">
               <i class="fas fa-<%= @server_status[:online] ? 'check-circle' : 'exclamation-triangle' %> me-2"></i>
               <strong>Server Status:</strong> <%= @server_status[:message] %>
-              <small class="d-block mt-1">Last checked: <%= time_ago_in_words(@server_status[:last_checked]) %> ago</small>
+              <% if @server_status[:last_checked].present? %>
+                <small class="d-block mt-1">Last checked: <%= time_ago_in_words(@server_status[:last_checked]) %> ago</small>
+              <% end %>
             </div>
           <% end %>
           
@@ -541,17 +543,21 @@ function subscribeToTestConnection(serverUuid, btn, originalText) {
         
         if (data.success) {
           showToast('success', data.message, 'Connection Successful');
-          
-          // Update connection status section
-          updateConnectionStatus(data.connection_status);
-          
+
+          // Update connection status section with server data
+          updateConnectionStatus(data.connection_status, data.server_data);
+
           // Update server information section with new data
           if (data.server_data) {
             updateServerInformation(data.server_data);
           }
+
+          // Update the Server Status alert at the top of the page
+          updateServerStatusAlert(data.connection_status, data.server_data);
         } else {
           showToast('error', data.message, 'Connection Failed');
-          updateConnectionStatus(data.connection_status);
+          updateConnectionStatus(data.connection_status, null);
+          updateServerStatusAlert(data.connection_status, null);
         }
         
         // Unsubscribe after receiving the result
@@ -562,38 +568,160 @@ function subscribeToTestConnection(serverUuid, btn, originalText) {
   );
 }
 
-function updateConnectionStatus(status) {
+function updateServerStatusAlert(status, serverData) {
+  // Find or create the server status alert container
+  const cardBody = document.querySelector('.col-md-8 .card-body');
+  if (!cardBody) return;
+
+  let existingAlert = cardBody.querySelector('.alert:first-child');
+
+  // Build the alert HTML
+  let alertClass, icon, statusMessage;
+  if (status === 'connected') {
+    alertClass = 'alert-success';
+    icon = 'fa-check-circle';
+    if (serverData && serverData.last_connected_ago) {
+      statusMessage = `Server is connected. Last checked: ${serverData.last_connected_ago}.`;
+    } else {
+      statusMessage = 'Server is connected.';
+    }
+  } else if (status === 'failed') {
+    alertClass = 'alert-warning';
+    icon = 'fa-exclamation-triangle';
+    if (serverData && serverData.last_connected_ago) {
+      statusMessage = `Connection failed. Last attempt: ${serverData.last_connected_ago}.`;
+    } else {
+      statusMessage = 'Connection failed.';
+    }
+  } else {
+    alertClass = 'alert-warning';
+    icon = 'fa-question-circle';
+    statusMessage = 'Server status is unknown. Test the connection to update.';
+  }
+
+  const alertHtml = `
+    <div class="alert ${alertClass} mb-3">
+      <i class="fas ${icon} me-2"></i>
+      <strong>Server Status:</strong> ${statusMessage}
+      ${serverData && serverData.last_connected_at ?
+        `<small class="d-block mt-1">Last checked: just now</small>` : ''}
+    </div>
+  `;
+
+  if (existingAlert && existingAlert.classList.contains('alert')) {
+    // Replace existing alert
+    existingAlert.outerHTML = alertHtml;
+  } else {
+    // Insert new alert at the beginning of card body
+    cardBody.insertAdjacentHTML('afterbegin', alertHtml);
+  }
+}
+
+function updateConnectionStatus(status, serverData) {
   const statusSection = document.getElementById('connection-status-section');
-  let badgeClass, icon, statusText;
-  
+  let badgeClass, icon, statusText, resultText, resultIcon, resultClass, resultMessage;
+
   switch(status) {
     case 'connected':
       badgeClass = 'bg-success';
       icon = 'fas fa-check-circle';
       statusText = 'Connected';
+      resultText = 'Connection successful';
+      resultIcon = 'fas fa-check-circle';
+      resultClass = 'text-success';
+      resultMessage = 'Server is reachable';
       break;
     case 'failed':
       badgeClass = 'bg-danger';
       icon = 'fas fa-times-circle';
       statusText = 'Failed';
+      resultText = 'Connection failed';
+      resultIcon = 'fas fa-times-circle';
+      resultClass = 'text-danger';
+      resultMessage = 'Check credentials or network';
       break;
     default:
       badgeClass = 'bg-warning text-dark';
       icon = 'fas fa-question-circle';
       statusText = 'Unknown';
+      resultText = 'Status unknown';
+      resultIcon = 'fas fa-question-circle';
+      resultClass = 'text-warning';
+      resultMessage = 'Test connection to verify';
   }
-  
+
   // Update the status badge
   const badge = statusSection.querySelector('.badge');
   if (badge) {
     badge.className = `badge ${badgeClass} fs-6 px-3 py-2`;
     badge.innerHTML = `<i class="${icon} me-2"></i>${statusText}`;
   }
+
+  // Update the Last Test section
+  const lastTestDiv = statusSection.querySelector('.row.text-center .col-md-6:first-child p');
+  if (lastTestDiv && serverData && serverData.last_connected_at) {
+    // The last_connected_at is already formatted from Rails as "Month Day, Year at HH:MM AM/PM"
+    // So we just need to split it for display
+    const formattedDate = serverData.last_connected_at;
+    const parts = formattedDate.split(' at ');
+    if (parts.length === 2) {
+      lastTestDiv.innerHTML = `
+        ${parts[0]}
+        <br><small class="text-muted">${parts[1]}</small>
+      `;
+    } else {
+      // Fallback if format is different
+      lastTestDiv.innerHTML = formattedDate;
+    }
+  } else if (lastTestDiv && status === 'connected') {
+    // If connected but no date provided, show current time
+    const now = new Date();
+    lastTestDiv.innerHTML = `
+      ${now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+      <br><small class="text-muted">${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</small>
+    `;
+  }
+
+  // Update the Result section
+  const resultDiv = statusSection.querySelector('.row.text-center .col-md-6:last-child p');
+  if (resultDiv) {
+    resultDiv.className = `${resultClass} mb-0`;
+    resultDiv.innerHTML = `
+      <i class="${resultIcon} me-1"></i>
+      ${resultText}
+      <br><small class="text-muted">${resultMessage}</small>
+    `;
+  }
+
+  // Update or add the alert at the bottom
+  const existingAlert = statusSection.querySelector('.alert');
+  if (existingAlert) {
+    existingAlert.remove();
+  }
+
+  if (status === 'connected' && serverData && serverData.last_connected_ago) {
+    const alertHtml = `
+      <div class="alert alert-success mt-3 py-2">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Last successful connection:</strong> ${serverData.last_connected_ago}
+        <br><small>Server information was gathered and is up to date.</small>
+      </div>
+    `;
+    statusSection.insertAdjacentHTML('beforeend', alertHtml);
+  } else if (status === 'failed') {
+    const alertHtml = `
+      <div class="alert alert-warning mt-3 py-2">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>Connection issues detected.</strong> Try testing the connection again or check your SSH credentials.
+      </div>
+    `;
+    statusSection.insertAdjacentHTML('beforeend', alertHtml);
+  }
 }
 
 function updateServerInformation(serverData) {
   const serverInfoSection = document.getElementById('server-info-section');
-  
+
   // Create the updated system information HTML
   const systemInfoHtml = `
     <div class="row mb-3">
@@ -621,8 +749,8 @@ function updateServerInformation(serverData) {
       <div class="col-sm-4">
         <h6 class="text-muted mb-1">Dokku Version</h6>
         <p class="mb-0">
-          ${serverData.dokku_installed ? 
-            `<span class="badge bg-success fs-6">${serverData.dokku_version}</span>` : 
+          ${serverData.dokku_installed ?
+            `<span class="badge bg-success fs-6">${serverData.dokku_version}</span>` :
             '<span class="text-muted">Not detected</span>'
           }
         </p>
@@ -633,10 +761,28 @@ function updateServerInformation(serverData) {
       </div>
     </div>
   `;
-  
+
   // Update the server info section
   serverInfoSection.innerHTML = systemInfoHtml;
-  
+
+  // Also update the "Last Updated" field in the main Server Information card
+  // Find the h6 with "Last Updated" text, then get its sibling p element
+  const lastUpdatedHeading = Array.from(document.querySelectorAll('.col-md-8 .card-body h6'))
+    .find(h6 => h6.textContent.trim() === 'Last Updated');
+
+  if (lastUpdatedHeading) {
+    const lastUpdatedField = lastUpdatedHeading.nextElementSibling;
+    if (lastUpdatedField && lastUpdatedField.tagName === 'P') {
+      const now = new Date();
+      const formattedDate = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      const formattedTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      lastUpdatedField.innerHTML = `
+        ${formattedDate} at ${formattedTime}
+        <small class="text-muted d-block">just now</small>
+      `;
+    }
+  }
+
   // Add a subtle animation to indicate the update
   serverInfoSection.style.opacity = '0.5';
   setTimeout(() => {
