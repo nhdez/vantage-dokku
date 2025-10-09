@@ -48,3 +48,5 @@
 /config/credentials/production.key
 .kamal
 /.kamal
+/.kamal/
+/.github/

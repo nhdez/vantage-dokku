@@ -14,6 +14,7 @@ Rails.application.routes.draw do
       get :logs
       get :configure_domain
       post :update_domains
+      delete :delete_domain
       get :attach_ssh_keys
       post :update_ssh_keys
       get :manage_environment

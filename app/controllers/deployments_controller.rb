@@ -1,8 +1,8 @@
 class DeploymentsController < ApplicationController
   include ActivityTrackable
   
-  before_action :set_deployment, only: [:show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command, :server_logs, :start_log_streaming, :stop_log_streaming]
-  before_action :authorize_deployment, only: [:show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command, :server_logs, :start_log_streaming, :stop_log_streaming]
+  before_action :set_deployment, only: [:show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :delete_domain, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command, :server_logs, :start_log_streaming, :stop_log_streaming]
+  before_action :authorize_deployment, only: [:show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :delete_domain, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command, :server_logs, :start_log_streaming, :stop_log_streaming]
   
   def index
     @pagy, @deployments = pagy(current_user.deployments.includes(:server).recent, limit: 15)
@@ -132,6 +132,56 @@ class DeploymentsController < ApplicationController
   def configure_domain
     @domains = @deployment.domains.ordered
     log_activity('domains_viewed', details: "Viewed domain configuration for deployment: #{@deployment.display_name}")
+  end
+
+  def delete_domain
+    begin
+      domain_name = params[:domain_name]
+
+      if domain_name.blank?
+        respond_to do |format|
+          format.json { render json: { success: false, error: "Domain name is required" }, status: :bad_request }
+        end
+        return
+      end
+
+      # Find and verify the domain belongs to this deployment
+      domain = @deployment.domains.find_by(name: domain_name)
+
+      unless domain
+        respond_to do |format|
+          format.json { render json: { success: false, error: "Domain not found" }, status: :not_found }
+        end
+        return
+      end
+
+      # Remove domain from Dokku and clean up SSL
+      DeleteDomainJob.perform_later(@deployment.id, domain.id, current_user.id)
+
+      log_activity('domain_deletion_started',
+                  details: "Started deletion of domain #{domain_name} from deployment: #{@deployment.display_name}")
+
+      respond_to do |format|
+        format.json do
+          render json: {
+            success: true,
+            message: "Domain deletion started. SSL certificates will be cleaned up.",
+            domain_name: domain_name
+          }
+        end
+      end
+    rescue StandardError => e
+      Rails.logger.error "Failed to delete domain: #{e.message}"
+
+      respond_to do |format|
+        format.json do
+          render json: {
+            success: false,
+            error: "Failed to delete domain: #{e.message}"
+          }, status: :internal_server_error
+        end
+      end
+    end
   end
 
   def update_domains

@@ -224,11 +224,19 @@
                     <% end %>
                   </div>
                 </div>
-                <div class="d-flex flex-column align-items-end">
-                  <button type="button" class="btn btn-sm btn-outline-info check-ssl-btn" 
-                          data-domain="<%= domain.name %>" title="Check SSL Status">
-                    <i class="fas fa-sync"></i>
-                  </button>
+                <div class="d-flex flex-column align-items-end gap-2">
+                  <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-outline-info check-ssl-btn"
+                            data-domain="<%= domain.name %>" title="Check SSL Status">
+                      <i class="fas fa-sync"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger delete-domain-btn"
+                            data-domain="<%= domain.name %>"
+                            data-deployment-uuid="<%= @deployment.uuid %>"
+                            title="Delete Domain">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
                 </div>
               </div>
             <% end %>
@@ -571,6 +579,88 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
   
+  // Domain Deletion
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('.delete-domain-btn')) {
+      const button = e.target.closest('.delete-domain-btn');
+      const domainName = button.dataset.domain;
+      const deploymentUuid = button.dataset.deploymentUuid;
+
+      // Confirmation dialog
+      const warningMessage = `⚠️ DELETE DOMAIN: ${domainName}\n\n` +
+        `This will:\n` +
+        `• Remove the domain from this Dokku app\n` +
+        `• Delete SSL certificates for this domain\n` +
+        `• Stop routing traffic to this app\n\n` +
+        `The domain will become available for use with other apps.\n\n` +
+        `Type 'DELETE' to confirm:`;
+
+      const userInput = prompt(warningMessage);
+
+      if (userInput === 'DELETE') {
+        // Disable button and show loading
+        button.disabled = true;
+        const originalHtml = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        // Send delete request
+        fetch(`/deployments/${deploymentUuid}/delete_domain`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify({ domain_name: domainName })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            showToast('success', data.message, 'Domain Deleted');
+
+            // Remove the domain from the UI
+            const domainElement = button.closest('.list-group-item');
+            if (domainElement) {
+              domainElement.style.transition = 'opacity 0.5s';
+              domainElement.style.opacity = '0';
+              setTimeout(() => {
+                domainElement.remove();
+
+                // Check if no domains left
+                const remainingDomains = document.querySelectorAll('.list-group-item');
+                if (remainingDomains.length === 0) {
+                  // Show empty state
+                  const listGroup = document.querySelector('.list-group');
+                  if (listGroup) {
+                    listGroup.innerHTML = `
+                      <div class="text-center py-3">
+                        <i class="fas fa-globe fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No custom domains</p>
+                        <small class="text-muted">Using default Dokku domain</small>
+                      </div>
+                    `;
+                  }
+                }
+              }, 500);
+            }
+          } else {
+            showToast('error', data.error || 'Failed to delete domain', 'Error');
+            // Restore button
+            button.disabled = false;
+            button.innerHTML = originalHtml;
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          showToast('error', 'An unexpected error occurred', 'Error');
+          // Restore button
+          button.disabled = false;
+          button.innerHTML = originalHtml;
+        });
+      }
+    }
+  });
+
   // SSL Status Checking
   document.addEventListener('click', function(e) {
     if (e.target.closest('.check-ssl-btn')) {
