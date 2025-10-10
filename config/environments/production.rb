@@ -53,6 +53,22 @@ Rails.application.configure do
   config.active_job.queue_adapter = :solid_queue
   config.solid_queue.connects_to = { database: { writing: :queue } }
 
+  # ActionCable configuration for production
+  # Allow WebSocket connections from production domains
+  config.action_cable.allowed_request_origins = [
+    ENV.fetch("APP_HOST") { "localhost:3000" },
+    /https?:\/\/#{ENV.fetch("APP_HOST") { "localhost:3000" }}/,
+    /https?:\/\/.*\.herokuapp\.com/,
+    /https?:\/\/.*\.ngrok\.io/,
+    /https?:\/\/.*\.railway\.app/
+  ].compact
+
+  # Mount ActionCable under the same domain
+  config.action_cable.mount_path = "/cable"
+
+  # Use production cable URL if provided, otherwise default to relative path
+  config.action_cable.url = ENV.fetch("ACTION_CABLE_URL") { "/cable" }
+
   # Ignore bad email addresses and do not raise email delivery errors.
   # Set this to true and configure the email server for immediate delivery to raise delivery errors.
   # config.action_mailer.raise_delivery_errors = false
