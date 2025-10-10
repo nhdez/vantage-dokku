@@ -484,7 +484,10 @@ function copyToClipboard(button) {
   });
 }
 
-let testConnectionChannel = null;
+// Use window-scoped variable to avoid redeclaration with Turbo
+if (typeof window.testConnectionChannel === 'undefined') {
+  window.testConnectionChannel = null;
+}
 
 function testConnection(url) {
   const btn = document.getElementById('test-connection-btn');
@@ -525,12 +528,12 @@ function testConnection(url) {
 
 function subscribeToTestConnection(serverUuid, btn, originalText) {
   // Disconnect any existing channel
-  if (testConnectionChannel) {
-    testConnectionChannel.unsubscribe();
+  if (window.testConnectionChannel) {
+    window.testConnectionChannel.unsubscribe();
   }
-  
+
   // Subscribe to the test connection channel
-  testConnectionChannel = window.actionCableConsumer.subscriptions.create(
+  window.testConnectionChannel = window.actionCableConsumer.subscriptions.create(
     { 
       channel: "TestConnectionChannel",
       server_uuid: serverUuid
@@ -562,7 +565,7 @@ function subscribeToTestConnection(serverUuid, btn, originalText) {
         
         // Unsubscribe after receiving the result
         this.unsubscribe();
-        testConnectionChannel = null;
+        window.testConnectionChannel = null;
       }
     }
   );
