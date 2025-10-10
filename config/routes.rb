@@ -1,4 +1,8 @@
 Rails.application.routes.draw do
+  # PWA routes (must come early to prevent routing conflicts)
+  get "service-worker" => "pwa#service_worker", as: :pwa_service_worker
+  get "manifest" => "pwa#manifest", as: :pwa_manifest
+
   # Mount ActionCable
   mount ActionCable.server => '/cable'
   resources :linked_accounts do
