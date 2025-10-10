@@ -58,9 +58,11 @@ Rails.application.configure do
   config.action_cable.allowed_request_origins = [
     ENV.fetch("APP_HOST") { "localhost:3000" },
     /https?:\/\/#{ENV.fetch("APP_HOST") { "localhost:3000" }}/,
+    /https?:\/\/.*\.rails\.cl/,
     /https?:\/\/.*\.herokuapp\.com/,
     /https?:\/\/.*\.ngrok\.io/,
-    /https?:\/\/.*\.railway\.app/
+    /https?:\/\/.*\.railway\.app/,
+    /https?:\/\/.*\.app\.net\.fk/
   ].compact
 
   # Mount ActionCable under the same domain
