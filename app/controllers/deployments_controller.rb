@@ -653,7 +653,8 @@ class DeploymentsController < ApplicationController
 
   def run_command
     command = params[:command]&.strip
-    
+    raw_command = params[:raw_command] == '1'
+
     if command.blank?
       respond_to do |format|
         format.json do
@@ -671,10 +672,10 @@ class DeploymentsController < ApplicationController
     end
 
     # Start command execution in background
-    ExecuteCommandJob.perform_later(@deployment, current_user, command)
-    
+    ExecuteCommandJob.perform_later(@deployment, current_user, command, raw_command)
+
     log_activity('command_executed', details: "Executed command '#{command}' on deployment: #{@deployment.display_name}")
-    
+
     respond_to do |format|
       format.json do
         render json: {

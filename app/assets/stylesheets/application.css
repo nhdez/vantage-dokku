@@ -76,3 +76,38 @@ h1, h2, h3, h4, h5, h6,
 [data-theme="dark"] .divider-text {
   background: var(--bg-primary);
 }
+
+/* Dark mode for tables */
+
+/* Light mode (default) - tables stay white */
+:root[data-theme="light"] .table {
+  /* Default light styles - no changes needed */
+}
+
+/* Dark mode - tables go dark */
+:root[data-theme="dark"] .table,
+html[data-theme="dark"] .table {
+  --mdb-table-bg: #1e1e1e;
+  --mdb-table-color: #ffffff;
+  --mdb-table-striped-bg: #2a2a2a;
+  --mdb-table-hover-bg: #2d2d2d;
+  background-color: var(--mdb-table-bg);
+  color: var(--mdb-table-color);
+}
+
+html[data-theme="dark"] .table thead th,
+html[data-theme="dark"] .table tbody td {
+  background-color: inherit;
+  color: #ffffff;
+  border-color: #3a3a3a;
+}
+
+/* If using striped tables */
+html[data-theme="dark"] .table-striped tbody tr:nth-of-type(odd) {
+  background-color: var(--mdb-table-striped-bg);
+}
+
+/* If using hover effect */
+html[data-theme="dark"] .table-hover tbody tr:hover {
+  background-color: var(--mdb-table-hover-bg);
+}

@@ -11,6 +11,9 @@ class ApplicationController < ActionController::Base
   # Require authentication for most actions
   before_action :authenticate_user!
   
+  # Enforce maintenance mode
+  before_action :check_maintenance_mode
+  
   # Configure Devise permitted parameters
   before_action :configure_permitted_parameters, if: :devise_controller?
   
@@ -19,6 +22,19 @@ class ApplicationController < ActionController::Base
 
 
   private
+
+  def check_maintenance_mode
+    if AppSetting.get('maintenance_mode', false)
+      # Allow access to the maintenance page and session management
+      return if controller_name == 'home' && action_name == 'maintenance'
+      return if devise_controller?
+
+      # Redirect non-admins to the maintenance page
+      unless current_user&.admin?
+        redirect_to maintenance_path
+      end
+    end
+  end
 
   def user_not_authorized
     flash[:alert] = "You are not authorized to perform this action."

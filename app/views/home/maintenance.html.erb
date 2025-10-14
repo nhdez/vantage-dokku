@@ -1,0 +1,19 @@
+<% content_for :title, "Maintenance" %>
+<div class="container">
+  <div class="row justify-content-center mt-5">
+    <div class="col-md-8 text-center">
+      <i class="fas fa-tools fa-5x text-warning mb-4"></i>
+      <h1 class="display-4">Under Maintenance</h1>
+      <p class="lead">
+        We are currently performing scheduled maintenance.
+        The application will be back online shortly. We apologize for any inconvenience.
+      </p>
+      <% if current_user&.admin? %>
+        <p class="text-muted">
+          You are seeing this page because you are an administrator.
+        </p>
+        <%= link_to 'Go to Dashboard', dashboard_path, class: 'btn btn-primary' %>
+      <% end %>
+    </div>
+  </div>
+</div>
