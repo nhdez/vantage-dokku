@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= content_for?(:title) ? yield(:title) : "Vantage Dokku" %></title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <%= csrf_meta_tags %>
+  <%= csp_meta_tag %>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      overflow: hidden;
+    }
+
+    #tsparticles {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      background-color: #020617; /* bg-slate-950 */
+    }
+
+    .form-input-glow:focus {
+      box-shadow: 0 0 0 2px #1e293b, 0 0 0 4px #a78bfa; /* focus:shadow-[0_0_0_2px_#1e293b,0_0_0_4px_#a78bfa] */
+    }
+    
+    .btn-glow:hover {
+      box-shadow: 0 0 20px rgba(167, 139, 250, 0.5);
+    }
+
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover, 
+    input:-webkit-autofill:focus, 
+    input:-webkit-autofill:active {
+      -webkit-box-shadow: 0 0 0 30px #0f172a inset !important; /* bg-slate-900 */
+      -webkit-text-fill-color: #f8fafc !important; /* text-slate-50 */
+      transition: background-color 5000s ease-in-out 0s;
+    }
+  </style>
+</head>
+<body class="text-slate-200">
+  <div id="tsparticles"></div>
+
+  <div class="relative min-h-screen flex">
+    <!-- Left Promotional Side -->
+    <div class="hidden lg:flex w-[45%] flex-col items-start justify-center p-20 relative">
+      <div class="mb-12">
+        <%= image_tag "/img/vantage_logo.svg", alt: "Vantage Dokku", class: "h-10" %>
+      </div>
+      <h1 class="text-5xl font-extrabold text-white mb-6 leading-tight tracking-tight">
+        The Ultimate Dokku Control Panel.
+      </h1>
+      <p class="text-lg text-slate-400 mb-12 max-w-lg">
+        Stop wrestling with the command line. Vantage gives you a beautiful, powerful interface to manage your applications, servers, and deployments with ease.
+      </p>
+      <div class="space-y-6">
+        <div class="flex items-start">
+          <i class="fas fa-rocket text-violet-400 mt-1 mr-4 text-xl"></i>
+          <div>
+            <h3 class="font-semibold text-white">Effortless Deployments</h3>
+            <p class="text-slate-400">Go from Git repository to a live URL in minutes.</p>
+          </div>
+        </div>
+        <div class="flex items-start">
+          <i class="fas fa-sliders-h text-violet-400 mt-1 mr-4 text-xl"></i>
+          <div>
+            <h3 class="font-semibold text-white">Total Control</h3>
+            <p class="text-slate-400">Manage domains, databases, and environment variables.</p>
+          </div>
+        </div>
+        <div class="flex items-start">
+          <i class="fas fa-shield-alt text-violet-400 mt-1 mr-4 text-xl"></i>
+          <div>
+            <h3 class="font-semibold text-white">Secure & Automated</h3>
+            <p class="text-slate-400">Automatic Let's Encrypt SSL and SSH key management.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Form Side -->
+    <div class="flex-1 flex items-center justify-center p-6 lg:p-12">
+      <div class="w-full max-w-md relative z-10">
+        <%= yield %>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/tsparticles@2.12.0/tsparticles.bundle.min.js"></script>
+  <script>
+    tsParticles.load("tsparticles", {
+      background: {
+        color: { value: "#020617" },
+      },
+      fpsLimit: 60,
+      interactivity: {
+        events: {
+          onHover: { enable: true, mode: "grab" },
+          resize: true,
+        },
+        modes: {
+          grab: { distance: 200, links: { opacity: 0.3 } },
+        },
+      },
+      particles: {
+        color: { value: "#475569" },
+        links: {
+          color: "#334155",
+          distance: 150,
+          enable: true,
+          opacity: 0.2,
+          width: 1,
+        },
+        collisions: { enable: true },
+        move: {
+          direction: "none",
+          enable: true,
+          outModes: { default: "bounce" },
+          random: false,
+          speed: 0.5,
+          straight: false,
+        },
+        number: {
+          density: { enable: true, area: 800 },
+          value: 80,
+        },
+        opacity: { value: 0.3 },
+        shape: { type: "circle" },
+        size: { value: { min: 1, max: 3 } },
+      },
+      detectRetina: true,
+    });
+  </script>
+</body>
+</html>

@@ -74,8 +74,9 @@ Rails.application.routes.draw do
     end
   end
   devise_for :users, controllers: {
-    sessions: 'sessions',
-    registrations: 'registrations',
+    sessions: 'users/sessions',
+    registrations: 'users/registrations',
+    passwords: 'users/passwords',
     omniauth_callbacks: 'users/omniauth_callbacks'
   }
 
