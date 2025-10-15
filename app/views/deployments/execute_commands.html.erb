@@ -37,12 +37,12 @@
           <div class="mb-3">
             <%= form_with url: run_command_deployment_path(@deployment), method: :post, local: false, id: "command-form" do |f| %>
               <div class="input-group">
-                <span class="input-group-text bg-dark text-white">
+                <span class="input-group-text bg-dark text-white" id="command-prefix">
                   <i class="fas fa-terminal me-1"></i>
                   dokku run <%= @deployment.dokku_app_name %>
                 </span>
-                <%= text_field_tag :command, "", 
-                    class: "form-control", 
+                <%= text_field_tag :command, "",
+                    class: "form-control",
                     placeholder: "Enter your command (e.g., rails db:migrate, bundle exec rake task:run)",
                     autocomplete: "off",
                     id: "command-input" %>
@@ -50,13 +50,19 @@
                   <i class="fas fa-play me-2"></i>Execute
                 </button>
               </div>
+              <div class="d-flex justify-content-between align-items-center mt-2">
+                <div class="form-text">
+                  <i class="fas fa-info-circle me-1"></i>
+                  <span id="command-help-text">Commands will be executed as: <code>sudo dokku run <%= @deployment.dokku_app_name %> [your-command]</code></span><br>
+                  <i class="fas fa-magic me-1"></i>
+                  Rails commands (rails, rake, etc.) will automatically be prefixed with <code>bundle exec</code>
+                </div>
+                <div class="form-check form-switch">
+                  <%= check_box_tag :raw_command, '1', false, class: 'form-check-input', id: 'raw-command-switch' %>
+                  <%= label_tag 'raw-command-switch', 'Raw Command', class: 'form-check-label' %>
+                </div>
+              </div>
             <% end %>
-            <div class="form-text">
-              <i class="fas fa-info-circle me-1"></i>
-              Commands will be executed as: <code>sudo dokku run <%= @deployment.dokku_app_name %> [your-command]</code><br>
-              <i class="fas fa-magic me-1"></i>
-              Rails commands (rails, rake, etc.) will automatically be prefixed with <code>bundle exec</code>
-            </div>
           </div>
 
           <!-- Command Output -->
@@ -393,6 +399,25 @@
   document.addEventListener('DOMContentLoaded', function() {
     // Focus on command input
     document.getElementById('command-input').focus();
+
+    // Handle raw command switch
+    const rawSwitch = document.getElementById('raw-command-switch');
+    const commandPrefix = document.getElementById('command-prefix');
+    const commandHelpText = document.getElementById('command-help-text');
+    const commandInput = document.getElementById('command-input');
+    const appName = '<%= @deployment.dokku_app_name %>';
+
+    rawSwitch.addEventListener('change', function() {
+      if (this.checked) {
+        commandPrefix.innerHTML = '<i class="fas fa-terminal me-1"></i> dokku';
+        commandHelpText.innerHTML = `Commands will be executed as: <code>sudo dokku [your-command]</code>`;
+        commandInput.placeholder = `Enter your command (e.g., ps:report ${appName}, domains:list ${appName})`;
+      } else {
+        commandPrefix.innerHTML = `<i class="fas fa-terminal me-1"></i> dokku run ${appName}`;
+        commandHelpText.innerHTML = `Commands will be executed as: <code>sudo dokku run ${appName} [your-command]</code>`;
+        commandInput.placeholder = "Enter your command (e.g., rails db:migrate, bundle exec rake task:run)";
+      }
+    });
   });
 </script>
 

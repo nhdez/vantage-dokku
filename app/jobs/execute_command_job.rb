@@ -3,14 +3,15 @@ require 'net/ssh'
 class ExecuteCommandJob < ApplicationJob
   queue_as :default
 
-  def perform(deployment, user, command)
+  def perform(deployment, user, command, raw_command = false)
     @deployment = deployment
     @user = user
     @command = command
+    @raw_command = raw_command
     @server = deployment.server
     @connection_details = @server.connection_details
     
-    Rails.logger.info "[ExecuteCommandJob] Starting command execution: '#{@command}' for deployment #{@deployment.uuid}"
+    Rails.logger.info "[ExecuteCommandJob] Starting command execution: '#{@command}' for deployment #{@deployment.uuid} (Raw: #{@raw_command})"
     
     begin
       # Broadcast that command execution is starting
@@ -74,7 +75,12 @@ class ExecuteCommandJob < ApplicationJob
     
     # Prepare the command with proper formatting
     prepared_command = prepare_command(@command)
-    full_command = "sudo dokku run #{app_name} #{prepared_command}"
+    
+    full_command = if @raw_command
+                     "sudo dokku #{prepared_command}"
+                   else
+                     "sudo dokku run #{app_name} #{prepared_command}"
+                   end
     
     Rails.logger.info "[ExecuteCommandJob] Executing: #{full_command}"
     broadcast_message("Executing: #{full_command}")
@@ -112,6 +118,9 @@ class ExecuteCommandJob < ApplicationJob
   def prepare_command(command)
     # Handle different types of commands appropriately
     cmd = command.strip
+    
+    # If in raw mode, don't add any prefixes
+    return cmd if @raw_command
     
     # Rails commands need bundle exec prefix
     rails_commands = [
