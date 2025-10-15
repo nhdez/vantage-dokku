@@ -1,8 +1,8 @@
 class User < ApplicationRecord
   rolify
   # Include default devise modules. Others available are:
-  # :confirmable, :lockable, :timeoutable, :trackable and :omniauthable
-  devise :database_authenticatable, :registerable,
+  # :lockable, :timeoutable, :trackable and :omniauthable
+  devise :database_authenticatable, :registerable, :confirmable,
          :recoverable, :rememberable, :validatable, :omniauthable,
          omniauth_providers: [:google_oauth2]
 
@@ -28,6 +28,12 @@ class User < ApplicationRecord
   validates :first_name, :last_name, length: { maximum: 50 }, allow_blank: true
   validates :theme, inclusion: { in: %w[light dark auto] }
   validate :profile_picture_validation
+
+  protected
+
+  def confirmation_required?
+    AppSetting.get('require_email_confirmation', false)
+  end
 
   private
 
