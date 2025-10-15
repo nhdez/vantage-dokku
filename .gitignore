@@ -50,3 +50,6 @@
 /.kamal
 /.kamal/
 /.github/
+
+# Ignore landing folder and all its contents
+/landing/

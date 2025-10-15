@@ -241,16 +241,6 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_15_132321) do
     t.index ["uuid"], name: "index_servers_on_uuid", unique: true
   end
 
-  create_table "solid_cable_messages", force: :cascade do |t|
-    t.binary "channel", null: false
-    t.binary "payload", null: false
-    t.datetime "created_at", null: false
-    t.bigint "channel_hash", null: false
-    t.index ["channel"], name: "index_solid_cable_messages_on_channel"
-    t.index ["channel_hash"], name: "index_solid_cable_messages_on_channel_hash"
-    t.index ["created_at"], name: "index_solid_cable_messages_on_created_at"
-  end
-
   create_table "solid_queue_blocked_executions", force: :cascade do |t|
     t.bigint "job_id", null: false
     t.string "queue_name", null: false
