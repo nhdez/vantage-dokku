@@ -81,7 +81,7 @@
                       </td>
                       <td>
                         <% if deployment.dokku_url.present? %>
-                          <%= link_to root_path,
+                          <%= link_to deployment.dokku_url,
                               target: "_blank", rel: "noopener", 
                               class: "text-decoration-none small" do %>
                             <i class="fas fa-external-link-alt me-1"></i>
