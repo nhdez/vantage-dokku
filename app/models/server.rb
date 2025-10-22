@@ -5,6 +5,7 @@ class Server < ApplicationRecord
   
   belongs_to :user
   has_many :deployments, dependent: :destroy
+  has_many :firewall_rules, dependent: :destroy
   
   # Encrypt sensitive password data
   encrypts :password, deterministic: false
