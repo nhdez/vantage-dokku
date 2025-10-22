@@ -827,8 +827,9 @@ class DeploymentsController < ApplicationController
       database_url_from_dokku = dokku_config[db_env_var_name]
 
       # Update database_configuration if URL is missing or different
+      # Use update_columns to skip validations (the conflict check would fail since we're about to create the env var)
       if @database_configuration.database_url != database_url_from_dokku
-        @database_configuration.update!(database_url: database_url_from_dokku)
+        @database_configuration.update_columns(database_url: database_url_from_dokku)
         Rails.logger.info "[DeploymentsController] Updated database_url in database_configuration for deployment #{@deployment.uuid}"
       end
 
@@ -851,8 +852,9 @@ class DeploymentsController < ApplicationController
       redis_url_from_dokku = dokku_config[redis_env_var_name]
 
       # Update database_configuration if URL is missing or different
+      # Use update_columns to skip validations (the conflict check would fail since we're about to create the env var)
       if @database_configuration.redis_url != redis_url_from_dokku
-        @database_configuration.update!(redis_url: redis_url_from_dokku)
+        @database_configuration.update_columns(redis_url: redis_url_from_dokku)
         Rails.logger.info "[DeploymentsController] Updated redis_url in database_configuration for deployment #{@deployment.uuid}"
       end
 
