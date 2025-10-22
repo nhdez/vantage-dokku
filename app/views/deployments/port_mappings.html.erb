@@ -1,0 +1,421 @@
+<% content_for :title, "Port Mappings - #{@deployment.name}" %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-network-wired me-2 text-primary"></i>
+            Port Mappings
+          </h1>
+          <p class="text-muted mb-0">Manage port mappings for <%= @deployment.name %></p>
+        </div>
+        <div>
+          <%= link_to @deployment, class: "btn btn-outline-secondary" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to App
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Port Mappings Management -->
+    <div class="col-md-8">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-network-wired me-2"></i>Port Mappings Configuration
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Port Mapping Format:</strong> scheme:host_port:container_port (e.g., http:80:5000)
+          </div>
+
+          <!-- Add New Port Mapping Form -->
+          <div class="card mb-4">
+            <div class="card-header bg-light">
+              <h6 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Add New Port Mapping</h6>
+            </div>
+            <div class="card-body">
+              <%= form_with url: add_port_mapping_deployment_path(@deployment), method: :post, local: false, id: "add-port-form" do |form| %>
+                <div class="row g-3">
+                  <div class="col-md-3">
+                    <label class="form-label">Scheme</label>
+                    <%= select_tag :scheme, options_for_select([['HTTP', 'http'], ['HTTPS', 'https']], 'http'),
+                        class: "form-select", required: true %>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Host Port</label>
+                    <%= number_field_tag :host_port, nil,
+                        class: "form-control",
+                        placeholder: "e.g., 80",
+                        min: 1, max: 65535,
+                        required: true %>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Container Port</label>
+                    <%= number_field_tag :container_port, nil,
+                        class: "form-control",
+                        placeholder: "e.g., 5000",
+                        min: 1, max: 65535,
+                        required: true %>
+                  </div>
+                  <div class="col-md-1 d-flex align-items-end">
+                    <%= button_tag type: "submit", class: "btn btn-primary w-100", id: "add-port-btn" do %>
+                      <i class="fas fa-plus"></i>
+                    <% end %>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          </div>
+
+          <!-- Current Port Mappings -->
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0">Current Port Mappings</h6>
+            <div class="btn-group" role="group">
+              <%= button_tag type: "button", class: "btn btn-outline-info btn-sm", id: "sync-ports-btn" do %>
+                <i class="fas fa-sync me-1"></i>Sync from Dokku
+              <% end %>
+              <% if @port_mappings.any? %>
+                <%= button_tag type: "button", class: "btn btn-outline-danger btn-sm", id: "clear-all-ports-btn" do %>
+                  <i class="fas fa-trash me-1"></i>Clear All
+                <% end %>
+              <% end %>
+            </div>
+          </div>
+
+          <div id="port-mappings-container">
+            <% if @port_mappings.any? %>
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Scheme</th>
+                      <th>Host Port</th>
+                      <th>Container Port</th>
+                      <th>Mapping</th>
+                      <th class="text-end">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% @port_mappings.each do |port_mapping| %>
+                      <tr data-port-mapping-id="<%= port_mapping.id %>">
+                        <td>
+                          <span class="badge <%= port_mapping.scheme == 'https' ? 'bg-success' : 'bg-info' %>">
+                            <%= port_mapping.scheme.upcase %>
+                          </span>
+                        </td>
+                        <td><strong><%= port_mapping.host_port %></strong></td>
+                        <td><strong><%= port_mapping.container_port %></strong></td>
+                        <td><code><%= port_mapping.display_name %></code></td>
+                        <td class="text-end">
+                          <%= button_tag type: "button",
+                              class: "btn btn-danger btn-sm remove-port-btn",
+                              data: { port_mapping_id: port_mapping.id } do %>
+                            <i class="fas fa-trash"></i>
+                          <% end %>
+                        </td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            <% else %>
+              <div class="text-center py-5" id="no-ports-message">
+                <i class="fas fa-network-wired fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Port Mappings Configured</h5>
+                <p class="text-muted mb-4">Add port mappings to route traffic to your application.</p>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Information Sidebar -->
+    <div class="col-md-4">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-info-circle me-2"></i>Port Mappings Summary
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <h6 class="text-muted">Total Mappings</h6>
+            <h3 class="text-primary"><%= @port_mappings.count %></h3>
+          </div>
+
+          <% if @port_mappings.any? %>
+            <div class="mb-3">
+              <h6 class="text-muted">Schemes in Use</h6>
+              <% @port_mappings.group_by(&:scheme).each do |scheme, mappings| %>
+                <div class="d-flex justify-content-between mb-1">
+                  <span class="badge <%= scheme == 'https' ? 'bg-success' : 'bg-info' %>">
+                    <%= scheme.upcase %>
+                  </span>
+                  <span class="text-muted"><%= mappings.count %> mapping(s)</span>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-server me-2"></i>Deployment Info
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <h6 class="text-muted">Dokku App Name</h6>
+            <code class="text-info"><%= @deployment.dokku_app_name %></code>
+          </div>
+
+          <div class="mb-3">
+            <h6 class="text-muted">Target Server</h6>
+            <div class="d-flex align-items-center">
+              <i class="fas fa-server text-secondary me-2"></i>
+              <%= @deployment.server_name %>
+            </div>
+            <small class="text-muted"><%= @deployment.server.ip %></small>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-lightbulb me-2"></i>Port Mapping Guide
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-success">
+            <i class="fas fa-check-circle me-2"></i>
+            <strong>Common Mappings:</strong>
+            <ul class="mb-0 mt-2">
+              <li><code>http:80:5000</code> - HTTP on port 80</li>
+              <li><code>https:443:5000</code> - HTTPS on port 443</li>
+            </ul>
+          </div>
+
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>How it works:</strong> Port mappings route external traffic from your host port to your application's container port.
+          </div>
+
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Note:</strong> Changes are applied immediately to your Dokku application.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const addPortForm = document.getElementById('add-port-form');
+  const addPortBtn = document.getElementById('add-port-btn');
+  const originalBtnHtml = addPortBtn.innerHTML;
+
+  // Handle add port form submission
+  if (addPortForm) {
+    addPortForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      // Show loading state
+      addPortBtn.disabled = true;
+      addPortBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+      const formData = new FormData(addPortForm);
+
+      fetch(addPortForm.action, {
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+          'Accept': 'application/json'
+        },
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        // Reset button
+        addPortBtn.disabled = false;
+        addPortBtn.innerHTML = originalBtnHtml;
+
+        if (data.success) {
+          showToast('success', data.message, 'Port Added');
+          // Reload page to show new port
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          showToast('error', data.message, 'Add Failed');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        addPortBtn.disabled = false;
+        addPortBtn.innerHTML = originalBtnHtml;
+        showToast('error', 'An unexpected error occurred', 'Add Error');
+      });
+    });
+  }
+
+  // Handle remove port buttons
+  document.addEventListener('click', function(e) {
+    const removeBtn = e.target.closest('.remove-port-btn');
+    if (removeBtn) {
+      if (!confirm('Are you sure you want to remove this port mapping?')) {
+        return;
+      }
+
+      const portMappingId = removeBtn.dataset.portMappingId;
+      const row = removeBtn.closest('tr');
+
+      fetch('<%= remove_port_mapping_deployment_path(@deployment) %>?port_mapping_id=' + portMappingId, {
+        method: 'DELETE',
+        headers: {
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+          'Accept': 'application/json'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          showToast('success', data.message, 'Port Removed');
+          // Remove row and reload if needed
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          showToast('error', data.message, 'Remove Failed');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        showToast('error', 'An unexpected error occurred', 'Remove Error');
+      });
+    }
+  });
+
+  // Handle sync button
+  const syncBtn = document.getElementById('sync-ports-btn');
+  if (syncBtn) {
+    syncBtn.addEventListener('click', function() {
+      syncBtn.disabled = true;
+      syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Syncing...';
+
+      fetch('<%= sync_port_mappings_deployment_path(@deployment) %>', {
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+          'Accept': 'application/json'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        syncBtn.disabled = false;
+        syncBtn.innerHTML = '<i class="fas fa-sync me-1"></i>Sync from Dokku';
+
+        if (data.success) {
+          showToast('success', data.message, 'Sync Complete');
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          showToast('error', data.message, 'Sync Failed');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        syncBtn.disabled = false;
+        syncBtn.innerHTML = '<i class="fas fa-sync me-1"></i>Sync from Dokku';
+        showToast('error', 'An unexpected error occurred', 'Sync Error');
+      });
+    });
+  }
+
+  // Handle clear all button
+  const clearAllBtn = document.getElementById('clear-all-ports-btn');
+  if (clearAllBtn) {
+    clearAllBtn.addEventListener('click', function() {
+      if (!confirm('Are you sure you want to clear ALL port mappings? This will remove all port mappings from both Dokku and the database.')) {
+        return;
+      }
+
+      clearAllBtn.disabled = true;
+      clearAllBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Clearing...';
+
+      fetch('<%= clear_port_mappings_deployment_path(@deployment) %>', {
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+          'Accept': 'application/json'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        clearAllBtn.disabled = false;
+        clearAllBtn.innerHTML = '<i class="fas fa-trash me-1"></i>Clear All';
+
+        if (data.success) {
+          showToast('success', data.message, 'Ports Cleared');
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          showToast('error', data.message, 'Clear Failed');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        clearAllBtn.disabled = false;
+        clearAllBtn.innerHTML = '<i class="fas fa-trash me-1"></i>Clear All';
+        showToast('error', 'An unexpected error occurred', 'Clear Error');
+      });
+    });
+  }
+
+  function showToast(type, message, title) {
+    const toastHtml = `
+      <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+          <div class="toast-body">
+            <strong>${title}:</strong> ${message}
+          </div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-mdb-dismiss="toast" aria-label="Close"></button>
+        </div>
+      </div>
+    `;
+
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+      toastContainer = document.createElement('div');
+      toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+      document.body.appendChild(toastContainer);
+    }
+
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+
+    const toastElement = toastContainer.lastElementChild;
+    const toast = new mdb.Toast(toastElement);
+    toast.show();
+
+    toastElement.addEventListener('hidden.mdb.toast', () => {
+      toastElement.remove();
+    });
+  }
+});
+</script>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+</style>

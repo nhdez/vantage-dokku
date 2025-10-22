@@ -26,6 +26,11 @@ Rails.application.routes.draw do
       get :configure_databases
       post :update_database_configuration
       delete :delete_database_configuration
+      get :port_mappings
+      post :sync_port_mappings
+      post :add_port_mapping
+      delete :remove_port_mapping
+      post :clear_port_mappings
       post :create_dokku_app
       post :check_ssl_status
       get :execute_commands
