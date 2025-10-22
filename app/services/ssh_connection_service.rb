@@ -925,7 +925,7 @@ class SshConnectionService
     begin
       Rails.logger.info "[SshConnectionService] Checking UFW status on #{@server.name}"
 
-      Timeout::timeout(CONNECTION_TIMEOUT) do
+      Timeout::timeout(COMMAND_TIMEOUT) do
         Net::SSH.start(
           @connection_details[:host],
           @connection_details[:username],
@@ -964,7 +964,7 @@ class SshConnectionService
     begin
       Rails.logger.info "[SshConnectionService] Enabling UFW on #{@server.name}"
 
-      Timeout::timeout(CONNECTION_TIMEOUT) do
+      Timeout::timeout(COMMAND_TIMEOUT) do
         Net::SSH.start(
           @connection_details[:host],
           @connection_details[:username],
@@ -1003,7 +1003,7 @@ class SshConnectionService
     begin
       Rails.logger.info "[SshConnectionService] Disabling UFW on #{@server.name}"
 
-      Timeout::timeout(CONNECTION_TIMEOUT) do
+      Timeout::timeout(COMMAND_TIMEOUT) do
         Net::SSH.start(
           @connection_details[:host],
           @connection_details[:username],
@@ -1042,7 +1042,7 @@ class SshConnectionService
     begin
       Rails.logger.info "[SshConnectionService] Listing UFW rules on #{@server.name}"
 
-      Timeout::timeout(CONNECTION_TIMEOUT) do
+      Timeout::timeout(COMMAND_TIMEOUT) do
         Net::SSH.start(
           @connection_details[:host],
           @connection_details[:username],
@@ -1095,7 +1095,7 @@ class SshConnectionService
     begin
       Rails.logger.info "[SshConnectionService] Adding UFW rule on #{@server.name}: #{rule_command}"
 
-      Timeout::timeout(CONNECTION_TIMEOUT) do
+      Timeout::timeout(COMMAND_TIMEOUT) do
         Net::SSH.start(
           @connection_details[:host],
           @connection_details[:username],
@@ -1133,7 +1133,7 @@ class SshConnectionService
     begin
       Rails.logger.info "[SshConnectionService] Deleting UFW rule ##{rule_number} on #{@server.name}"
 
-      Timeout::timeout(CONNECTION_TIMEOUT) do
+      Timeout::timeout(COMMAND_TIMEOUT) do
         Net::SSH.start(
           @connection_details[:host],
           @connection_details[:username],
@@ -1172,7 +1172,7 @@ class SshConnectionService
     begin
       Rails.logger.info "[SshConnectionService] Resetting UFW on #{@server.name}"
 
-      Timeout::timeout(CONNECTION_TIMEOUT) do
+      Timeout::timeout(COMMAND_TIMEOUT) do
         Net::SSH.start(
           @connection_details[:host],
           @connection_details[:username],
