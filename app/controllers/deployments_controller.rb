@@ -279,10 +279,14 @@ class DeploymentsController < ApplicationController
     @database_configuration = @deployment.database_configuration || @deployment.build_database_configuration
     @available_databases = DatabaseConfiguration::SUPPORTED_DATABASES
     @redis_config = DatabaseConfiguration::REDIS_CONFIG
-    
+
+    # Sync existing database URLs to EnvironmentVariables table if they exist but aren't synced
+    # This helps with backwards compatibility for deployments that had databases configured before this feature
+    sync_database_urls_to_environment_variables if @database_configuration.persisted? && @database_configuration.configured?
+
     # Check for environment variable conflicts
     @has_conflicts = @database_configuration.has_environment_variable_conflict?.any?
-    
+
     log_activity('database_configuration_viewed', details: "Viewed database configuration for deployment: #{@deployment.display_name}")
   end
 
@@ -787,6 +791,43 @@ class DeploymentsController < ApplicationController
 
   def deployment_params
     params.require(:deployment).permit(:name, :description, :server_id)
+  end
+
+  def sync_database_urls_to_environment_variables
+    return unless @database_configuration.configured?
+
+    # Sync DATABASE_URL or equivalent if it exists but isn't in EnvironmentVariables
+    if @database_configuration.database_url.present?
+      env_var_name = @database_configuration.environment_variable_name
+      existing_var = @deployment.environment_variables.find_by(key: env_var_name)
+
+      # Only create if it doesn't exist in EnvironmentVariables table
+      unless existing_var
+        @deployment.environment_variables.create!(
+          key: env_var_name,
+          value: @database_configuration.database_url
+        )
+        Rails.logger.info "[DeploymentsController] Synced #{env_var_name} to EnvironmentVariables for deployment #{@deployment.uuid}"
+      end
+    end
+
+    # Sync REDIS_URL if Redis is enabled and URL exists but isn't in EnvironmentVariables
+    if @database_configuration.redis_enabled? && @database_configuration.redis_url.present?
+      redis_env_var_name = @database_configuration.redis_environment_variable_name
+      existing_redis_var = @deployment.environment_variables.find_by(key: redis_env_var_name)
+
+      # Only create if it doesn't exist in EnvironmentVariables table
+      unless existing_redis_var
+        @deployment.environment_variables.create!(
+          key: redis_env_var_name,
+          value: @database_configuration.redis_url
+        )
+        Rails.logger.info "[DeploymentsController] Synced #{redis_env_var_name} to EnvironmentVariables for deployment #{@deployment.uuid}"
+      end
+    end
+  rescue StandardError => e
+    # Log the error but don't fail the page load
+    Rails.logger.error "[DeploymentsController] Failed to sync database URLs to EnvironmentVariables: #{e.message}"
   end
 
 end

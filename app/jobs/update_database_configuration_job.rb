@@ -31,16 +31,21 @@ class UpdateDatabaseConfigurationJob < ApplicationJob
           @database_configuration.update!(
             configured: true,
             configuration_output: result[:output],
-            error_message: nil
+            error_message: nil,
+            database_url: result[:database_url],
+            redis_url: result[:redis_url]
           )
-          
+
+          # Sync database URLs to EnvironmentVariables table
+          sync_database_urls_to_environment_variables
+
           success_message = "Database configured successfully! "
           success_message += "#{@database_configuration.display_name} (#{@database_configuration.database_name})"
           success_message += " and #{@database_configuration.redis_display_name}" if @database_configuration.redis_enabled?
           success_message += " are now available."
-          
+
           broadcast_success(success_message)
-          
+
           Rails.logger.info "[UpdateDatabaseConfigurationJob] Database configuration completed successfully"
         else
           @database_configuration.update!(
@@ -88,5 +93,29 @@ class UpdateDatabaseConfigurationJob < ApplicationJob
       message: message,
       timestamp: Time.current.iso8601
     })
+  end
+
+  def sync_database_urls_to_environment_variables
+    return unless @database_configuration.configured?
+
+    # Sync DATABASE_URL or equivalent
+    if @database_configuration.database_url.present?
+      env_var_name = @database_configuration.environment_variable_name
+      sync_env_variable(env_var_name, @database_configuration.database_url)
+    end
+
+    # Sync REDIS_URL if Redis is enabled
+    if @database_configuration.redis_enabled? && @database_configuration.redis_url.present?
+      redis_env_var_name = @database_configuration.redis_environment_variable_name
+      sync_env_variable(redis_env_var_name, @database_configuration.redis_url)
+    end
+
+    Rails.logger.info "[UpdateDatabaseConfigurationJob] Database URLs synced to EnvironmentVariables"
+  end
+
+  def sync_env_variable(key, value)
+    env_var = @deployment.environment_variables.find_or_initialize_by(key: key)
+    env_var.value = value
+    env_var.save!
   end
 end

@@ -528,9 +528,11 @@ class SshConnectionService
     result = {
       success: false,
       error: nil,
-      output: ''
+      output: '',
+      database_url: nil,
+      redis_url: nil
     }
-    
+
     begin
       Timeout::timeout(INSTALL_TIMEOUT) do # Use install timeout for database setup
         Net::SSH.start(
@@ -539,9 +541,12 @@ class SshConnectionService
           ssh_options
         ) do |ssh|
           # Configure database and optionally Redis
-          result[:output] = perform_database_configuration(ssh, app_name, database_config)
+          config_result = perform_database_configuration(ssh, app_name, database_config)
+          result[:output] = config_result[:output]
+          result[:database_url] = config_result[:database_url]
+          result[:redis_url] = config_result[:redis_url]
           result[:success] = true
-          
+
           # Update last connected timestamp
           @server.update!(last_connected_at: Time.current)
         end
@@ -557,7 +562,7 @@ class SshConnectionService
     rescue StandardError => e
       result[:error] = "Database configuration failed: #{e.message}"
     end
-    
+
     result
   end
 
@@ -1343,7 +1348,9 @@ class SshConnectionService
   
   def perform_database_configuration(ssh, app_name, database_config)
     config_output = ""
-    
+    database_url = nil
+    redis_url = nil
+
     begin
       Rails.logger.info "Configuring database for Dokku app '#{app_name}' on #{@server.name}"
       config_output += "=== Configuring Database for Dokku App: #{app_name} ===\n"
@@ -1481,8 +1488,12 @@ class SshConnectionService
       config_output += "Database configuration encountered an error: #{e.message}\n"
       raise e
     end
-    
-    config_output
+
+    {
+      output: config_output,
+      database_url: database_url,
+      redis_url: redis_url
+    }
   end
   
   def perform_database_deletion(ssh, app_name, database_config)
