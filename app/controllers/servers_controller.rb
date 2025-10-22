@@ -252,12 +252,18 @@ class ServersController < ApplicationController
       if result[:success]
         @server.update!(ufw_enabled: true)
 
-        log_activity('ufw_enabled', details: "Enabled UFW on server: #{@server.display_name}")
+        log_activity('ufw_enabled', details: "Enabled UFW with Docker compatibility on server: #{@server.display_name}")
+
+        # Build success message with warnings if any
+        message = "UFW enabled successfully with Docker compatibility. Essential rules (SSH, HTTP, HTTPS) have been added."
+        if result[:warnings].present?
+          message += " Warnings: #{result[:warnings].join(', ')}"
+        end
 
         respond_to do |format|
-          format.json { render json: { success: true, message: "UFW enabled successfully" } }
+          format.json { render json: { success: true, message: message, warnings: result[:warnings] } }
           format.html do
-            toast_success("UFW enabled successfully", title: "Firewall Enabled")
+            toast_success(message, title: "Firewall Enabled")
             redirect_to firewall_rules_server_path(@server)
           end
         end

@@ -313,6 +313,19 @@
             <p class="mb-0 mt-2">UFW (Uncomplicated Firewall) is a user-friendly interface for managing iptables firewall rules on your server.</p>
           </div>
 
+          <div class="alert alert-primary">
+            <i class="fas fa-docker me-2"></i>
+            <strong>Docker/Dokku Compatibility:</strong>
+            <p class="mt-2 mb-0">When you enable UFW, the following happens automatically:</p>
+            <ul class="mt-2 mb-0">
+              <li>UFW is configured to work with Docker containers</li>
+              <li>Essential rules are added: SSH (22), HTTP (80), HTTPS (443)</li>
+              <li>Docker service is restarted to ensure compatibility</li>
+              <li>The <code>DOCKER-USER</code> chain is configured in iptables</li>
+            </ul>
+            <p class="mt-2 mb-0"><small class="text-muted">This prevents the common Docker + UFW conflict where Docker bypasses UFW rules.</small></p>
+          </div>
+
           <div class="alert alert-success">
             <i class="fas fa-lightbulb me-2"></i>
             <strong>Rule Actions:</strong>
@@ -328,9 +341,10 @@
             <i class="fas fa-exclamation-triangle me-2"></i>
             <strong>Important:</strong>
             <ul class="mb-0 mt-2">
-              <li>Always allow SSH (port 22) before enabling UFW</li>
+              <li>SSH (port 22) is automatically allowed when enabling UFW</li>
               <li>Rules are applied in order</li>
               <li>Test rules carefully to avoid lockout</li>
+              <li>Docker compatibility is configured automatically</li>
             </ul>
           </div>
         </div>
