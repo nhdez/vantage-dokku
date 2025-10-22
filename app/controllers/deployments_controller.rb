@@ -402,6 +402,228 @@ class DeploymentsController < ApplicationController
     end
   end
 
+  def port_mappings
+    @port_mappings = @deployment.port_mappings.ordered
+
+    # Sync port mappings from Dokku if none exist locally
+    sync_port_mappings_from_dokku if @port_mappings.empty?
+
+    # Reload after sync
+    @port_mappings = @deployment.port_mappings.ordered
+
+    log_activity('port_mappings_viewed', details: "Viewed port mappings for deployment: #{@deployment.display_name}")
+  end
+
+  def sync_port_mappings
+    begin
+      service = SshConnectionService.new(@deployment.server)
+      result = service.list_ports(@deployment.dokku_app_name)
+
+      if result[:success]
+        # Sync port mappings to database
+        sync_result = sync_port_mappings_to_database(result[:ports])
+
+        respond_to do |format|
+          format.json do
+            render json: {
+              success: true,
+              message: "Port mappings synced successfully",
+              port_mappings: @deployment.port_mappings.ordered.map { |pm|
+                { id: pm.id, scheme: pm.scheme, host_port: pm.host_port, container_port: pm.container_port }
+              }
+            }
+          end
+          format.html do
+            toast_success("Port mappings synced successfully", title: "Sync Complete")
+            redirect_to port_mappings_deployment_path(@deployment)
+          end
+        end
+      else
+        respond_to do |format|
+          format.json do
+            render json: { success: false, message: result[:error] }, status: :unprocessable_entity
+          end
+          format.html do
+            toast_error(result[:error], title: "Sync Failed")
+            redirect_to port_mappings_deployment_path(@deployment)
+          end
+        end
+      end
+    rescue StandardError => e
+      Rails.logger.error "Failed to sync port mappings: #{e.message}"
+
+      respond_to do |format|
+        format.json do
+          render json: { success: false, message: e.message }, status: :internal_server_error
+        end
+        format.html do
+          toast_error(e.message, title: "Sync Error")
+          redirect_to port_mappings_deployment_path(@deployment)
+        end
+      end
+    end
+  end
+
+  def add_port_mapping
+    begin
+      scheme = params[:scheme]
+      host_port = params[:host_port].to_i
+      container_port = params[:container_port].to_i
+
+      # Add to Dokku first
+      service = SshConnectionService.new(@deployment.server)
+      result = service.add_port(@deployment.dokku_app_name, scheme, host_port, container_port)
+
+      if result[:success]
+        # Add to database
+        port_mapping = @deployment.port_mappings.create!(
+          scheme: scheme,
+          host_port: host_port,
+          container_port: container_port
+        )
+
+        log_activity('port_mapping_added',
+                    details: "Added port mapping #{scheme}:#{host_port}:#{container_port} to deployment: #{@deployment.display_name}")
+
+        respond_to do |format|
+          format.json do
+            render json: {
+              success: true,
+              message: "Port mapping added successfully",
+              port_mapping: { id: port_mapping.id, scheme: port_mapping.scheme,
+                             host_port: port_mapping.host_port, container_port: port_mapping.container_port }
+            }
+          end
+          format.html do
+            toast_success("Port mapping added successfully", title: "Port Added")
+            redirect_to port_mappings_deployment_path(@deployment)
+          end
+        end
+      else
+        respond_to do |format|
+          format.json do
+            render json: { success: false, message: result[:error] }, status: :unprocessable_entity
+          end
+          format.html do
+            toast_error(result[:error], title: "Add Failed")
+            redirect_to port_mappings_deployment_path(@deployment)
+          end
+        end
+      end
+    rescue StandardError => e
+      Rails.logger.error "Failed to add port mapping: #{e.message}"
+
+      respond_to do |format|
+        format.json do
+          render json: { success: false, message: e.message }, status: :internal_server_error
+        end
+        format.html do
+          toast_error(e.message, title: "Add Error")
+          redirect_to port_mappings_deployment_path(@deployment)
+        end
+      end
+    end
+  end
+
+  def remove_port_mapping
+    begin
+      port_mapping = @deployment.port_mappings.find(params[:port_mapping_id])
+
+      # Remove from Dokku first
+      service = SshConnectionService.new(@deployment.server)
+      result = service.remove_port(@deployment.dokku_app_name, port_mapping.scheme,
+                                   port_mapping.host_port, port_mapping.container_port)
+
+      if result[:success]
+        # Remove from database
+        port_mapping.destroy!
+
+        log_activity('port_mapping_removed',
+                    details: "Removed port mapping #{port_mapping.display_name} from deployment: #{@deployment.display_name}")
+
+        respond_to do |format|
+          format.json do
+            render json: { success: true, message: "Port mapping removed successfully" }
+          end
+          format.html do
+            toast_success("Port mapping removed successfully", title: "Port Removed")
+            redirect_to port_mappings_deployment_path(@deployment)
+          end
+        end
+      else
+        respond_to do |format|
+          format.json do
+            render json: { success: false, message: result[:error] }, status: :unprocessable_entity
+          end
+          format.html do
+            toast_error(result[:error], title: "Remove Failed")
+            redirect_to port_mappings_deployment_path(@deployment)
+          end
+        end
+      end
+    rescue StandardError => e
+      Rails.logger.error "Failed to remove port mapping: #{e.message}"
+
+      respond_to do |format|
+        format.json do
+          render json: { success: false, message: e.message }, status: :internal_server_error
+        end
+        format.html do
+          toast_error(e.message, title: "Remove Error")
+          redirect_to port_mappings_deployment_path(@deployment)
+        end
+      end
+    end
+  end
+
+  def clear_port_mappings
+    begin
+      # Clear from Dokku first
+      service = SshConnectionService.new(@deployment.server)
+      result = service.clear_ports(@deployment.dokku_app_name)
+
+      if result[:success]
+        # Clear from database
+        @deployment.port_mappings.destroy_all
+
+        log_activity('port_mappings_cleared',
+                    details: "Cleared all port mappings for deployment: #{@deployment.display_name}")
+
+        respond_to do |format|
+          format.json do
+            render json: { success: true, message: "All port mappings cleared successfully" }
+          end
+          format.html do
+            toast_success("All port mappings cleared successfully", title: "Ports Cleared")
+            redirect_to port_mappings_deployment_path(@deployment)
+          end
+        end
+      else
+        respond_to do |format|
+          format.json do
+            render json: { success: false, message: result[:error] }, status: :unprocessable_entity
+          end
+          format.html do
+            toast_error(result[:error], title: "Clear Failed")
+            redirect_to port_mappings_deployment_path(@deployment)
+          end
+        end
+      end
+    rescue StandardError => e
+      Rails.logger.error "Failed to clear port mappings: #{e.message}"
+
+      respond_to do |format|
+        format.json do
+          render json: { success: false, message: e.message }, status: :internal_server_error
+        end
+        format.html do
+          toast_error(e.message, title: "Clear Error")
+          redirect_to port_mappings_deployment_path(@deployment)
+        end
+      end
+    end
+  end
+
   def manage_environment
     @environment_variables = @deployment.environment_variables.ordered
     log_activity('environment_variables_viewed', details: "Viewed environment variables for deployment: #{@deployment.display_name}")
@@ -875,6 +1097,46 @@ class DeploymentsController < ApplicationController
     # Log the error but don't fail the page load
     Rails.logger.error "[DeploymentsController] Failed to sync database URLs from Dokku: #{e.message}"
     Rails.logger.error e.backtrace.join("\n")
+  end
+
+  def sync_port_mappings_from_dokku
+    Rails.logger.info "[DeploymentsController] Syncing port mappings from Dokku for deployment #{@deployment.uuid}"
+
+    service = SshConnectionService.new(@deployment.server)
+    result = service.list_ports(@deployment.dokku_app_name)
+
+    if result[:success] && result[:ports].any?
+      sync_port_mappings_to_database(result[:ports])
+      Rails.logger.info "[DeploymentsController] Successfully synced #{result[:ports].count} port mappings"
+    else
+      Rails.logger.info "[DeploymentsController] No port mappings found on Dokku or error occurred"
+    end
+  rescue StandardError => e
+    # Log the error but don't fail the page load
+    Rails.logger.error "[DeploymentsController] Failed to sync port mappings from Dokku: #{e.message}"
+    Rails.logger.error e.backtrace.join("\n")
+  end
+
+  def sync_port_mappings_to_database(ports_from_dokku)
+    ports_from_dokku.each do |port_data|
+      @deployment.port_mappings.find_or_create_by!(
+        scheme: port_data[:scheme],
+        host_port: port_data[:host_port],
+        container_port: port_data[:container_port]
+      )
+    end
+
+    # Remove port mappings that no longer exist on Dokku
+    existing_mappings = @deployment.port_mappings.all
+    dokku_mapping_keys = ports_from_dokku.map { |p| "#{p[:scheme]}:#{p[:host_port]}:#{p[:container_port]}" }
+
+    existing_mappings.each do |mapping|
+      mapping_key = "#{mapping.scheme}:#{mapping.host_port}:#{mapping.container_port}"
+      unless dokku_mapping_keys.include?(mapping_key)
+        mapping.destroy!
+        Rails.logger.info "[DeploymentsController] Removed stale port mapping: #{mapping_key}"
+      end
+    end
   end
 
 end

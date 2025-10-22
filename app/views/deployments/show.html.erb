@@ -515,7 +515,11 @@
             <%= link_to configure_databases_deployment_path(@deployment), class: "btn btn-outline-primary" do %>
               <i class="fas fa-database me-2"></i>Configure Databases
             <% end %>
-            
+
+            <%= link_to port_mappings_deployment_path(@deployment), class: "btn btn-outline-primary" do %>
+              <i class="fas fa-network-wired me-2"></i>Port Mappings
+            <% end %>
+
             <%= link_to execute_commands_deployment_path(@deployment), class: "btn btn-outline-primary",
                         data: { turbo: false } do %>
               <i class="fas fa-terminal me-2"></i>Execute Commands
