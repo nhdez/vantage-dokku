@@ -680,12 +680,19 @@ class SshConnectionService
 
               # Match format: KEY:  value
               # The regex handles variable amounts of whitespace after the colon
-              if line.match(/^([A-Z_][A-Z0-9_]*):\s+(.+)$/i)
-                key = $1.strip
-                value = $2.strip
+              match = line.match(/^([A-Z_][A-Z0-9_]*):\s+(.+)$/i)
+              if match
+                key = match[1].strip
+                value = match[2].strip
                 result[:config][key] = value
                 lines_parsed += 1
-                Rails.logger.debug "[SshConnectionService] Parsed variable: #{key} = #{value[0..20]}..."
+
+                # Log DATABASE_URL and REDIS_URL for debugging
+                if key == 'DATABASE_URL' || key == 'REDIS_URL'
+                  Rails.logger.info "[SshConnectionService] Found #{key}: #{value}"
+                else
+                  Rails.logger.debug "[SshConnectionService] Parsed variable: #{key} = #{value[0..20]}..."
+                end
               end
             end
 
