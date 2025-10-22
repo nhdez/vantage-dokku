@@ -976,27 +976,32 @@ class SshConnectionService
           if check_output&.strip == 'not_exists'
             Rails.logger.info "[SshConnectionService] Adding Docker compatibility rules to UFW"
 
-            # Create a temporary file with the Docker rules
-            docker_rules = <<~RULES
-              # Allow Docker containers
-              *filter
-              :DOCKER-USER - [0:0]
-              :ufw-user-input - [0:0]
-
-              -A DOCKER-USER -j ufw-user-input
-              -A DOCKER-USER -j RETURN
-              COMMIT
-            RULES
-
             # Backup the original file
             execute_command(ssh, "sudo cp /etc/ufw/after.rules /etc/ufw/after.rules.bak")
 
-            # Remove the last COMMIT line and add our rules before it
-            configure_cmd = <<~CMD.strip
-              sudo sed -i '/^COMMIT$/d' /etc/ufw/after.rules && \
-              echo '#{docker_rules.gsub("'", "'\\''")}' | sudo tee -a /etc/ufw/after.rules > /dev/null
+            # Use awk to insert the DOCKER-USER rules before the first COMMIT in the *filter section
+            # This properly adds the chain definitions and rules within the existing *filter table
+            configure_cmd = <<~'CMD'.strip
+              sudo awk '
+              BEGIN { in_filter=0; added=0 }
+              /^\*filter/ { in_filter=1; print; next }
+              /^COMMIT/ && in_filter && !added {
+                print ""
+                print "# BEGIN UFW AND DOCKER"
+                print ":DOCKER-USER - [0:0]"
+                print ":ufw-user-input - [0:0]"
+                print ""
+                print "-A DOCKER-USER -j ufw-user-input"
+                print "-A DOCKER-USER -j RETURN"
+                print "# END UFW AND DOCKER"
+                print ""
+                added=1
+              }
+              { print }
+              ' /etc/ufw/after.rules > /tmp/after.rules.tmp && sudo mv /tmp/after.rules.tmp /etc/ufw/after.rules
             CMD
 
+            # Execute the command
             output = execute_command(ssh, configure_cmd)
 
             Rails.logger.info "[SshConnectionService] Docker compatibility rules added to UFW"
