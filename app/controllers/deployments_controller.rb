@@ -826,24 +826,37 @@ class DeploymentsController < ApplicationController
     if db_env_var_name && dokku_config[db_env_var_name].present?
       database_url_from_dokku = dokku_config[db_env_var_name]
 
+      Rails.logger.info "[DeploymentsController] Processing #{db_env_var_name}"
+      Rails.logger.info "[DeploymentsController] Value from Dokku: #{database_url_from_dokku}"
+      Rails.logger.info "[DeploymentsController] Current value in database_configuration: #{@database_configuration.database_url.inspect}"
+
       # Update database_configuration if URL is missing or different
       # Use update_columns to skip validations (the conflict check would fail since we're about to create the env var)
       if @database_configuration.database_url != database_url_from_dokku
         @database_configuration.update_columns(database_url: database_url_from_dokku)
+        @database_configuration.reload
         Rails.logger.info "[DeploymentsController] Updated database_url in database_configuration for deployment #{@deployment.uuid}"
+        Rails.logger.info "[DeploymentsController] New value after update: #{@database_configuration.database_url.inspect}"
       end
 
       # Sync to EnvironmentVariables table if not present or different
       existing_var = @deployment.environment_variables.find_by(key: db_env_var_name)
       if existing_var.nil?
-        @deployment.environment_variables.create!(
+        Rails.logger.info "[DeploymentsController] Creating new EnvironmentVariable for #{db_env_var_name} with value: #{database_url_from_dokku}"
+        new_var = @deployment.environment_variables.create!(
           key: db_env_var_name,
           value: database_url_from_dokku
         )
-        Rails.logger.info "[DeploymentsController] Created #{db_env_var_name} in EnvironmentVariables for deployment #{@deployment.uuid}"
+        Rails.logger.info "[DeploymentsController] Created #{db_env_var_name} in EnvironmentVariables with value: #{new_var.value.inspect}"
       elsif existing_var.value != database_url_from_dokku
+        Rails.logger.info "[DeploymentsController] Updating existing EnvironmentVariable for #{db_env_var_name}"
+        Rails.logger.info "[DeploymentsController] Old value: #{existing_var.value.inspect}"
+        Rails.logger.info "[DeploymentsController] New value: #{database_url_from_dokku}"
         existing_var.update!(value: database_url_from_dokku)
-        Rails.logger.info "[DeploymentsController] Updated #{db_env_var_name} in EnvironmentVariables for deployment #{@deployment.uuid}"
+        existing_var.reload
+        Rails.logger.info "[DeploymentsController] Updated #{db_env_var_name} in EnvironmentVariables, current value: #{existing_var.value.inspect}"
+      else
+        Rails.logger.info "[DeploymentsController] #{db_env_var_name} already has correct value in EnvironmentVariables"
       end
     end
 
