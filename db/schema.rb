@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_22_113639) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_22_161344) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -204,6 +204,17 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_22_113639) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["key"], name: "index_oauth_settings_on_key", unique: true
+  end
+
+  create_table "port_mappings", force: :cascade do |t|
+    t.bigint "deployment_id", null: false
+    t.string "scheme", null: false
+    t.integer "host_port", null: false
+    t.integer "container_port", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["deployment_id", "scheme", "host_port", "container_port"], name: "index_port_mappings_on_deployment_and_mapping", unique: true
+    t.index ["deployment_id"], name: "index_port_mappings_on_deployment_id"
   end
 
   create_table "roles", force: :cascade do |t|
@@ -420,6 +431,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_22_113639) do
   add_foreign_key "domains", "deployments"
   add_foreign_key "environment_variables", "deployments"
   add_foreign_key "linked_accounts", "users"
+  add_foreign_key "port_mappings", "deployments"
   add_foreign_key "servers", "users"
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_claimed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade

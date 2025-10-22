@@ -71,6 +71,26 @@ class DeploymentPolicy < ApplicationPolicy
     user.present? && (record.user == user || user.admin?)
   end
 
+  def port_mappings?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def sync_port_mappings?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def add_port_mapping?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def remove_port_mapping?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def clear_port_mappings?
+    user.present? && (record.user == user || user.admin?)
+  end
+
   def check_ssl_status?
     user.present? && (record.user == user || user.admin?)
   end
