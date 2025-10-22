@@ -657,6 +657,8 @@ class SshConnectionService
     }
 
     begin
+      Rails.logger.info "[SshConnectionService] Getting Dokku config for app #{app_name} on #{@server.name}"
+
       Timeout::timeout(CONNECTION_TIMEOUT) do
         Net::SSH.start(
           @connection_details[:host],
@@ -666,20 +668,26 @@ class SshConnectionService
           # Get config from Dokku
           config_output = execute_command(ssh, "sudo dokku config:show #{app_name} --export 2>&1")
 
+          Rails.logger.info "[SshConnectionService] Config output received: #{config_output&.length || 0} chars"
+
           if config_output && !config_output.include?('does not exist')
             # Parse the output to extract key-value pairs
             # Format: export KEY='value'
+            lines_parsed = 0
             config_output.each_line do |line|
               if line.match(/^export\s+(\w+)='(.*)'/m)
                 key = $1
                 value = $2
                 result[:config][key] = value
+                lines_parsed += 1
               end
             end
 
+            Rails.logger.info "[SshConnectionService] Parsed #{lines_parsed} environment variables"
             result[:success] = true
           else
             result[:error] = "App does not exist or no config found"
+            Rails.logger.warn "[SshConnectionService] #{result[:error]}: #{config_output&.first(200)}"
           end
 
           # Update last connected timestamp
@@ -688,14 +696,20 @@ class SshConnectionService
       end
     rescue Net::SSH::AuthenticationFailed => e
       result[:error] = "Authentication failed. Please check your SSH key or password."
+      Rails.logger.error "[SshConnectionService] #{result[:error]}: #{e.message}"
     rescue Net::SSH::ConnectionTimeout, Timeout::Error => e
       result[:error] = "Connection timeout. Server may be unreachable."
+      Rails.logger.error "[SshConnectionService] #{result[:error]}: #{e.message}"
     rescue Errno::ECONNREFUSED => e
       result[:error] = "Connection refused. Check if SSH service is running on port #{@connection_details[:port]}."
+      Rails.logger.error "[SshConnectionService] #{result[:error]}: #{e.message}"
     rescue Errno::EHOSTUNREACH => e
       result[:error] = "Host unreachable. Check the IP address and network connectivity."
+      Rails.logger.error "[SshConnectionService] #{result[:error]}: #{e.message}"
     rescue StandardError => e
       result[:error] = "Failed to get config: #{e.message}"
+      Rails.logger.error "[SshConnectionService] #{result[:error]}"
+      Rails.logger.error e.backtrace.join("\n")
     end
 
     result
