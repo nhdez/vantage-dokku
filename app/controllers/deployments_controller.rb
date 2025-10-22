@@ -794,13 +794,25 @@ class DeploymentsController < ApplicationController
   end
 
   def sync_database_urls_to_environment_variables
-    return unless @database_configuration.configured?
+    Rails.logger.info "[DeploymentsController] sync_database_urls_to_environment_variables called for deployment #{@deployment.uuid}"
+
+    unless @database_configuration.configured?
+      Rails.logger.info "[DeploymentsController] Database configuration not configured, skipping sync"
+      return
+    end
+
+    Rails.logger.info "[DeploymentsController] Fetching Dokku config for app #{@deployment.dokku_app_name}"
 
     # Fetch actual config from Dokku server to get the real DATABASE_URL and REDIS_URL
     service = SshConnectionService.new(@deployment.server)
     result = service.get_dokku_config(@deployment.dokku_app_name)
 
-    return unless result[:success] && result[:config].present?
+    unless result[:success] && result[:config].present?
+      Rails.logger.warn "[DeploymentsController] Failed to get Dokku config: #{result[:error]}"
+      return
+    end
+
+    Rails.logger.info "[DeploymentsController] Successfully fetched Dokku config with #{result[:config].keys.count} variables"
 
     dokku_config = result[:config]
     database_url_from_dokku = nil
