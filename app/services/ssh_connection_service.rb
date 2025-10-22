@@ -913,6 +913,294 @@ class SshConnectionService
     result
   end
 
+  # Check UFW status
+  def check_ufw_status
+    result = {
+      success: false,
+      error: nil,
+      enabled: false,
+      status: nil
+    }
+
+    begin
+      Rails.logger.info "[SshConnectionService] Checking UFW status on #{@server.name}"
+
+      Timeout::timeout(CONNECTION_TIMEOUT) do
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options
+        ) do |ssh|
+          status_output = execute_command(ssh, "sudo ufw status 2>&1")
+
+          if status_output
+            result[:status] = status_output
+            result[:enabled] = status_output.include?('Status: active')
+            result[:success] = true
+            Rails.logger.info "[SshConnectionService] UFW status: #{result[:enabled] ? 'enabled' : 'disabled'}"
+          else
+            result[:error] = "Failed to get UFW status"
+          end
+
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue StandardError => e
+      result[:error] = "Failed to check UFW status: #{e.message}"
+      Rails.logger.error "[SshConnectionService] #{result[:error]}"
+      Rails.logger.error e.backtrace.join("\n")
+    end
+
+    result
+  end
+
+  # Enable UFW
+  def enable_ufw
+    result = {
+      success: false,
+      error: nil
+    }
+
+    begin
+      Rails.logger.info "[SshConnectionService] Enabling UFW on #{@server.name}"
+
+      Timeout::timeout(CONNECTION_TIMEOUT) do
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options
+        ) do |ssh|
+          # Enable UFW (--force to skip confirmation)
+          output = execute_command(ssh, "sudo ufw --force enable 2>&1")
+
+          if output && !output.downcase.include?('error')
+            Rails.logger.info "[SshConnectionService] UFW enabled successfully"
+            result[:success] = true
+          else
+            result[:error] = output || "Failed to enable UFW"
+            Rails.logger.error "[SshConnectionService] #{result[:error]}"
+          end
+
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue StandardError => e
+      result[:error] = "Failed to enable UFW: #{e.message}"
+      Rails.logger.error "[SshConnectionService] #{result[:error]}"
+      Rails.logger.error e.backtrace.join("\n")
+    end
+
+    result
+  end
+
+  # Disable UFW
+  def disable_ufw
+    result = {
+      success: false,
+      error: nil
+    }
+
+    begin
+      Rails.logger.info "[SshConnectionService] Disabling UFW on #{@server.name}"
+
+      Timeout::timeout(CONNECTION_TIMEOUT) do
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options
+        ) do |ssh|
+          output = execute_command(ssh, "sudo ufw disable 2>&1")
+
+          if output && !output.downcase.include?('error')
+            Rails.logger.info "[SshConnectionService] UFW disabled successfully"
+            result[:success] = true
+          else
+            result[:error] = output || "Failed to disable UFW"
+            Rails.logger.error "[SshConnectionService] #{result[:error]}"
+          end
+
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue StandardError => e
+      result[:error] = "Failed to disable UFW: #{e.message}"
+      Rails.logger.error "[SshConnectionService] #{result[:error]}"
+      Rails.logger.error e.backtrace.join("\n")
+    end
+
+    result
+  end
+
+  # List UFW rules
+  def list_ufw_rules
+    result = {
+      success: false,
+      error: nil,
+      rules: []
+    }
+
+    begin
+      Rails.logger.info "[SshConnectionService] Listing UFW rules on #{@server.name}"
+
+      Timeout::timeout(CONNECTION_TIMEOUT) do
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options
+        ) do |ssh|
+          output = execute_command(ssh, "sudo ufw status numbered 2>&1")
+
+          if output && !output.downcase.include?('error')
+            # Parse UFW rules from numbered output
+            output.each_line do |line|
+              # Match format: [ 1] 22/tcp ALLOW IN Anywhere
+              match = line.match(/\[\s*(\d+)\]\s+(.+?)\s+(ALLOW|DENY|LIMIT|REJECT)\s+(IN|OUT)\s+(.+?)(\s+\((.+?)\))?$/)
+              if match
+                result[:rules] << {
+                  number: match[1].to_i,
+                  port_proto: match[2].strip,
+                  action: match[3].downcase,
+                  direction: match[4].downcase,
+                  from: match[5].strip,
+                  comment: match[7]
+                }
+              end
+            end
+
+            Rails.logger.info "[SshConnectionService] Found #{result[:rules].count} UFW rules"
+            result[:success] = true
+          else
+            result[:error] = "Failed to list UFW rules"
+          end
+
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue StandardError => e
+      result[:error] = "Failed to list UFW rules: #{e.message}"
+      Rails.logger.error "[SshConnectionService] #{result[:error]}"
+      Rails.logger.error e.backtrace.join("\n")
+    end
+
+    result
+  end
+
+  # Add UFW rule
+  def add_ufw_rule(rule_command)
+    result = {
+      success: false,
+      error: nil
+    }
+
+    begin
+      Rails.logger.info "[SshConnectionService] Adding UFW rule on #{@server.name}: #{rule_command}"
+
+      Timeout::timeout(CONNECTION_TIMEOUT) do
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options
+        ) do |ssh|
+          output = execute_command(ssh, "sudo #{rule_command} 2>&1")
+
+          if output && !output.downcase.include?('error') && !output.downcase.include?('could not')
+            Rails.logger.info "[SshConnectionService] UFW rule added successfully"
+            result[:success] = true
+          else
+            result[:error] = output || "Failed to add UFW rule"
+            Rails.logger.error "[SshConnectionService] #{result[:error]}"
+          end
+
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue StandardError => e
+      result[:error] = "Failed to add UFW rule: #{e.message}"
+      Rails.logger.error "[SshConnectionService] #{result[:error]}"
+      Rails.logger.error e.backtrace.join("\n")
+    end
+
+    result
+  end
+
+  # Delete UFW rule by number
+  def delete_ufw_rule(rule_number)
+    result = {
+      success: false,
+      error: nil
+    }
+
+    begin
+      Rails.logger.info "[SshConnectionService] Deleting UFW rule ##{rule_number} on #{@server.name}"
+
+      Timeout::timeout(CONNECTION_TIMEOUT) do
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options
+        ) do |ssh|
+          # Use --force to skip confirmation
+          output = execute_command(ssh, "yes | sudo ufw delete #{rule_number} 2>&1")
+
+          if output && !output.downcase.include?('error')
+            Rails.logger.info "[SshConnectionService] UFW rule deleted successfully"
+            result[:success] = true
+          else
+            result[:error] = output || "Failed to delete UFW rule"
+            Rails.logger.error "[SshConnectionService] #{result[:error]}"
+          end
+
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue StandardError => e
+      result[:error] = "Failed to delete UFW rule: #{e.message}"
+      Rails.logger.error "[SshConnectionService] #{result[:error]}"
+      Rails.logger.error e.backtrace.join("\n")
+    end
+
+    result
+  end
+
+  # Reset UFW (clear all rules)
+  def reset_ufw
+    result = {
+      success: false,
+      error: nil
+    }
+
+    begin
+      Rails.logger.info "[SshConnectionService] Resetting UFW on #{@server.name}"
+
+      Timeout::timeout(CONNECTION_TIMEOUT) do
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options
+        ) do |ssh|
+          # Use --force to skip confirmation
+          output = execute_command(ssh, "yes | sudo ufw --force reset 2>&1")
+
+          if output && !output.downcase.include?('error')
+            Rails.logger.info "[SshConnectionService] UFW reset successfully"
+            result[:success] = true
+          else
+            result[:error] = output || "Failed to reset UFW"
+            Rails.logger.error "[SshConnectionService] #{result[:error]}"
+          end
+
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue StandardError => e
+      result[:error] = "Failed to reset UFW: #{e.message}"
+      Rails.logger.error "[SshConnectionService] #{result[:error]}"
+      Rails.logger.error e.backtrace.join("\n")
+    end
+
+    result
+  end
+
   private
   
   def ssh_options

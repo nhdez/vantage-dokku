@@ -48,6 +48,14 @@ Rails.application.routes.draw do
       post :install_dokku
       post :restart_server
       get :logs
+      get :firewall_rules
+      post :sync_firewall_rules
+      post :enable_ufw
+      post :disable_ufw
+      post :add_firewall_rule
+      delete :remove_firewall_rule
+      patch :toggle_firewall_rule
+      post :apply_firewall_rules
     end
   end
   patch "themes/update", to: "themes#update", as: :update_theme

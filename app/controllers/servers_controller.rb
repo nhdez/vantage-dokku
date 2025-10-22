@@ -3,8 +3,8 @@ require 'timeout'
 class ServersController < ApplicationController
   include ActivityTrackable
   
-  before_action :set_server, only: [:show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs]
-  before_action :authorize_server, only: [:show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs]
+  before_action :set_server, only: [:show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs, :firewall_rules, :sync_firewall_rules, :enable_ufw, :disable_ufw, :add_firewall_rule, :remove_firewall_rule, :toggle_firewall_rule, :apply_firewall_rules]
+  before_action :authorize_server, only: [:show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs, :firewall_rules, :sync_firewall_rules, :enable_ufw, :disable_ufw, :add_firewall_rule, :remove_firewall_rule, :toggle_firewall_rule, :apply_firewall_rules]
   
   def index
     @pagy, @servers = pagy(current_user.servers.order(:name), limit: 10)
@@ -173,6 +173,369 @@ class ServersController < ApplicationController
     log_activity('server_logs_viewed', details: "Viewed activity logs for server: #{@server.display_name}")
   end
 
+  def firewall_rules
+    @firewall_rules = @server.firewall_rules.ordered
+    @common_rules = FirewallRule::COMMON_RULES
+
+    # Check UFW status and sync if needed
+    check_and_sync_ufw_status if @firewall_rules.empty?
+
+    # Reload after potential sync
+    @firewall_rules = @server.firewall_rules.ordered
+
+    log_activity('firewall_rules_viewed', details: "Viewed firewall rules for server: #{@server.display_name}")
+  end
+
+  def sync_firewall_rules
+    begin
+      service = SshConnectionService.new(@server)
+
+      # Check UFW status first
+      status_result = service.check_ufw_status
+      if status_result[:success]
+        @server.update!(
+          ufw_enabled: status_result[:enabled],
+          ufw_status: status_result[:status]
+        )
+      end
+
+      # List and sync rules
+      result = service.list_ufw_rules
+
+      if result[:success]
+        sync_rules_to_database(result[:rules])
+
+        respond_to do |format|
+          format.json do
+            render json: {
+              success: true,
+              message: "Firewall rules synced successfully",
+              ufw_enabled: @server.ufw_enabled
+            }
+          end
+          format.html do
+            toast_success("Firewall rules synced successfully", title: "Sync Complete")
+            redirect_to firewall_rules_server_path(@server)
+          end
+        end
+      else
+        respond_to do |format|
+          format.json do
+            render json: { success: false, message: result[:error] }, status: :unprocessable_entity
+          end
+          format.html do
+            toast_error(result[:error], title: "Sync Failed")
+            redirect_to firewall_rules_server_path(@server)
+          end
+        end
+      end
+    rescue StandardError => e
+      Rails.logger.error "Failed to sync firewall rules: #{e.message}"
+
+      respond_to do |format|
+        format.json do
+          render json: { success: false, message: e.message }, status: :internal_server_error
+        end
+        format.html do
+          toast_error(e.message, title: "Sync Error")
+          redirect_to firewall_rules_server_path(@server)
+        end
+      end
+    end
+  end
+
+  def enable_ufw
+    begin
+      service = SshConnectionService.new(@server)
+      result = service.enable_ufw
+
+      if result[:success]
+        @server.update!(ufw_enabled: true)
+
+        log_activity('ufw_enabled', details: "Enabled UFW on server: #{@server.display_name}")
+
+        respond_to do |format|
+          format.json { render json: { success: true, message: "UFW enabled successfully" } }
+          format.html do
+            toast_success("UFW enabled successfully", title: "Firewall Enabled")
+            redirect_to firewall_rules_server_path(@server)
+          end
+        end
+      else
+        respond_to do |format|
+          format.json { render json: { success: false, message: result[:error] }, status: :unprocessable_entity }
+          format.html do
+            toast_error(result[:error], title: "Enable Failed")
+            redirect_to firewall_rules_server_path(@server)
+          end
+        end
+      end
+    rescue StandardError => e
+      Rails.logger.error "Failed to enable UFW: #{e.message}"
+
+      respond_to do |format|
+        format.json { render json: { success: false, message: e.message }, status: :internal_server_error }
+        format.html do
+          toast_error(e.message, title: "Enable Error")
+          redirect_to firewall_rules_server_path(@server)
+        end
+      end
+    end
+  end
+
+  def disable_ufw
+    begin
+      service = SshConnectionService.new(@server)
+      result = service.disable_ufw
+
+      if result[:success]
+        @server.update!(ufw_enabled: false)
+
+        log_activity('ufw_disabled', details: "Disabled UFW on server: #{@server.display_name}")
+
+        respond_to do |format|
+          format.json { render json: { success: true, message: "UFW disabled successfully" } }
+          format.html do
+            toast_success("UFW disabled successfully", title: "Firewall Disabled")
+            redirect_to firewall_rules_server_path(@server)
+          end
+        end
+      else
+        respond_to do |format|
+          format.json { render json: { success: false, message: result[:error] }, status: :unprocessable_entity }
+          format.html do
+            toast_error(result[:error], title: "Disable Failed")
+            redirect_to firewall_rules_server_path(@server)
+          end
+        end
+      end
+    rescue StandardError => e
+      Rails.logger.error "Failed to disable UFW: #{e.message}"
+
+      respond_to do |format|
+        format.json { render json: { success: false, message: e.message }, status: :internal_server_error }
+        format.html do
+          toast_error(e.message, title: "Disable Error")
+          redirect_to firewall_rules_server_path(@server)
+        end
+      end
+    end
+  end
+
+  def add_firewall_rule
+    begin
+      rule = @server.firewall_rules.build(firewall_rule_params)
+
+      if rule.valid?
+        # Add to UFW first
+        service = SshConnectionService.new(@server)
+        result = service.add_ufw_rule(rule.to_ufw_command)
+
+        if result[:success]
+          # Save to database
+          rule.save!
+
+          log_activity('firewall_rule_added',
+                      details: "Added firewall rule #{rule.display_name} to server: #{@server.display_name}")
+
+          respond_to do |format|
+            format.json do
+              render json: {
+                success: true,
+                message: "Firewall rule added successfully",
+                rule: { id: rule.id, display_name: rule.display_name }
+              }
+            end
+            format.html do
+              toast_success("Firewall rule added successfully", title: "Rule Added")
+              redirect_to firewall_rules_server_path(@server)
+            end
+          end
+        else
+          respond_to do |format|
+            format.json { render json: { success: false, message: result[:error] }, status: :unprocessable_entity }
+            format.html do
+              toast_error(result[:error], title: "Add Failed")
+              redirect_to firewall_rules_server_path(@server)
+            end
+          end
+        end
+      else
+        respond_to do |format|
+          format.json { render json: { success: false, message: rule.errors.full_messages.join(', ') }, status: :unprocessable_entity }
+          format.html do
+            toast_error(rule.errors.full_messages.join(', '), title: "Validation Failed")
+            redirect_to firewall_rules_server_path(@server)
+          end
+        end
+      end
+    rescue StandardError => e
+      Rails.logger.error "Failed to add firewall rule: #{e.message}"
+
+      respond_to do |format|
+        format.json { render json: { success: false, message: e.message }, status: :internal_server_error }
+        format.html do
+          toast_error(e.message, title: "Add Error")
+          redirect_to firewall_rules_server_path(@server)
+        end
+      end
+    end
+  end
+
+  def remove_firewall_rule
+    begin
+      rule = @server.firewall_rules.find(params[:rule_id])
+
+      # Get the rule number from UFW
+      service = SshConnectionService.new(@server)
+      list_result = service.list_ufw_rules
+
+      if list_result[:success]
+        # Find the matching rule number
+        ufw_rule = list_result[:rules].find do |r|
+          r[:port_proto].include?(rule.port.to_s) &&
+          r[:action] == rule.action &&
+          r[:direction] == rule.direction
+        end
+
+        if ufw_rule
+          # Delete from UFW
+          delete_result = service.delete_ufw_rule(ufw_rule[:number])
+
+          if delete_result[:success]
+            # Delete from database
+            rule.destroy!
+
+            log_activity('firewall_rule_removed',
+                        details: "Removed firewall rule #{rule.display_name} from server: #{@server.display_name}")
+
+            respond_to do |format|
+              format.json { render json: { success: true, message: "Firewall rule removed successfully" } }
+              format.html do
+                toast_success("Firewall rule removed successfully", title: "Rule Removed")
+                redirect_to firewall_rules_server_path(@server)
+              end
+            end
+          else
+            respond_to do |format|
+              format.json { render json: { success: false, message: delete_result[:error] }, status: :unprocessable_entity }
+              format.html do
+                toast_error(delete_result[:error], title: "Remove Failed")
+                redirect_to firewall_rules_server_path(@server)
+              end
+            end
+          end
+        else
+          # Rule not found in UFW, just delete from database
+          rule.destroy!
+
+          respond_to do |format|
+            format.json { render json: { success: true, message: "Rule removed from database (not found in UFW)" } }
+            format.html do
+              toast_warning("Rule removed from database but not found in UFW", title: "Partial Remove")
+              redirect_to firewall_rules_server_path(@server)
+            end
+          end
+        end
+      else
+        respond_to do |format|
+          format.json { render json: { success: false, message: list_result[:error] }, status: :unprocessable_entity }
+          format.html do
+            toast_error(list_result[:error], title: "Remove Failed")
+            redirect_to firewall_rules_server_path(@server)
+          end
+        end
+      end
+    rescue StandardError => e
+      Rails.logger.error "Failed to remove firewall rule: #{e.message}"
+
+      respond_to do |format|
+        format.json { render json: { success: false, message: e.message }, status: :internal_server_error }
+        format.html do
+          toast_error(e.message, title: "Remove Error")
+          redirect_to firewall_rules_server_path(@server)
+        end
+      end
+    end
+  end
+
+  def toggle_firewall_rule
+    begin
+      rule = @server.firewall_rules.find(params[:rule_id])
+      rule.update!(enabled: !rule.enabled)
+
+      log_activity('firewall_rule_toggled',
+                  details: "Toggled firewall rule #{rule.display_name} to #{rule.enabled? ? 'enabled' : 'disabled'} on server: #{@server.display_name}")
+
+      respond_to do |format|
+        format.json { render json: { success: true, message: "Rule #{rule.enabled? ? 'enabled' : 'disabled'}", enabled: rule.enabled } }
+        format.html do
+          toast_success("Rule #{rule.enabled? ? 'enabled' : 'disabled'}", title: "Rule Updated")
+          redirect_to firewall_rules_server_path(@server)
+        end
+      end
+    rescue StandardError => e
+      Rails.logger.error "Failed to toggle firewall rule: #{e.message}"
+
+      respond_to do |format|
+        format.json { render json: { success: false, message: e.message }, status: :internal_server_error }
+        format.html do
+          toast_error(e.message, title: "Toggle Error")
+          redirect_to firewall_rules_server_path(@server)
+        end
+      end
+    end
+  end
+
+  def apply_firewall_rules
+    begin
+      service = SshConnectionService.new(@server)
+
+      # Reset UFW first
+      reset_result = service.reset_ufw
+      unless reset_result[:success]
+        raise StandardError, "Failed to reset UFW: #{reset_result[:error]}"
+      end
+
+      # Re-enable UFW if it was enabled
+      if @server.ufw_enabled?
+        enable_result = service.enable_ufw
+        unless enable_result[:success]
+          raise StandardError, "Failed to re-enable UFW: #{enable_result[:error]}"
+        end
+      end
+
+      # Apply all enabled rules
+      @server.firewall_rules.enabled.ordered.each do |rule|
+        result = service.add_ufw_rule(rule.to_ufw_command)
+        unless result[:success]
+          Rails.logger.error "Failed to apply rule #{rule.display_name}: #{result[:error]}"
+        end
+      end
+
+      log_activity('firewall_rules_applied',
+                  details: "Applied all firewall rules to server: #{@server.display_name}")
+
+      respond_to do |format|
+        format.json { render json: { success: true, message: "All firewall rules applied successfully" } }
+        format.html do
+          toast_success("All firewall rules applied successfully", title: "Rules Applied")
+          redirect_to firewall_rules_server_path(@server)
+        end
+      end
+    rescue StandardError => e
+      Rails.logger.error "Failed to apply firewall rules: #{e.message}"
+
+      respond_to do |format|
+        format.json { render json: { success: false, message: e.message }, status: :internal_server_error }
+        format.html do
+          toast_error(e.message, title: "Apply Error")
+          redirect_to firewall_rules_server_path(@server)
+        end
+      end
+    end
+  end
+
   private
 
   def set_server
@@ -206,5 +569,67 @@ class ServersController < ApplicationController
       message: message,
       last_checked: @server.last_connected_at
     }
+  end
+
+  def check_and_sync_ufw_status
+    service = SshConnectionService.new(@server)
+    status_result = service.check_ufw_status
+
+    if status_result[:success]
+      @server.update!(
+        ufw_enabled: status_result[:enabled],
+        ufw_status: status_result[:status]
+      )
+
+      # If UFW is enabled, sync rules
+      if status_result[:enabled]
+        list_result = service.list_ufw_rules
+        sync_rules_to_database(list_result[:rules]) if list_result[:success]
+      end
+    end
+  rescue StandardError => e
+    Rails.logger.error "Failed to check and sync UFW status: #{e.message}"
+  end
+
+  def sync_rules_to_database(ufw_rules)
+    ufw_rules.each do |ufw_rule|
+      # Parse port and protocol from port_proto (e.g., "22/tcp", "80", "8000:9000/tcp")
+      port_match = ufw_rule[:port_proto].match(/^(\d+(?::\d+)?)(?:\/(\w+))?$/)
+      next unless port_match
+
+      port = port_match[1]
+      protocol = port_match[2] || 'any'
+
+      @server.firewall_rules.find_or_create_by!(
+        port: port,
+        protocol: protocol,
+        action: ufw_rule[:action],
+        direction: ufw_rule[:direction]
+      ) do |rule|
+        rule.from_ip = ufw_rule[:from] unless ufw_rule[:from] == 'Anywhere'
+        rule.comment = ufw_rule[:comment]
+        rule.enabled = true
+      end
+    end
+
+    # Remove rules that no longer exist in UFW
+    existing_rules = @server.firewall_rules.all
+    ufw_rule_keys = ufw_rules.map do |r|
+      port_match = r[:port_proto].match(/^(\d+(?::\d+)?)(?:\/(\w+))?$/)
+      next unless port_match
+      "#{r[:action]}:#{r[:direction]}:#{port_match[1]}:#{port_match[2] || 'any'}"
+    end.compact
+
+    existing_rules.each do |rule|
+      rule_key = "#{rule.action}:#{rule.direction}:#{rule.port}:#{rule.protocol}"
+      unless ufw_rule_keys.include?(rule_key)
+        rule.destroy!
+        Rails.logger.info "[ServersController] Removed stale firewall rule: #{rule.display_name}"
+      end
+    end
+  end
+
+  def firewall_rule_params
+    params.require(:firewall_rule).permit(:action, :direction, :port, :protocol, :from_ip, :to_ip, :comment)
   end
 end

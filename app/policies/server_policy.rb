@@ -47,6 +47,38 @@ class ServerPolicy < ApplicationPolicy
     user.present? && (record.user == user || user.admin?)
   end
 
+  def firewall_rules?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def sync_firewall_rules?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def enable_ufw?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def disable_ufw?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def add_firewall_rule?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def remove_firewall_rule?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def toggle_firewall_rule?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def apply_firewall_rules?
+    user.present? && (record.user == user || user.admin?)
+  end
+
   class Scope < Scope
     def resolve
       if user.admin?

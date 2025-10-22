@@ -1,0 +1,649 @@
+<% content_for :title, "Firewall Management - #{@server.name}" %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-shield-alt me-2 text-primary"></i>
+            Firewall Management
+          </h1>
+          <p class="text-muted mb-0">Manage UFW firewall rules for <%= @server.name %></p>
+        </div>
+        <div>
+          <%= link_to @server, class: "btn btn-outline-secondary" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to Server
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- UFW Status Card -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow">
+        <div class="card-body">
+          <div class="row align-items-center">
+            <div class="col-md-6">
+              <h5 class="mb-1">
+                <i class="fas fa-shield-alt me-2"></i>UFW Status
+              </h5>
+              <% if @server.ufw_enabled %>
+                <span class="badge bg-success fs-6">
+                  <i class="fas fa-check-circle me-1"></i>Enabled
+                </span>
+                <p class="text-muted mb-0 mt-2">Firewall is active and protecting your server</p>
+              <% else %>
+                <span class="badge bg-danger fs-6">
+                  <i class="fas fa-times-circle me-1"></i>Disabled
+                </span>
+                <p class="text-muted mb-0 mt-2">Firewall is currently disabled</p>
+              <% end %>
+            </div>
+            <div class="col-md-6 text-end">
+              <div class="btn-group" role="group">
+                <% if @server.ufw_enabled %>
+                  <%= button_tag type: "button", class: "btn btn-danger", id: "disable-ufw-btn" do %>
+                    <i class="fas fa-power-off me-1"></i>Disable UFW
+                  <% end %>
+                <% else %>
+                  <%= button_tag type: "button", class: "btn btn-success", id: "enable-ufw-btn" do %>
+                    <i class="fas fa-power-off me-1"></i>Enable UFW
+                  <% end %>
+                <% end %>
+                <%= button_tag type: "button", class: "btn btn-info", id: "sync-rules-btn" do %>
+                  <i class="fas fa-sync me-1"></i>Sync from Server
+                <% end %>
+                <% if @firewall_rules.any? %>
+                  <%= button_tag type: "button", class: "btn btn-primary", id: "apply-rules-btn" do %>
+                    <i class="fas fa-check me-1"></i>Apply All Rules
+                  <% end %>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Rule Builder -->
+    <div class="col-md-8">
+      <!-- Add Rule Form -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-light">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-plus-circle me-2"></i>Add Firewall Rule
+          </h6>
+        </div>
+        <div class="card-body">
+          <!-- Quick Add Common Rules -->
+          <div class="mb-4">
+            <h6 class="text-muted mb-3">Quick Add Common Rules:</h6>
+            <div class="d-flex flex-wrap gap-2">
+              <% @common_rules.each do |name, rule_data| %>
+                <%= button_tag type: "button",
+                    class: "btn btn-outline-primary btn-sm common-rule-btn",
+                    data: {
+                      port: rule_data[:port],
+                      protocol: rule_data[:protocol],
+                      action: rule_data[:action],
+                      direction: rule_data[:direction],
+                      comment: rule_data[:comment]
+                    } do %>
+                  <i class="fas fa-plus me-1"></i><%= name %>
+                <% end %>
+              <% end %>
+            </div>
+          </div>
+
+          <hr>
+
+          <!-- Custom Rule Form -->
+          <%= form_with url: add_firewall_rule_server_path(@server), method: :post, local: false, id: "add-rule-form" do |form| %>
+            <div class="row g-3">
+              <div class="col-md-3">
+                <label class="form-label">Action</label>
+                <%= select_tag 'firewall_rule[action]',
+                    options_for_select(FirewallRule::ACTIONS.map { |a| [a.capitalize, a] }, 'allow'),
+                    class: "form-select", required: true %>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Direction</label>
+                <%= select_tag 'firewall_rule[direction]',
+                    options_for_select([['Incoming', 'in'], ['Outgoing', 'out']], 'in'),
+                    class: "form-select", required: true %>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Protocol</label>
+                <%= select_tag 'firewall_rule[protocol]',
+                    options_for_select(FirewallRule::PROTOCOLS.map { |p| [p.upcase, p] }, 'tcp'),
+                    class: "form-select" %>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Port</label>
+                <%= text_field_tag 'firewall_rule[port]', nil,
+                    class: "form-control",
+                    placeholder: "e.g., 80 or 8000:9000" %>
+              </div>
+            </div>
+
+            <div class="row g-3 mt-2">
+              <div class="col-md-4">
+                <label class="form-label">From IP (Optional)</label>
+                <%= text_field_tag 'firewall_rule[from_ip]', nil,
+                    class: "form-control",
+                    placeholder: "e.g., 192.168.1.0/24 or any" %>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">To IP (Optional)</label>
+                <%= text_field_tag 'firewall_rule[to_ip]', nil,
+                    class: "form-control",
+                    placeholder: "e.g., 10.0.0.1 or any" %>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Comment (Optional)</label>
+                <%= text_field_tag 'firewall_rule[comment]', nil,
+                    class: "form-control",
+                    placeholder: "Description" %>
+              </div>
+            </div>
+
+            <div class="row mt-3">
+              <div class="col-12">
+                <%= button_tag type: "submit", class: "btn btn-primary", id: "add-rule-btn" do %>
+                  <i class="fas fa-plus me-2"></i>Add Rule
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- Current Rules -->
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-list me-2"></i>Current Firewall Rules
+          </h6>
+        </div>
+        <div class="card-body">
+          <% if @firewall_rules.any? %>
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th style="width: 50px">Status</th>
+                    <th>Action</th>
+                    <th>Direction</th>
+                    <th>Protocol</th>
+                    <th>Port</th>
+                    <th>From</th>
+                    <th>To</th>
+                    <th>Comment</th>
+                    <th class="text-end" style="width: 120px">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% @firewall_rules.each do |rule| %>
+                    <tr data-rule-id="<%= rule.id %>" class="<%= 'table-secondary' unless rule.enabled? %>">
+                      <td>
+                        <div class="form-check form-switch">
+                          <input class="form-check-input toggle-rule-checkbox"
+                                 type="checkbox"
+                                 <%= 'checked' if rule.enabled? %>
+                                 data-rule-id="<%= rule.id %>">
+                        </div>
+                      </td>
+                      <td>
+                        <span class="badge <%= rule.action == 'allow' ? 'bg-success' : 'bg-danger' %>">
+                          <%= rule.action.upcase %>
+                        </span>
+                      </td>
+                      <td>
+                        <span class="badge bg-info">
+                          <%= rule.direction == 'in' ? 'IN' : 'OUT' %>
+                        </span>
+                      </td>
+                      <td><%= rule.protocol&.upcase || 'ANY' %></td>
+                      <td><strong><%= rule.port || 'any' %></strong></td>
+                      <td><small><%= rule.from_ip || 'any' %></small></td>
+                      <td><small><%= rule.to_ip || 'any' %></small></td>
+                      <td><small><%= rule.comment %></small></td>
+                      <td class="text-end">
+                        <%= button_tag type: "button",
+                            class: "btn btn-danger btn-sm remove-rule-btn",
+                            data: { rule_id: rule.id } do %>
+                          <i class="fas fa-trash"></i>
+                        <% end %>
+                      </td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          <% else %>
+            <div class="text-center py-5">
+              <i class="fas fa-shield-alt fa-3x text-muted mb-3"></i>
+              <h5 class="text-muted">No Firewall Rules Configured</h5>
+              <p class="text-muted mb-4">Add firewall rules to control traffic to your server.</p>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Information Sidebar -->
+    <div class="col-md-4">
+      <!-- Summary Card -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-chart-pie me-2"></i>Rules Summary
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <h6 class="text-muted">Total Rules</h6>
+            <h3 class="text-primary"><%= @firewall_rules.count %></h3>
+          </div>
+
+          <div class="mb-3">
+            <h6 class="text-muted">Enabled Rules</h6>
+            <h4 class="text-success"><%= @firewall_rules.enabled.count %></h4>
+          </div>
+
+          <% if @firewall_rules.any? %>
+            <hr>
+            <div class="mb-2">
+              <strong>Rules by Action:</strong>
+            </div>
+            <% @firewall_rules.group_by(&:action).each do |action, rules| %>
+              <div class="d-flex justify-content-between mb-1">
+                <span class="badge <%= action == 'allow' ? 'bg-success' : 'bg-danger' %>">
+                  <%= action.upcase %>
+                </span>
+                <span class="text-muted"><%= rules.count %> rule(s)</span>
+              </div>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- Server Info Card -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-server me-2"></i>Server Information
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <h6 class="text-muted">Server Name</h6>
+            <strong><%= @server.name %></strong>
+          </div>
+
+          <div class="mb-3">
+            <h6 class="text-muted">IP Address</h6>
+            <code><%= @server.ip %></code>
+          </div>
+
+          <div class="mb-3">
+            <h6 class="text-muted">SSH Port</h6>
+            <code><%= @server.port %></code>
+          </div>
+        </div>
+      </div>
+
+      <!-- Help Card -->
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-question-circle me-2"></i>Help & Guide
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>About UFW:</strong>
+            <p class="mb-0 mt-2">UFW (Uncomplicated Firewall) is a user-friendly interface for managing iptables firewall rules on your server.</p>
+          </div>
+
+          <div class="alert alert-success">
+            <i class="fas fa-lightbulb me-2"></i>
+            <strong>Rule Actions:</strong>
+            <ul class="mb-0 mt-2">
+              <li><strong>Allow:</strong> Permit traffic</li>
+              <li><strong>Deny:</strong> Silently block traffic</li>
+              <li><strong>Reject:</strong> Block and notify sender</li>
+              <li><strong>Limit:</strong> Rate-limit connections</li>
+            </ul>
+          </div>
+
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Important:</strong>
+            <ul class="mb-0 mt-2">
+              <li>Always allow SSH (port 22) before enabling UFW</li>
+              <li>Rules are applied in order</li>
+              <li>Test rules carefully to avoid lockout</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const addRuleForm = document.getElementById('add-rule-form');
+  const addRuleBtn = document.getElementById('add-rule-btn');
+  const originalBtnHtml = addRuleBtn.innerHTML;
+
+  // Handle quick add common rules
+  document.querySelectorAll('.common-rule-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelector('select[name="firewall_rule[action]"]').value = this.dataset.action;
+      document.querySelector('select[name="firewall_rule[direction]"]').value = this.dataset.direction;
+      document.querySelector('select[name="firewall_rule[protocol]"]').value = this.dataset.protocol;
+      document.querySelector('input[name="firewall_rule[port]"]').value = this.dataset.port;
+      document.querySelector('input[name="firewall_rule[comment]"]').value = this.dataset.comment;
+    });
+  });
+
+  // Handle add rule form submission
+  if (addRuleForm) {
+    addRuleForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      addRuleBtn.disabled = true;
+      addRuleBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Adding...';
+
+      const formData = new FormData(addRuleForm);
+
+      fetch(addRuleForm.action, {
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+          'Accept': 'application/json'
+        },
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        addRuleBtn.disabled = false;
+        addRuleBtn.innerHTML = originalBtnHtml;
+
+        if (data.success) {
+          showToast('success', data.message, 'Rule Added');
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          showToast('error', data.message, 'Add Failed');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        addRuleBtn.disabled = false;
+        addRuleBtn.innerHTML = originalBtnHtml;
+        showToast('error', 'An unexpected error occurred', 'Add Error');
+      });
+    });
+  }
+
+  // Handle enable UFW
+  const enableBtn = document.getElementById('enable-ufw-btn');
+  if (enableBtn) {
+    enableBtn.addEventListener('click', function() {
+      if (!confirm('Are you sure you want to enable UFW? Make sure you have allowed SSH access.')) {
+        return;
+      }
+
+      enableBtn.disabled = true;
+      enableBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Enabling...';
+
+      fetch('<%= enable_ufw_server_path(@server) %>', {
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+          'Accept': 'application/json'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          showToast('success', data.message, 'UFW Enabled');
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          enableBtn.disabled = false;
+          enableBtn.innerHTML = '<i class="fas fa-power-off me-1"></i>Enable UFW';
+          showToast('error', data.message, 'Enable Failed');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        enableBtn.disabled = false;
+        enableBtn.innerHTML = '<i class="fas fa-power-off me-1"></i>Enable UFW';
+        showToast('error', 'An unexpected error occurred', 'Enable Error');
+      });
+    });
+  }
+
+  // Handle disable UFW
+  const disableBtn = document.getElementById('disable-ufw-btn');
+  if (disableBtn) {
+    disableBtn.addEventListener('click', function() {
+      if (!confirm('Are you sure you want to disable UFW? This will remove firewall protection.')) {
+        return;
+      }
+
+      disableBtn.disabled = true;
+      disableBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Disabling...';
+
+      fetch('<%= disable_ufw_server_path(@server) %>', {
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+          'Accept': 'application/json'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          showToast('success', data.message, 'UFW Disabled');
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          disableBtn.disabled = false;
+          disableBtn.innerHTML = '<i class="fas fa-power-off me-1"></i>Disable UFW';
+          showToast('error', data.message, 'Disable Failed');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        disableBtn.disabled = false;
+        disableBtn.innerHTML = '<i class="fas fa-power-off me-1"></i>Disable UFW';
+        showToast('error', 'An unexpected error occurred', 'Disable Error');
+      });
+    });
+  }
+
+  // Handle sync rules
+  const syncBtn = document.getElementById('sync-rules-btn');
+  if (syncBtn) {
+    syncBtn.addEventListener('click', function() {
+      syncBtn.disabled = true;
+      syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Syncing...';
+
+      fetch('<%= sync_firewall_rules_server_path(@server) %>', {
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+          'Accept': 'application/json'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        syncBtn.disabled = false;
+        syncBtn.innerHTML = '<i class="fas fa-sync me-1"></i>Sync from Server';
+
+        if (data.success) {
+          showToast('success', data.message, 'Sync Complete');
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          showToast('error', data.message, 'Sync Failed');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        syncBtn.disabled = false;
+        syncBtn.innerHTML = '<i class="fas fa-sync me-1"></i>Sync from Server';
+        showToast('error', 'An unexpected error occurred', 'Sync Error');
+      });
+    });
+  }
+
+  // Handle apply rules
+  const applyBtn = document.getElementById('apply-rules-btn');
+  if (applyBtn) {
+    applyBtn.addEventListener('click', function() {
+      if (!confirm('This will reset UFW and apply all enabled rules. Continue?')) {
+        return;
+      }
+
+      applyBtn.disabled = true;
+      applyBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Applying...';
+
+      fetch('<%= apply_firewall_rules_server_path(@server) %>', {
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+          'Accept': 'application/json'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        applyBtn.disabled = false;
+        applyBtn.innerHTML = '<i class="fas fa-check me-1"></i>Apply All Rules';
+
+        if (data.success) {
+          showToast('success', data.message, 'Rules Applied');
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          showToast('error', data.message, 'Apply Failed');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        applyBtn.disabled = false;
+        applyBtn.innerHTML = '<i class="fas fa-check me-1"></i>Apply All Rules';
+        showToast('error', 'An unexpected error occurred', 'Apply Error');
+      });
+    });
+  }
+
+  // Handle remove rule
+  document.addEventListener('click', function(e) {
+    const removeBtn = e.target.closest('.remove-rule-btn');
+    if (removeBtn) {
+      if (!confirm('Are you sure you want to remove this firewall rule?')) {
+        return;
+      }
+
+      const ruleId = removeBtn.dataset.ruleId;
+
+      fetch('<%= remove_firewall_rule_server_path(@server) %>?rule_id=' + ruleId, {
+        method: 'DELETE',
+        headers: {
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+          'Accept': 'application/json'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          showToast('success', data.message, 'Rule Removed');
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          showToast('error', data.message, 'Remove Failed');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        showToast('error', 'An unexpected error occurred', 'Remove Error');
+      });
+    }
+  });
+
+  // Handle toggle rule
+  document.querySelectorAll('.toggle-rule-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+      const ruleId = this.dataset.ruleId;
+
+      fetch('<%= toggle_firewall_rule_server_path(@server) %>?rule_id=' + ruleId, {
+        method: 'PATCH',
+        headers: {
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+          'Accept': 'application/json'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          showToast('success', data.message, 'Rule Updated');
+        } else {
+          showToast('error', data.message, 'Toggle Failed');
+          this.checked = !this.checked;
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        showToast('error', 'An unexpected error occurred', 'Toggle Error');
+        this.checked = !this.checked;
+      });
+    });
+  });
+
+  function showToast(type, message, title) {
+    const toastHtml = `
+      <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+          <div class="toast-body">
+            <strong>${title}:</strong> ${message}
+          </div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-mdb-dismiss="toast" aria-label="Close"></button>
+        </div>
+      </div>
+    `;
+
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+      toastContainer = document.createElement('div');
+      toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+      document.body.appendChild(toastContainer);
+    }
+
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+
+    const toastElement = toastContainer.lastElementChild;
+    const toast = new mdb.Toast(toastElement);
+    toast.show();
+
+    toastElement.addEventListener('hidden.mdb.toast', () => {
+      toastElement.remove();
+    });
+  }
+});
+</script>
+
+<style>
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+.card {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+</style>

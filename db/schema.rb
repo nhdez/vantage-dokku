@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_22_161344) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_22_175204) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -178,6 +178,23 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_22_161344) do
     t.index ["deployment_id"], name: "index_environment_variables_on_deployment_id"
   end
 
+  create_table "firewall_rules", force: :cascade do |t|
+    t.bigint "server_id", null: false
+    t.string "action", default: "allow", null: false
+    t.string "direction", default: "in", null: false
+    t.string "port"
+    t.string "protocol", default: "tcp"
+    t.string "from_ip"
+    t.string "to_ip"
+    t.string "comment"
+    t.integer "position"
+    t.boolean "enabled", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["server_id", "position"], name: "index_firewall_rules_on_server_id_and_position"
+    t.index ["server_id"], name: "index_firewall_rules_on_server_id"
+  end
+
   create_table "linked_accounts", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "provider", null: false
@@ -247,6 +264,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_22_161344) do
     t.datetime "last_connected_at"
     t.string "connection_status", default: "unknown"
     t.string "dokku_version"
+    t.boolean "ufw_enabled", default: false
+    t.string "ufw_status"
     t.index ["connection_status"], name: "index_servers_on_connection_status"
     t.index ["last_connected_at"], name: "index_servers_on_last_connected_at"
     t.index ["user_id", "name"], name: "index_servers_on_user_id_and_name"
@@ -430,6 +449,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_22_161344) do
   add_foreign_key "deployments", "users"
   add_foreign_key "domains", "deployments"
   add_foreign_key "environment_variables", "deployments"
+  add_foreign_key "firewall_rules", "servers"
   add_foreign_key "linked_accounts", "users"
   add_foreign_key "port_mappings", "deployments"
   add_foreign_key "servers", "users"
