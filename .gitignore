@@ -53,3 +53,4 @@
 
 # Ignore landing folder and all its contents
 /landing/
+.idea/
