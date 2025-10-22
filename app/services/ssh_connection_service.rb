@@ -668,12 +668,9 @@ class SshConnectionService
           # Get config from Dokku (without --export flag, which doesn't exist in older versions)
           config_output = execute_command(ssh, "sudo dokku config:show #{app_name} 2>&1")
 
-          Rails.logger.info "[SshConnectionService] Config output received: #{config_output&.length || 0} chars"
-
           if config_output && !config_output.include?('does not exist')
             # Parse the output to extract key-value pairs
             # Format: KEY:  value (with spaces after the colon)
-            lines_parsed = 0
             config_output.each_line do |line|
               # Skip header line (=====> app_name env vars)
               next if line.include?('====>')
@@ -685,18 +682,10 @@ class SshConnectionService
                 key = match[1].strip
                 value = match[2].strip
                 result[:config][key] = value
-                lines_parsed += 1
-
-                # Log DATABASE_URL and REDIS_URL for debugging
-                if key == 'DATABASE_URL' || key == 'REDIS_URL'
-                  Rails.logger.info "[SshConnectionService] Found #{key}: #{value}"
-                else
-                  Rails.logger.debug "[SshConnectionService] Parsed variable: #{key} = #{value[0..20]}..."
-                end
               end
             end
 
-            Rails.logger.info "[SshConnectionService] Parsed #{lines_parsed} environment variables"
+            Rails.logger.info "[SshConnectionService] Parsed #{result[:config].keys.count} environment variables from Dokku config"
             result[:success] = true
           else
             result[:error] = "App does not exist or no config found"

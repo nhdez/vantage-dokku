@@ -42,21 +42,21 @@
               <% if @environment_variables.any? %>
                 <% @environment_variables.each_with_index do |env_var, index| %>
                   <div class="environment-variable-row mb-3 p-3 border rounded">
-                    <div class="row">
+                    <div class="row mb-2">
                       <div class="col-md-3">
                         <label class="form-label">Variable Name</label>
-                        <%= text_field_tag "environment_variables[#{index}][key]", env_var.key, 
-                            class: "form-control env-key-input", 
+                        <%= text_field_tag "environment_variables[#{index}][key]", env_var.key,
+                            class: "form-control env-key-input",
                             placeholder: "e.g., DATABASE_URL",
                             pattern: "[A-Z][A-Z0-9_]*",
                             title: "Must start with a letter and contain only uppercase letters, numbers, and underscores" %>
                       </div>
-                      <div class="col-md-4">
+                      <div class="col-md-8">
                         <label class="form-label">Value</label>
                         <div class="input-group">
-                          <%= text_area_tag "environment_variables[#{index}][value]", env_var.value, 
-                              class: "form-control env-value-input #{'sensitive-value' if env_var.sensitive?}", 
-                              rows: 1,
+                          <%= text_area_tag "environment_variables[#{index}][value]", env_var.value,
+                              class: "form-control env-value-input #{'sensitive-value' if env_var.sensitive?}",
+                              rows: 2,
                               placeholder: "Variable value" %>
                           <% if env_var.sensitive? %>
                             <button class="btn btn-outline-secondary toggle-visibility" type="button">
@@ -65,17 +65,19 @@
                           <% end %>
                         </div>
                       </div>
-                      <div class="col-md-4">
-                        <label class="form-label">Description (Optional)</label>
-                        <%= text_field_tag "environment_variables[#{index}][description]", env_var.description, 
-                            class: "form-control", 
-                            placeholder: "Brief description" %>
-                      </div>
                       <div class="col-md-1">
                         <label class="form-label">&nbsp;</label>
                         <button type="button" class="btn btn-danger btn-sm d-block remove-env-var">
                           <i class="fas fa-trash"></i>
                         </button>
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="col-md-12">
+                        <label class="form-label">Description (Optional)</label>
+                        <%= text_field_tag "environment_variables[#{index}][description]", env_var.description,
+                            class: "form-control",
+                            placeholder: "Brief description" %>
                       </div>
                     </div>
                   </div>
@@ -360,35 +362,37 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const html = `
       <div class="environment-variable-row mb-3 p-3 border rounded">
-        <div class="row">
+        <div class="row mb-2">
           <div class="col-md-3">
             <label class="form-label">Variable Name</label>
-            <input type="text" name="environment_variables[${envVarIndex}][key]" value="${key}" 
-                   class="form-control env-key-input" 
+            <input type="text" name="environment_variables[${envVarIndex}][key]" value="${key}"
+                   class="form-control env-key-input"
                    placeholder="e.g., DATABASE_URL"
                    pattern="[A-Z][A-Z0-9_]*"
                    title="Must start with a letter and contain only uppercase letters, numbers, and underscores">
           </div>
-          <div class="col-md-4">
+          <div class="col-md-8">
             <label class="form-label">Value</label>
             <div class="input-group">
-              <textarea name="environment_variables[${envVarIndex}][value]" 
-                        class="form-control env-value-input ${isSensitive ? 'sensitive-value' : ''}" 
-                        rows="1" placeholder="Variable value"
+              <textarea name="environment_variables[${envVarIndex}][value]"
+                        class="form-control env-value-input ${isSensitive ? 'sensitive-value' : ''}"
+                        rows="2" placeholder="Variable value"
                         ${isSensitive ? 'type="password"' : ''}>${value}</textarea>
               ${isSensitive ? '<button class="btn btn-outline-secondary toggle-visibility" type="button"><i class="fas fa-eye"></i></button>' : ''}
             </div>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Description (Optional)</label>
-            <input type="text" name="environment_variables[${envVarIndex}][description]" value="${description}" 
-                   class="form-control" placeholder="Brief description">
           </div>
           <div class="col-md-1">
             <label class="form-label">&nbsp;</label>
             <button type="button" class="btn btn-danger btn-sm d-block remove-env-var">
               <i class="fas fa-trash"></i>
             </button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-12">
+            <label class="form-label">Description (Optional)</label>
+            <input type="text" name="environment_variables[${envVarIndex}][description]" value="${description}"
+                   class="form-control" placeholder="Brief description">
           </div>
         </div>
       </div>
