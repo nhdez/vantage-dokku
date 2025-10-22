@@ -217,13 +217,84 @@
                     <% if @database_configuration.redis_enabled? %>
                       <li><strong>Redis:</strong> <%= @database_configuration.redis_display_name %></li>
                     <% end %>
-                    <li><strong>Status:</strong> 
+                    <li><strong>Status:</strong>
                       <span class="badge <%= @database_configuration.status_class %>">
                         <%= @database_configuration.status_text %>
                       </span>
                     </li>
                   </ul>
                 </div>
+
+                <!-- Connection Details Card -->
+                <% if @database_configuration.configured? %>
+                  <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white py-2">
+                      <h6 class="m-0">
+                        <i class="fas fa-plug me-2"></i>Connection Details
+                      </h6>
+                    </div>
+                    <div class="card-body">
+                      <p class="text-muted mb-3">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Use these connection strings in your application to connect to your databases.
+                      </p>
+
+                      <!-- Database URL -->
+                      <% if @database_configuration.database_url.present? %>
+                        <div class="mb-3">
+                          <label class="form-label mb-1">
+                            <i class="fas fa-database text-primary me-1"></i>
+                            <strong><%= @database_configuration.environment_variable_name %></strong>
+                          </label>
+                          <div class="input-group">
+                            <input type="text"
+                                   class="form-control font-monospace small"
+                                   id="database-url-input"
+                                   value="<%= @database_configuration.database_url %>"
+                                   readonly>
+                            <button class="btn btn-outline-secondary"
+                                    type="button"
+                                    onclick="copyToClipboard('database-url-input', this)"
+                                    title="Copy to clipboard">
+                              <i class="fas fa-copy"></i>
+                            </button>
+                          </div>
+                          <small class="text-muted">
+                            <i class="fas fa-check text-success me-1"></i>
+                            Also available in your app's environment variables
+                          </small>
+                        </div>
+                      <% end %>
+
+                      <!-- Redis URL -->
+                      <% if @database_configuration.redis_enabled? && @database_configuration.redis_url.present? %>
+                        <div class="mb-0">
+                          <label class="form-label mb-1">
+                            <i class="fas fa-memory text-success me-1"></i>
+                            <strong><%= @database_configuration.redis_environment_variable_name %></strong>
+                          </label>
+                          <div class="input-group">
+                            <input type="text"
+                                   class="form-control font-monospace small"
+                                   id="redis-url-input"
+                                   value="<%= @database_configuration.redis_url %>"
+                                   readonly>
+                            <button class="btn btn-outline-secondary"
+                                    type="button"
+                                    onclick="copyToClipboard('redis-url-input', this)"
+                                    title="Copy to clipboard">
+                              <i class="fas fa-copy"></i>
+                            </button>
+                          </div>
+                          <small class="text-muted">
+                            <i class="fas fa-check text-success me-1"></i>
+                            Also available in your app's environment variables
+                          </small>
+                        </div>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
               <% end %>
               
               <!-- Submit Button -->
@@ -947,6 +1018,44 @@ function confirmDeletion(event) {
   } else if (userInput !== null) {
     // User entered something other than 'DELETE'
     showToast('info', 'Deletion cancelled. You must type DELETE to confirm.', 'Cancelled');
+  }
+}
+
+// Copy to clipboard function
+function copyToClipboard(inputId, button) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+
+  // Select and copy the text
+  input.select();
+  input.setSelectionRange(0, 99999); // For mobile devices
+
+  try {
+    // Try using the modern Clipboard API
+    navigator.clipboard.writeText(input.value).then(() => {
+      // Show success feedback
+      const originalHTML = button.innerHTML;
+      button.innerHTML = '<i class="fas fa-check text-success"></i>';
+      button.classList.add('btn-success');
+      button.classList.remove('btn-outline-secondary');
+
+      // Reset button after 2 seconds
+      setTimeout(() => {
+        button.innerHTML = originalHTML;
+        button.classList.remove('btn-success');
+        button.classList.add('btn-outline-secondary');
+      }, 2000);
+    }).catch(err => {
+      // Fallback to execCommand if Clipboard API fails
+      document.execCommand('copy');
+      const originalHTML = button.innerHTML;
+      button.innerHTML = '<i class="fas fa-check text-success"></i>';
+      setTimeout(() => {
+        button.innerHTML = originalHTML;
+      }, 2000);
+    });
+  } catch (err) {
+    console.error('Failed to copy:', err);
   }
 }
 </script>

@@ -528,9 +528,11 @@ class SshConnectionService
     result = {
       success: false,
       error: nil,
-      output: ''
+      output: '',
+      database_url: nil,
+      redis_url: nil
     }
-    
+
     begin
       Timeout::timeout(INSTALL_TIMEOUT) do # Use install timeout for database setup
         Net::SSH.start(
@@ -539,9 +541,12 @@ class SshConnectionService
           ssh_options
         ) do |ssh|
           # Configure database and optionally Redis
-          result[:output] = perform_database_configuration(ssh, app_name, database_config)
+          config_result = perform_database_configuration(ssh, app_name, database_config)
+          result[:output] = config_result[:output]
+          result[:database_url] = config_result[:database_url]
+          result[:redis_url] = config_result[:redis_url]
           result[:success] = true
-          
+
           # Update last connected timestamp
           @server.update!(last_connected_at: Time.current)
         end
@@ -557,7 +562,7 @@ class SshConnectionService
     rescue StandardError => e
       result[:error] = "Database configuration failed: #{e.message}"
     end
-    
+
     result
   end
 
@@ -604,7 +609,7 @@ class SshConnectionService
       error: nil,
       server_info: {}
     }
-    
+
     begin
       Timeout::timeout(CONNECTION_TIMEOUT) do
         Net::SSH.start(
@@ -614,7 +619,7 @@ class SshConnectionService
         ) do |ssh|
           result[:success] = true
           result[:server_info] = gather_server_info(ssh)
-          
+
           # Update server with gathered information
           update_server_info(result[:server_info])
         end
@@ -630,7 +635,7 @@ class SshConnectionService
     rescue StandardError => e
       result[:error] = "Connection failed: #{e.message}"
     end
-    
+
     # Update connection status
     if result[:success]
       @server.update!(
@@ -640,7 +645,75 @@ class SshConnectionService
     else
       @server.update!(connection_status: 'failed')
     end
-    
+
+    result
+  end
+
+  def get_dokku_config(app_name)
+    result = {
+      success: false,
+      error: nil,
+      config: {}
+    }
+
+    begin
+      Rails.logger.info "[SshConnectionService] Getting Dokku config for app #{app_name} on #{@server.name}"
+
+      Timeout::timeout(CONNECTION_TIMEOUT) do
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options
+        ) do |ssh|
+          # Get config from Dokku (without --export flag, which doesn't exist in older versions)
+          config_output = execute_command(ssh, "sudo dokku config:show #{app_name} 2>&1")
+
+          if config_output && !config_output.include?('does not exist')
+            # Parse the output to extract key-value pairs
+            # Format: KEY:  value (with spaces after the colon)
+            config_output.each_line do |line|
+              # Skip header line (=====> app_name env vars)
+              next if line.include?('====>')
+
+              # Match format: KEY:  value
+              # The regex handles variable amounts of whitespace after the colon
+              match = line.match(/^([A-Z_][A-Z0-9_]*):\s+(.+)$/i)
+              if match
+                key = match[1].strip
+                value = match[2].strip
+                result[:config][key] = value
+              end
+            end
+
+            Rails.logger.info "[SshConnectionService] Parsed #{result[:config].keys.count} environment variables from Dokku config"
+            result[:success] = true
+          else
+            result[:error] = "App does not exist or no config found"
+            Rails.logger.warn "[SshConnectionService] #{result[:error]}: #{config_output&.first(200)}"
+          end
+
+          # Update last connected timestamp
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue Net::SSH::AuthenticationFailed => e
+      result[:error] = "Authentication failed. Please check your SSH key or password."
+      Rails.logger.error "[SshConnectionService] #{result[:error]}: #{e.message}"
+    rescue Net::SSH::ConnectionTimeout, Timeout::Error => e
+      result[:error] = "Connection timeout. Server may be unreachable."
+      Rails.logger.error "[SshConnectionService] #{result[:error]}: #{e.message}"
+    rescue Errno::ECONNREFUSED => e
+      result[:error] = "Connection refused. Check if SSH service is running on port #{@connection_details[:port]}."
+      Rails.logger.error "[SshConnectionService] #{result[:error]}: #{e.message}"
+    rescue Errno::EHOSTUNREACH => e
+      result[:error] = "Host unreachable. Check the IP address and network connectivity."
+      Rails.logger.error "[SshConnectionService] #{result[:error]}: #{e.message}"
+    rescue StandardError => e
+      result[:error] = "Failed to get config: #{e.message}"
+      Rails.logger.error "[SshConnectionService] #{result[:error]}"
+      Rails.logger.error e.backtrace.join("\n")
+    end
+
     result
   end
   
@@ -1343,7 +1416,9 @@ class SshConnectionService
   
   def perform_database_configuration(ssh, app_name, database_config)
     config_output = ""
-    
+    database_url = nil
+    redis_url = nil
+
     begin
       Rails.logger.info "Configuring database for Dokku app '#{app_name}' on #{@server.name}"
       config_output += "=== Configuring Database for Dokku App: #{app_name} ===\n"
@@ -1481,8 +1556,12 @@ class SshConnectionService
       config_output += "Database configuration encountered an error: #{e.message}\n"
       raise e
     end
-    
-    config_output
+
+    {
+      output: config_output,
+      database_url: database_url,
+      redis_url: redis_url
+    }
   end
   
   def perform_database_deletion(ssh, app_name, database_config)
