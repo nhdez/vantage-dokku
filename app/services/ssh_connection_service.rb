@@ -669,17 +669,20 @@ class SshConnectionService
           config_output = execute_command(ssh, "sudo dokku config:show #{app_name} --export 2>&1")
 
           Rails.logger.info "[SshConnectionService] Config output received: #{config_output&.length || 0} chars"
+          Rails.logger.info "[SshConnectionService] Raw output: #{config_output.inspect}"
 
           if config_output && !config_output.include?('does not exist')
             # Parse the output to extract key-value pairs
             # Format: export KEY='value'
             lines_parsed = 0
             config_output.each_line do |line|
+              Rails.logger.debug "[SshConnectionService] Checking line: #{line.inspect}"
               if line.match(/^export\s+(\w+)='(.*)'/m)
                 key = $1
                 value = $2
                 result[:config][key] = value
                 lines_parsed += 1
+                Rails.logger.info "[SshConnectionService] Parsed variable: #{key}"
               end
             end
 
