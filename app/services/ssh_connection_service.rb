@@ -665,24 +665,27 @@ class SshConnectionService
           @connection_details[:username],
           ssh_options
         ) do |ssh|
-          # Get config from Dokku
-          config_output = execute_command(ssh, "sudo dokku config:show #{app_name} --export 2>&1")
+          # Get config from Dokku (without --export flag, which doesn't exist in older versions)
+          config_output = execute_command(ssh, "sudo dokku config:show #{app_name} 2>&1")
 
           Rails.logger.info "[SshConnectionService] Config output received: #{config_output&.length || 0} chars"
-          Rails.logger.info "[SshConnectionService] Raw output: #{config_output.inspect}"
 
           if config_output && !config_output.include?('does not exist')
             # Parse the output to extract key-value pairs
-            # Format: export KEY='value'
+            # Format: KEY:  value (with spaces after the colon)
             lines_parsed = 0
             config_output.each_line do |line|
-              Rails.logger.debug "[SshConnectionService] Checking line: #{line.inspect}"
-              if line.match(/^export\s+(\w+)='(.*)'/m)
-                key = $1
-                value = $2
+              # Skip header line (=====> app_name env vars)
+              next if line.include?('====>')
+
+              # Match format: KEY:  value
+              # The regex handles variable amounts of whitespace after the colon
+              if line.match(/^([A-Z_][A-Z0-9_]*):\s+(.+)$/i)
+                key = $1.strip
+                value = $2.strip
                 result[:config][key] = value
                 lines_parsed += 1
-                Rails.logger.info "[SshConnectionService] Parsed variable: #{key}"
+                Rails.logger.debug "[SshConnectionService] Parsed variable: #{key} = #{value[0..20]}..."
               end
             end
 
