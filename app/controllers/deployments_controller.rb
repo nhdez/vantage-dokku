@@ -796,38 +796,71 @@ class DeploymentsController < ApplicationController
   def sync_database_urls_to_environment_variables
     return unless @database_configuration.configured?
 
-    # Sync DATABASE_URL or equivalent if it exists but isn't in EnvironmentVariables
-    if @database_configuration.database_url.present?
-      env_var_name = @database_configuration.environment_variable_name
-      existing_var = @deployment.environment_variables.find_by(key: env_var_name)
+    # Fetch actual config from Dokku server to get the real DATABASE_URL and REDIS_URL
+    service = SshConnectionService.new(@deployment.server)
+    result = service.get_dokku_config(@deployment.dokku_app_name)
 
-      # Only create if it doesn't exist in EnvironmentVariables table
-      unless existing_var
+    return unless result[:success] && result[:config].present?
+
+    dokku_config = result[:config]
+    database_url_from_dokku = nil
+    redis_url_from_dokku = nil
+
+    # Get the environment variable names based on database type
+    db_env_var_name = @database_configuration.environment_variable_name
+    redis_env_var_name = @database_configuration.redis_environment_variable_name if @database_configuration.redis_enabled?
+
+    # Extract DATABASE_URL (or MONGO_URL) from Dokku config
+    if db_env_var_name && dokku_config[db_env_var_name].present?
+      database_url_from_dokku = dokku_config[db_env_var_name]
+
+      # Update database_configuration if URL is missing or different
+      if @database_configuration.database_url != database_url_from_dokku
+        @database_configuration.update!(database_url: database_url_from_dokku)
+        Rails.logger.info "[DeploymentsController] Updated database_url in database_configuration for deployment #{@deployment.uuid}"
+      end
+
+      # Sync to EnvironmentVariables table if not present or different
+      existing_var = @deployment.environment_variables.find_by(key: db_env_var_name)
+      if existing_var.nil?
         @deployment.environment_variables.create!(
-          key: env_var_name,
-          value: @database_configuration.database_url
+          key: db_env_var_name,
+          value: database_url_from_dokku
         )
-        Rails.logger.info "[DeploymentsController] Synced #{env_var_name} to EnvironmentVariables for deployment #{@deployment.uuid}"
+        Rails.logger.info "[DeploymentsController] Created #{db_env_var_name} in EnvironmentVariables for deployment #{@deployment.uuid}"
+      elsif existing_var.value != database_url_from_dokku
+        existing_var.update!(value: database_url_from_dokku)
+        Rails.logger.info "[DeploymentsController] Updated #{db_env_var_name} in EnvironmentVariables for deployment #{@deployment.uuid}"
       end
     end
 
-    # Sync REDIS_URL if Redis is enabled and URL exists but isn't in EnvironmentVariables
-    if @database_configuration.redis_enabled? && @database_configuration.redis_url.present?
-      redis_env_var_name = @database_configuration.redis_environment_variable_name
-      existing_redis_var = @deployment.environment_variables.find_by(key: redis_env_var_name)
+    # Extract REDIS_URL from Dokku config if Redis is enabled
+    if redis_env_var_name && dokku_config[redis_env_var_name].present?
+      redis_url_from_dokku = dokku_config[redis_env_var_name]
 
-      # Only create if it doesn't exist in EnvironmentVariables table
-      unless existing_redis_var
+      # Update database_configuration if URL is missing or different
+      if @database_configuration.redis_url != redis_url_from_dokku
+        @database_configuration.update!(redis_url: redis_url_from_dokku)
+        Rails.logger.info "[DeploymentsController] Updated redis_url in database_configuration for deployment #{@deployment.uuid}"
+      end
+
+      # Sync to EnvironmentVariables table if not present or different
+      existing_redis_var = @deployment.environment_variables.find_by(key: redis_env_var_name)
+      if existing_redis_var.nil?
         @deployment.environment_variables.create!(
           key: redis_env_var_name,
-          value: @database_configuration.redis_url
+          value: redis_url_from_dokku
         )
-        Rails.logger.info "[DeploymentsController] Synced #{redis_env_var_name} to EnvironmentVariables for deployment #{@deployment.uuid}"
+        Rails.logger.info "[DeploymentsController] Created #{redis_env_var_name} in EnvironmentVariables for deployment #{@deployment.uuid}"
+      elsif existing_redis_var.value != redis_url_from_dokku
+        existing_redis_var.update!(value: redis_url_from_dokku)
+        Rails.logger.info "[DeploymentsController] Updated #{redis_env_var_name} in EnvironmentVariables for deployment #{@deployment.uuid}"
       end
     end
   rescue StandardError => e
     # Log the error but don't fail the page load
-    Rails.logger.error "[DeploymentsController] Failed to sync database URLs to EnvironmentVariables: #{e.message}"
+    Rails.logger.error "[DeploymentsController] Failed to sync database URLs from Dokku: #{e.message}"
+    Rails.logger.error e.backtrace.join("\n")
   end
 
 end

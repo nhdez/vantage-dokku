@@ -609,7 +609,7 @@ class SshConnectionService
       error: nil,
       server_info: {}
     }
-    
+
     begin
       Timeout::timeout(CONNECTION_TIMEOUT) do
         Net::SSH.start(
@@ -619,7 +619,7 @@ class SshConnectionService
         ) do |ssh|
           result[:success] = true
           result[:server_info] = gather_server_info(ssh)
-          
+
           # Update server with gathered information
           update_server_info(result[:server_info])
         end
@@ -635,7 +635,7 @@ class SshConnectionService
     rescue StandardError => e
       result[:error] = "Connection failed: #{e.message}"
     end
-    
+
     # Update connection status
     if result[:success]
       @server.update!(
@@ -645,7 +645,59 @@ class SshConnectionService
     else
       @server.update!(connection_status: 'failed')
     end
-    
+
+    result
+  end
+
+  def get_dokku_config(app_name)
+    result = {
+      success: false,
+      error: nil,
+      config: {}
+    }
+
+    begin
+      Timeout::timeout(CONNECTION_TIMEOUT) do
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options
+        ) do |ssh|
+          # Get config from Dokku
+          config_output = execute_command(ssh, "sudo dokku config:show #{app_name} --export 2>&1")
+
+          if config_output && !config_output.include?('does not exist')
+            # Parse the output to extract key-value pairs
+            # Format: export KEY='value'
+            config_output.each_line do |line|
+              if line.match(/^export\s+(\w+)='(.*)'/m)
+                key = $1
+                value = $2
+                result[:config][key] = value
+              end
+            end
+
+            result[:success] = true
+          else
+            result[:error] = "App does not exist or no config found"
+          end
+
+          # Update last connected timestamp
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue Net::SSH::AuthenticationFailed => e
+      result[:error] = "Authentication failed. Please check your SSH key or password."
+    rescue Net::SSH::ConnectionTimeout, Timeout::Error => e
+      result[:error] = "Connection timeout. Server may be unreachable."
+    rescue Errno::ECONNREFUSED => e
+      result[:error] = "Connection refused. Check if SSH service is running on port #{@connection_details[:port]}."
+    rescue Errno::EHOSTUNREACH => e
+      result[:error] = "Host unreachable. Check the IP address and network connectivity."
+    rescue StandardError => e
+      result[:error] = "Failed to get config: #{e.message}"
+    end
+
     result
   end
   
