@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_22_175204) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_23_231758) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -437,6 +437,59 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_22_175204) do
     t.index ["user_id"], name: "index_users_roles_on_user_id"
   end
 
+  create_table "vulnerabilities", force: :cascade do |t|
+    t.bigint "vulnerability_scan_id", null: false
+    t.string "osv_id", null: false
+    t.decimal "cvss_score", precision: 3, scale: 1
+    t.string "ecosystem", null: false
+    t.string "package_name", null: false
+    t.string "current_version", null: false
+    t.string "fixed_version"
+    t.string "severity", null: false
+    t.string "source_file"
+    t.string "osv_url"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["osv_id"], name: "index_vulnerabilities_on_osv_id"
+    t.index ["severity"], name: "index_vulnerabilities_on_severity"
+    t.index ["vulnerability_scan_id"], name: "index_vulnerabilities_on_vulnerability_scan_id"
+  end
+
+  create_table "vulnerability_scan_configs", force: :cascade do |t|
+    t.bigint "server_id", null: false
+    t.string "scan_schedule", default: "manual", null: false
+    t.boolean "enabled", default: false, null: false
+    t.datetime "last_scan_at"
+    t.datetime "next_scan_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["server_id"], name: "index_vulnerability_scan_configs_on_server_id", unique: true
+  end
+
+  create_table "vulnerability_scans", force: :cascade do |t|
+    t.bigint "deployment_id", null: false
+    t.bigint "server_id", null: false
+    t.string "status", default: "pending", null: false
+    t.string "scan_type", default: "manual", null: false
+    t.datetime "started_at"
+    t.datetime "completed_at"
+    t.integer "total_packages", default: 0
+    t.integer "vulnerabilities_found", default: 0
+    t.integer "critical_count", default: 0
+    t.integer "high_count", default: 0
+    t.integer "medium_count", default: 0
+    t.integer "low_count", default: 0
+    t.integer "unknown_count", default: 0
+    t.text "raw_output"
+    t.text "summary"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["deployment_id", "created_at"], name: "index_vulnerability_scans_on_deployment_id_and_created_at"
+    t.index ["deployment_id"], name: "index_vulnerability_scans_on_deployment_id"
+    t.index ["server_id"], name: "index_vulnerability_scans_on_server_id"
+    t.index ["status"], name: "index_vulnerability_scans_on_status"
+  end
+
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "activity_logs", "users"
@@ -460,4 +513,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_22_175204) do
   add_foreign_key "solid_queue_recurring_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "ssh_keys", "users"
+  add_foreign_key "vulnerabilities", "vulnerability_scans"
+  add_foreign_key "vulnerability_scan_configs", "servers"
+  add_foreign_key "vulnerability_scans", "deployments"
+  add_foreign_key "vulnerability_scans", "servers"
 end

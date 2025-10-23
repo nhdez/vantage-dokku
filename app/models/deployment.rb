@@ -10,6 +10,7 @@ class Deployment < ApplicationRecord
   has_many :application_healths, dependent: :destroy
   has_many :deployment_attempts, dependent: :destroy
   has_many :port_mappings, dependent: :destroy
+  has_many :vulnerability_scans, dependent: :destroy
   
   validates :name, presence: true, length: { maximum: 100 }
   validates :name, uniqueness: { scope: :user_id, message: "has already been used for another deployment" }
