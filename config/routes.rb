@@ -56,6 +56,10 @@ Rails.application.routes.draw do
       delete :remove_firewall_rule
       patch :toggle_firewall_rule
       post :apply_firewall_rules
+      get :vulnerability_scanner
+      post :check_scanner_status
+      post :install_go
+      post :install_osv_scanner
     end
   end
   patch "themes/update", to: "themes#update", as: :update_theme

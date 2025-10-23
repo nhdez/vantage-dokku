@@ -79,6 +79,22 @@ class ServerPolicy < ApplicationPolicy
     user.present? && (record.user == user || user.admin?)
   end
 
+  def vulnerability_scanner?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def check_scanner_status?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def install_go?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def install_osv_scanner?
+    user.present? && (record.user == user || user.admin?)
+  end
+
   class Scope < Scope
     def resolve
       if user.admin?

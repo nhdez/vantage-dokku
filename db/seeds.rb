@@ -9,16 +9,8 @@ end
 
 puts "Created default roles: admin, mod, registered"
 
-# Create default app settings
-AppSetting.set('app_name', 'Vantage', description: 'Application name displayed in navigation and emails', setting_type: 'string')
-AppSetting.set('allow_registration', 'true', description: 'Allow new users to register accounts', setting_type: 'boolean')
-AppSetting.set('require_email_confirmation', 'false', description: 'Require email confirmation for new accounts', setting_type: 'boolean')
-AppSetting.set('maintenance_mode', 'false', description: 'Enable maintenance mode to restrict access', setting_type: 'boolean')
-AppSetting.set('max_file_upload_size', '10', description: 'Maximum file upload size in MB', setting_type: 'integer')
-AppSetting.set('default_user_role', 'registered', description: 'Default role assigned to new users', setting_type: 'string')
-AppSetting.set('dokku_install_version', '0.36.7', description: 'Default Dokku version to install on new servers', setting_type: 'string')
-
-puts "Created default app settings"
+# Load app settings from separate seed file
+load(Rails.root.join('db', 'seeds', 'app_settings.rb'))
 
 # Create default OAuth settings
 OauthSetting.setup_defaults!
