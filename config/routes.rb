@@ -38,6 +38,8 @@ Rails.application.routes.draw do
       get :server_logs
       post :start_log_streaming
       post :stop_log_streaming
+      get :scans
+      post :trigger_scan
     end
   end
   resources :ssh_keys
@@ -60,6 +62,8 @@ Rails.application.routes.draw do
       post :check_scanner_status
       post :install_go
       post :install_osv_scanner
+      post :update_scan_config
+      get :scan_all_deployments
     end
   end
   patch "themes/update", to: "themes#update", as: :update_theme
