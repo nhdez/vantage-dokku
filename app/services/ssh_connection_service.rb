@@ -2562,7 +2562,7 @@ class SshConnectionService
   def shell_escape(value)
     # Escape shell special characters in environment variable values
     return '""' if value.nil? || value.empty?
-    
+
     # Use single quotes to avoid most shell interpretation, but handle single quotes in the value
     if value.include?("'")
       # If the value contains single quotes, we need to use double quotes and escape what's needed
@@ -2571,6 +2571,237 @@ class SshConnectionService
     else
       # Simple case: wrap in single quotes
       "'#{value}'"
+    end
+  end
+
+  # List all Dokku apps on the server
+  def list_dokku_apps
+    result = {
+      success: false,
+      apps: [],
+      error: nil
+    }
+
+    begin
+      Rails.logger.info "[SshConnectionService] Listing Dokku apps on #{@server.name}"
+
+      Timeout::timeout(CONNECTION_TIMEOUT) do
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options
+        ) do |ssh|
+          output = execute_command(ssh, "dokku apps:list 2>&1")
+
+          if output && !output.downcase.include?('error')
+            # Skip the header line (=====> My Apps) and get app names
+            apps = output.split("\n").select { |line| !line.include?('====>') && line.strip.present? }.map(&:strip)
+            result[:apps] = apps
+            result[:success] = true
+            Rails.logger.info "[SshConnectionService] Found #{apps.count} Dokku apps"
+          else
+            result[:error] = output || "Failed to list apps"
+            Rails.logger.error "[SshConnectionService] #{result[:error]}"
+          end
+
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue StandardError => e
+      result[:error] = "Failed to list Dokku apps: #{e.message}"
+      Rails.logger.error "[SshConnectionService] #{result[:error]}"
+    end
+
+    result
+  end
+
+  # Extract lock files from a Dokku app
+  def extract_lock_files(app_name)
+    result = {
+      success: false,
+      lock_files: {},
+      error: nil
+    }
+
+    begin
+      Rails.logger.info "[SshConnectionService] Extracting lock files from #{app_name} on #{@server.name}"
+
+      Timeout::timeout(COMMAND_TIMEOUT) do
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options
+        ) do |ssh|
+          lock_files = {}
+
+          # Try to extract each scannable file type
+          VulnerabilityScan::SCANNABLE_FILES.each do |filename|
+            # Try common locations for the file
+            paths_to_try = [
+              "/app/#{filename}",
+              "/app/app/#{filename}",
+              "/workspace/#{filename}"
+            ]
+
+            paths_to_try.each do |path|
+              content = execute_command(ssh, "dokku run #{app_name} cat #{path} 2>/dev/null")
+
+              if content && !content.empty? && !content.include?('No such file')
+                lock_files[filename] = content
+                Rails.logger.info "[SshConnectionService] Found #{filename} in #{app_name}"
+                break # Stop trying other paths once we find the file
+              end
+            end
+          end
+
+          result[:lock_files] = lock_files
+          result[:success] = true
+          Rails.logger.info "[SshConnectionService] Extracted #{lock_files.count} lock files from #{app_name}"
+
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue StandardError => e
+      result[:error] = "Failed to extract lock files: #{e.message}"
+      Rails.logger.error "[SshConnectionService] #{result[:error]}"
+    end
+
+    result
+  end
+
+  # Run OSV scanner on extracted lock files
+  def run_osv_scanner(app_name, lock_files)
+    result = {
+      success: false,
+      raw_output: nil,
+      error: nil
+    }
+
+    begin
+      Rails.logger.info "[SshConnectionService] Running OSV scanner for #{app_name} on #{@server.name}"
+
+      Timeout::timeout(COMMAND_TIMEOUT * 2) do # Give extra time for scanning
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options(COMMAND_TIMEOUT * 2)
+        ) do |ssh|
+          # Create temporary directory for this scan
+          temp_dir = "/tmp/osv-scan-#{app_name}-#{Time.now.to_i}"
+          execute_command(ssh, "mkdir -p #{temp_dir}")
+
+          # Write lock files to temp directory
+          lock_files.each do |filename, content|
+            # Escape content for safe shell execution
+            safe_content = content.gsub("'", "'\\''")
+            execute_command(ssh, "echo '#{safe_content}' > #{temp_dir}/#{filename}")
+          end
+
+          # Run OSV scanner with timeout
+          scan_command = "export PATH=$PATH:~/go/bin && cd #{temp_dir} && osv-scanner -r . 2>&1"
+          scan_output = execute_long_command(ssh, scan_command, 300) # 5 minutes for scan
+
+          # Clean up temp directory
+          execute_command(ssh, "rm -rf #{temp_dir}")
+
+          result[:raw_output] = scan_output || "No output from scanner"
+          result[:success] = true
+          Rails.logger.info "[SshConnectionService] OSV scan completed for #{app_name}"
+
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue StandardError => e
+      result[:error] = "Failed to run OSV scanner: #{e.message}"
+      Rails.logger.error "[SshConnectionService] #{result[:error]}"
+    end
+
+    result
+  end
+
+  # Perform a complete vulnerability scan for a deployment
+  def perform_vulnerability_scan(deployment, scan_type = 'manual')
+    scan = VulnerabilityScan.create!(
+      deployment: deployment,
+      server: @server,
+      status: 'running',
+      scan_type: scan_type,
+      started_at: Time.current
+    )
+
+    begin
+      Rails.logger.info "[SshConnectionService] Starting vulnerability scan for #{deployment.dokku_app_name}"
+
+      # Step 1: Extract lock files
+      extract_result = extract_lock_files(deployment.dokku_app_name)
+
+      unless extract_result[:success]
+        raise StandardError, extract_result[:error]
+      end
+
+      if extract_result[:lock_files].empty?
+        scan.update!(
+          status: 'completed',
+          completed_at: Time.current,
+          summary: 'No scannable lock files found in deployment'
+        )
+        return { success: true, scan: scan }
+      end
+
+      # Step 2: Run OSV scanner
+      scan_result = run_osv_scanner(deployment.dokku_app_name, extract_result[:lock_files])
+
+      unless scan_result[:success]
+        raise StandardError, scan_result[:error]
+      end
+
+      # Step 3: Parse results
+      parser = OsvScannerParser.new(scan_result[:raw_output])
+      parsed_data = parser.parse
+
+      # Step 4: Update scan record
+      scan.update!(
+        status: 'completed',
+        completed_at: Time.current,
+        total_packages: parsed_data[:total_packages],
+        vulnerabilities_found: parsed_data[:vulnerabilities_found],
+        critical_count: parsed_data[:severity_counts][:critical],
+        high_count: parsed_data[:severity_counts][:high],
+        medium_count: parsed_data[:severity_counts][:medium],
+        low_count: parsed_data[:severity_counts][:low],
+        unknown_count: parsed_data[:severity_counts][:unknown],
+        raw_output: scan_result[:raw_output],
+        summary: parsed_data[:summary]
+      )
+
+      # Step 5: Create vulnerability records
+      parsed_data[:vulnerabilities].each do |vuln_data|
+        scan.vulnerabilities.create!(
+          osv_id: vuln_data[:osv_id],
+          cvss_score: vuln_data[:cvss_score],
+          ecosystem: vuln_data[:ecosystem],
+          package_name: vuln_data[:package_name],
+          current_version: vuln_data[:current_version],
+          fixed_version: vuln_data[:fixed_version],
+          severity: vuln_data[:severity],
+          source_file: vuln_data[:source_file],
+          osv_url: vuln_data[:osv_url]
+        )
+      end
+
+      Rails.logger.info "[SshConnectionService] Vulnerability scan completed for #{deployment.dokku_app_name}: #{parsed_data[:vulnerabilities_found]} vulnerabilities found"
+
+      { success: true, scan: scan }
+    rescue StandardError => e
+      Rails.logger.error "[SshConnectionService] Vulnerability scan failed: #{e.message}"
+
+      scan.update!(
+        status: 'failed',
+        completed_at: Time.current,
+        summary: "Scan failed: #{e.message}"
+      )
+
+      { success: false, scan: scan, error: e.message }
     end
   end
 end
