@@ -3,8 +3,8 @@ require 'timeout'
 class ServersController < ApplicationController
   include ActivityTrackable
   
-  before_action :set_server, only: [:show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs, :firewall_rules, :sync_firewall_rules, :enable_ufw, :disable_ufw, :add_firewall_rule, :remove_firewall_rule, :toggle_firewall_rule, :apply_firewall_rules, :vulnerability_scanner, :check_scanner_status, :install_go, :install_osv_scanner]
-  before_action :authorize_server, only: [:show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs, :firewall_rules, :sync_firewall_rules, :enable_ufw, :disable_ufw, :add_firewall_rule, :remove_firewall_rule, :toggle_firewall_rule, :apply_firewall_rules, :vulnerability_scanner, :check_scanner_status, :install_go, :install_osv_scanner]
+  before_action :set_server, only: [:show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs, :firewall_rules, :sync_firewall_rules, :enable_ufw, :disable_ufw, :add_firewall_rule, :remove_firewall_rule, :toggle_firewall_rule, :apply_firewall_rules, :vulnerability_scanner, :check_scanner_status, :install_go, :install_osv_scanner, :update_scan_config, :scan_all_deployments]
+  before_action :authorize_server, only: [:show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs, :firewall_rules, :sync_firewall_rules, :enable_ufw, :disable_ufw, :add_firewall_rule, :remove_firewall_rule, :toggle_firewall_rule, :apply_firewall_rules, :vulnerability_scanner, :check_scanner_status, :install_go, :install_osv_scanner, :update_scan_config, :scan_all_deployments]
   
   def index
     @pagy, @servers = pagy(current_user.servers.order(:name), limit: 10)
@@ -544,6 +544,7 @@ class ServersController < ApplicationController
 
   def vulnerability_scanner
     @go_version_target = AppSetting.go_lang_version
+    @scan_config = @server.vulnerability_scan_config || @server.build_vulnerability_scan_config
   end
 
   def check_scanner_status
@@ -615,6 +616,146 @@ class ServersController < ApplicationController
     rescue StandardError => e
       Rails.logger.error "Failed to start OSV Scanner installation: #{e.message}"
       render json: { success: false, message: e.message }, status: :internal_server_error
+    end
+  end
+
+  def update_scan_config
+    begin
+      scan_schedule = params[:scan_schedule]
+      enabled = params[:enabled] == 'true' || params[:enabled] == true
+
+      unless VulnerabilityScanConfig::SCAN_SCHEDULES.key?(scan_schedule)
+        respond_to do |format|
+          format.json { render json: { success: false, message: "Invalid scan schedule" }, status: :unprocessable_entity }
+          format.html do
+            toast_error("Invalid scan schedule selected", title: "Invalid Schedule")
+            redirect_to vulnerability_scanner_server_path(@server)
+          end
+        end
+        return
+      end
+
+      config = @server.vulnerability_scan_config || @server.build_vulnerability_scan_config
+      config.scan_schedule = scan_schedule
+      config.enabled = enabled
+
+      # Schedule next scan if enabled and not manual
+      config.schedule_next_scan if enabled && scan_schedule != 'manual'
+
+      if config.save
+        log_activity('scan_config_updated',
+                    details: "Updated vulnerability scan config for server: #{@server.display_name} - Schedule: #{scan_schedule}, Enabled: #{enabled}")
+
+        respond_to do |format|
+          format.json do
+            render json: {
+              success: true,
+              message: "Scan configuration updated successfully",
+              config: {
+                scan_schedule: config.scan_schedule,
+                enabled: config.enabled,
+                next_scan_at: config.next_scan_at&.iso8601
+              }
+            }
+          end
+          format.html do
+            toast_success("Scan configuration updated successfully", title: "Configuration Updated")
+            redirect_to vulnerability_scanner_server_path(@server)
+          end
+        end
+      else
+        respond_to do |format|
+          format.json { render json: { success: false, message: config.errors.full_messages.join(', ') }, status: :unprocessable_entity }
+          format.html do
+            toast_error(config.errors.full_messages.join(', '), title: "Update Failed")
+            redirect_to vulnerability_scanner_server_path(@server)
+          end
+        end
+      end
+    rescue StandardError => e
+      Rails.logger.error "Failed to update scan configuration: #{e.message}"
+
+      respond_to do |format|
+        format.json { render json: { success: false, message: e.message }, status: :internal_server_error }
+        format.html do
+          toast_error(e.message, title: "Update Error")
+          redirect_to vulnerability_scanner_server_path(@server)
+        end
+      end
+    end
+  end
+
+  def scan_all_deployments
+    begin
+      # Check if OSV Scanner is installed
+      service = SshConnectionService.new(@server)
+      osv_result = service.check_osv_scanner_version
+
+      unless osv_result[:installed]
+        respond_to do |format|
+          format.json { render json: { success: false, message: "OSV Scanner is not installed on this server" }, status: :unprocessable_entity }
+          format.html do
+            toast_error("OSV Scanner must be installed before scanning", title: "Scanner Not Installed")
+            redirect_to vulnerability_scanner_server_path(@server)
+          end
+        end
+        return
+      end
+
+      deployments = @server.deployments
+      if deployments.empty?
+        respond_to do |format|
+          format.json { render json: { success: false, message: "No deployments found on this server" }, status: :unprocessable_entity }
+          format.html do
+            toast_warning("No deployments found to scan", title: "No Deployments")
+            redirect_to vulnerability_scanner_server_path(@server)
+          end
+        end
+        return
+      end
+
+      # Start scanning all deployments in background
+      scans_started = 0
+      deployments.each do |deployment|
+        Thread.new do
+          ActiveRecord::Base.connection_pool.with_connection do
+            result = service.perform_vulnerability_scan(deployment, 'manual')
+            scans_started += 1 if result[:success]
+          end
+        end
+      end
+
+      log_activity('scan_all_deployments_started',
+                  details: "Started vulnerability scans for all deployments on server: #{@server.display_name}")
+
+      # Update last scan time
+      if config = @server.vulnerability_scan_config
+        config.update_last_scan
+      end
+
+      respond_to do |format|
+        format.json do
+          render json: {
+            success: true,
+            message: "Started scanning #{deployments.count} deployment(s). Check individual deployment scan pages for results.",
+            deployment_count: deployments.count
+          }
+        end
+        format.html do
+          toast_success("Started scanning #{deployments.count} deployment(s)", title: "Scans Started")
+          redirect_to vulnerability_scanner_server_path(@server)
+        end
+      end
+    rescue StandardError => e
+      Rails.logger.error "Failed to start scanning all deployments: #{e.message}"
+
+      respond_to do |format|
+        format.json { render json: { success: false, message: e.message }, status: :internal_server_error }
+        format.html do
+          toast_error(e.message, title: "Scan Error")
+          redirect_to vulnerability_scanner_server_path(@server)
+        end
+      end
     end
   end
 
