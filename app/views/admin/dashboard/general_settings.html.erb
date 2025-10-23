@@ -135,20 +135,20 @@
           </div>
 
           <div class="mb-4">
-            <h6 class="text-muted mb-2">Dokku Configuration</h6>
+            <h6 class="text-muted mb-2">Infrastructure Configuration</h6>
             <div class="border rounded p-3 bg-light">
               <div class="row">
                 <div class="col-6">
-                  <strong>Install Version:</strong><br>
+                  <strong>Dokku Version:</strong><br>
                   <span class="badge bg-info fs-6">v<%= AppSetting.dokku_install_version %></span>
                 </div>
                 <div class="col-6">
-                  <strong>Status:</strong><br>
-                  <span class="badge bg-success">Ready for Installation</span>
+                  <strong>Go Version:</strong><br>
+                  <span class="badge bg-info fs-6"><%= AppSetting.go_lang_version %></span>
                 </div>
               </div>
               <small class="text-muted mt-2 d-block">
-                This version will be used when installing Dokku on new servers.
+                These versions will be used when installing dependencies on new servers.
               </small>
             </div>
           </div>

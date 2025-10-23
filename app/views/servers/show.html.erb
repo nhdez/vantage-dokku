@@ -326,6 +326,9 @@
             <%= link_to firewall_rules_server_path(@server), class: "btn btn-outline-primary", data: { turbo: false } do %>
               <i class="fas fa-shield-alt me-2"></i>Firewall Management
             <% end %>
+            <%= link_to vulnerability_scanner_server_path(@server), class: "btn btn-outline-primary", data: { turbo: false } do %>
+              <i class="fas fa-bug me-2"></i>Vulnerability Scanner
+            <% end %>
             <%= link_to logs_server_path(@server), class: "btn btn-outline-primary" do %>
               <i class="fas fa-file-alt me-2"></i>View Logs
             <% end %>

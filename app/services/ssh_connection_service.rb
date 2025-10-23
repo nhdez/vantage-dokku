@@ -1297,12 +1297,338 @@ class SshConnectionService
     result
   end
 
+  # Check if Go is installed and return version
+  def check_go_version
+    result = {
+      success: false,
+      installed: false,
+      version: nil,
+      error: nil
+    }
+
+    begin
+      Rails.logger.info "[SshConnectionService] Checking Go version on #{@server.name}"
+
+      Timeout::timeout(CONNECTION_TIMEOUT) do
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options
+        ) do |ssh|
+          output = execute_command(ssh, "/usr/local/go/bin/go version 2>&1")
+
+          if output && !output.downcase.include?('not found') && !output.downcase.include?('no such file')
+            # Parse version from output like "go version go1.23.5 linux/amd64"
+            if match = output.match(/go version (go[\d.]+)/)
+              result[:installed] = true
+              result[:version] = match[1]
+              result[:success] = true
+              Rails.logger.info "[SshConnectionService] Go is installed: #{result[:version]}"
+            end
+          else
+            Rails.logger.info "[SshConnectionService] Go is not installed"
+            result[:success] = true
+          end
+
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue StandardError => e
+      result[:error] = "Failed to check Go version: #{e.message}"
+      Rails.logger.error "[SshConnectionService] #{result[:error]}"
+    end
+
+    result
+  end
+
+  # Check if OSV Scanner is installed and return version
+  def check_osv_scanner_version
+    result = {
+      success: false,
+      installed: false,
+      version: nil,
+      error: nil
+    }
+
+    begin
+      Rails.logger.info "[SshConnectionService] Checking OSV Scanner version on #{@server.name}"
+
+      Timeout::timeout(CONNECTION_TIMEOUT) do
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options
+        ) do |ssh|
+          # OSV Scanner is installed in the user's go/bin directory
+          output = execute_command(ssh, "~/go/bin/osv-scanner --version 2>&1")
+
+          if output && !output.downcase.include?('not found') && !output.downcase.include?('no such file')
+            # Parse version from output like "osv-scanner version: v2.1.0"
+            if match = output.match(/version:?\s*v?([\d.]+)/)
+              result[:installed] = true
+              result[:version] = "v#{match[1]}"
+              result[:success] = true
+              Rails.logger.info "[SshConnectionService] OSV Scanner is installed: #{result[:version]}"
+            end
+          else
+            Rails.logger.info "[SshConnectionService] OSV Scanner is not installed"
+            result[:success] = true
+          end
+
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue StandardError => e
+      result[:error] = "Failed to check OSV Scanner version: #{e.message}"
+      Rails.logger.error "[SshConnectionService] #{result[:error]}"
+    end
+
+    result
+  end
+
+  # Install Go programming language
+  def install_go(version, server_uuid)
+    result = {
+      success: false,
+      error: nil
+    }
+
+    begin
+      Rails.logger.info "[SshConnectionService] Installing Go #{version} on #{@server.name}"
+      Rails.logger.info "[SshConnectionService] Connection details - Host: #{@connection_details[:host]}, Port: #{@connection_details[:port]}, Username: #{@connection_details[:username]}"
+
+      # Broadcast start message
+      ActionCable.server.broadcast(
+        "scanner_installation_#{server_uuid}",
+        { type: 'output', message: "Starting Go installation (#{version})...\n" }
+      )
+
+      Rails.logger.info "[SshConnectionService] About to establish SSH connection with INSTALL_TIMEOUT=#{INSTALL_TIMEOUT}"
+
+      Timeout::timeout(INSTALL_TIMEOUT) do
+        Rails.logger.info "[SshConnectionService] Inside Timeout block, calling Net::SSH.start"
+
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options(INSTALL_TIMEOUT)
+        ) do |ssh|
+          Rails.logger.info "[SshConnectionService] SSH connection established successfully"
+
+          ActionCable.server.broadcast(
+            "scanner_installation_#{server_uuid}",
+            { type: 'output', message: "SSH connection established.\n" }
+          )
+
+          # Determine architecture (default to amd64)
+          Rails.logger.info "[SshConnectionService] Detecting architecture"
+          arch_output = execute_command(ssh, "uname -m 2>&1")
+          arch = arch_output&.strip == "aarch64" ? "arm64" : "amd64"
+          Rails.logger.info "[SshConnectionService] Architecture detected: #{arch}"
+
+          filename = "#{version}.linux-#{arch}.tar.gz"
+          download_url = "https://go.dev/dl/#{filename}"
+
+          ActionCable.server.broadcast(
+            "scanner_installation_#{server_uuid}",
+            { type: 'output', message: "Detected architecture: #{arch}\n" }
+          )
+
+          # Download Go
+          ActionCable.server.broadcast(
+            "scanner_installation_#{server_uuid}",
+            { type: 'output', message: "Downloading #{filename}...\n" }
+          )
+
+          download_output = execute_long_command(ssh, "wget #{download_url} 2>&1", 300) # 5 minutes for download
+
+          if download_output&.downcase&.include?('error') || download_output&.downcase&.include?('failed')
+            result[:error] = "Failed to download Go: #{download_output}"
+            ActionCable.server.broadcast(
+              "scanner_installation_#{server_uuid}",
+              { type: 'error', message: result[:error] }
+            )
+            return result
+          end
+
+          ActionCable.server.broadcast(
+            "scanner_installation_#{server_uuid}",
+            { type: 'output', message: download_output || "Download completed.\n" }
+          )
+
+          # Remove old Go installation
+          ActionCable.server.broadcast(
+            "scanner_installation_#{server_uuid}",
+            { type: 'output', message: "Removing old Go installation (if exists)...\n" }
+          )
+          execute_command(ssh, "sudo rm -rf /usr/local/go")
+
+          # Extract new Go
+          ActionCable.server.broadcast(
+            "scanner_installation_#{server_uuid}",
+            { type: 'output', message: "Extracting Go binaries...\n" }
+          )
+          extract_output = execute_long_command(ssh, "sudo tar -C /usr/local -xzf #{filename} 2>&1", 180) # 3 minutes for extraction
+
+          if extract_output.present?
+            ActionCable.server.broadcast(
+              "scanner_installation_#{server_uuid}",
+              { type: 'output', message: "Extraction completed.\n" }
+            )
+          end
+
+          # Clean up downloaded file
+          execute_command(ssh, "rm #{filename}")
+
+          # Update PATH in .bashrc if not already there
+          ActionCable.server.broadcast(
+            "scanner_installation_#{server_uuid}",
+            { type: 'output', message: "Configuring PATH...\n" }
+          )
+
+          execute_command(ssh, "grep -qxF 'export PATH=\$PATH:/usr/local/go/bin' ~/.bashrc || echo 'export PATH=\$PATH:/usr/local/go/bin' >> ~/.bashrc")
+          execute_command(ssh, "grep -qxF 'export PATH=\$PATH:~/go/bin' ~/.bashrc || echo 'export PATH=\$PATH:~/go/bin' >> ~/.bashrc")
+
+          # Verify installation
+          version_output = execute_command(ssh, "/usr/local/go/bin/go version 2>&1")
+
+          if version_output && version_output.include?(version)
+            Rails.logger.info "[SshConnectionService] Go installed successfully: #{version_output}"
+            result[:success] = true
+
+            ActionCable.server.broadcast(
+              "scanner_installation_#{server_uuid}",
+              { type: 'success', message: "Go installed successfully: #{version_output}\n" }
+            )
+          else
+            result[:error] = "Go installation verification failed: #{version_output}"
+            ActionCable.server.broadcast(
+              "scanner_installation_#{server_uuid}",
+              { type: 'error', message: result[:error] }
+            )
+          end
+
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue Net::SSH::ConnectionTimeout => e
+      result[:error] = "SSH Connection timeout during Go installation"
+      Rails.logger.error "[SshConnectionService] Net::SSH::ConnectionTimeout - Connection timed out while trying to connect"
+      Rails.logger.error "[SshConnectionService] Exception: #{e.class} - #{e.message}"
+      Rails.logger.error "[SshConnectionService] Backtrace: #{e.backtrace.first(10).join("\n")}"
+
+      ActionCable.server.broadcast(
+        "scanner_installation_#{server_uuid}",
+        { type: 'error', message: "#{result[:error]}: #{e.message}" }
+      )
+    rescue Timeout::Error => e
+      result[:error] = "Timeout during Go installation (exceeded #{INSTALL_TIMEOUT} seconds)"
+      Rails.logger.error "[SshConnectionService] Timeout::Error - Operation took longer than #{INSTALL_TIMEOUT} seconds"
+      Rails.logger.error "[SshConnectionService] Exception: #{e.class} - #{e.message}"
+      Rails.logger.error "[SshConnectionService] Backtrace: #{e.backtrace.first(10).join("\n")}"
+
+      ActionCable.server.broadcast(
+        "scanner_installation_#{server_uuid}",
+        { type: 'error', message: result[:error] }
+      )
+    rescue StandardError => e
+      result[:error] = "Failed to install Go: #{e.class} - #{e.message}"
+      Rails.logger.error "[SshConnectionService] #{result[:error]}"
+      Rails.logger.error "[SshConnectionService] Full backtrace:"
+      Rails.logger.error e.backtrace.join("\n")
+
+      ActionCable.server.broadcast(
+        "scanner_installation_#{server_uuid}",
+        { type: 'error', message: result[:error] }
+      )
+    end
+
+    result
+  end
+
+  # Install OSV Scanner
+  def install_osv_scanner(server_uuid)
+    result = {
+      success: false,
+      error: nil
+    }
+
+    begin
+      Rails.logger.info "[SshConnectionService] Installing OSV Scanner on #{@server.name}"
+
+      ActionCable.server.broadcast(
+        "scanner_installation_#{server_uuid}",
+        { type: 'output', message: "Starting OSV Scanner installation...\n" }
+      )
+
+      Timeout::timeout(INSTALL_TIMEOUT) do
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options(INSTALL_TIMEOUT)
+        ) do |ssh|
+          # Install OSV Scanner using go install
+          ActionCable.server.broadcast(
+            "scanner_installation_#{server_uuid}",
+            { type: 'output', message: "Installing OSV Scanner via go install...\n" }
+          )
+
+          install_output = execute_long_command(ssh, "export PATH=\$PATH:/usr/local/go/bin:~/go/bin && /usr/local/go/bin/go install github.com/google/osv-scanner/v2/cmd/osv-scanner@v2 2>&1", 600) # 10 minutes for compilation
+
+          if install_output.present?
+            ActionCable.server.broadcast(
+              "scanner_installation_#{server_uuid}",
+              { type: 'output', message: install_output }
+            )
+          end
+
+          # Verify installation
+          ActionCable.server.broadcast(
+            "scanner_installation_#{server_uuid}",
+            { type: 'output', message: "Verifying installation...\n" }
+          )
+
+          version_output = execute_command(ssh, "export PATH=\$PATH:~/go/bin && ~/go/bin/osv-scanner --version 2>&1")
+
+          if version_output && version_output.include?('version')
+            Rails.logger.info "[SshConnectionService] OSV Scanner installed successfully: #{version_output}"
+            result[:success] = true
+
+            ActionCable.server.broadcast(
+              "scanner_installation_#{server_uuid}",
+              { type: 'success', message: "OSV Scanner installed successfully: #{version_output}\n" }
+            )
+          else
+            result[:error] = "OSV Scanner installation verification failed: #{version_output}"
+            ActionCable.server.broadcast(
+              "scanner_installation_#{server_uuid}",
+              { type: 'error', message: result[:error] }
+            )
+          end
+
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue StandardError => e
+      result[:error] = "Failed to install OSV Scanner: #{e.message}"
+      Rails.logger.error "[SshConnectionService] #{result[:error]}"
+      Rails.logger.error e.backtrace.join("\n")
+
+      ActionCable.server.broadcast(
+        "scanner_installation_#{server_uuid}",
+        { type: 'error', message: result[:error] }
+      )
+    end
+
+    result
+  end
+
   private
   
-  def ssh_options
+  def ssh_options(custom_timeout = nil)
     options = {
       port: @connection_details[:port],
-      timeout: CONNECTION_TIMEOUT,
+      timeout: custom_timeout || CONNECTION_TIMEOUT,
       verify_host_key: :never, # For development - in production you might want to verify
       non_interactive: true
     }

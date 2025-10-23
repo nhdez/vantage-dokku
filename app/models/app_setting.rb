@@ -44,4 +44,9 @@ class AppSetting < ApplicationRecord
   def self.dokku_install_version
     get('dokku_install_version', '0.35.9')
   end
+
+  # Convenience method to get the Go Language version
+  def self.go_lang_version
+    get('go_lang_version', 'go1.23.5')
+  end
 end

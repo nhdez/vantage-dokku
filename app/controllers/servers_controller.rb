@@ -3,8 +3,8 @@ require 'timeout'
 class ServersController < ApplicationController
   include ActivityTrackable
   
-  before_action :set_server, only: [:show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs, :firewall_rules, :sync_firewall_rules, :enable_ufw, :disable_ufw, :add_firewall_rule, :remove_firewall_rule, :toggle_firewall_rule, :apply_firewall_rules]
-  before_action :authorize_server, only: [:show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs, :firewall_rules, :sync_firewall_rules, :enable_ufw, :disable_ufw, :add_firewall_rule, :remove_firewall_rule, :toggle_firewall_rule, :apply_firewall_rules]
+  before_action :set_server, only: [:show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs, :firewall_rules, :sync_firewall_rules, :enable_ufw, :disable_ufw, :add_firewall_rule, :remove_firewall_rule, :toggle_firewall_rule, :apply_firewall_rules, :vulnerability_scanner, :check_scanner_status, :install_go, :install_osv_scanner]
+  before_action :authorize_server, only: [:show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs, :firewall_rules, :sync_firewall_rules, :enable_ufw, :disable_ufw, :add_firewall_rule, :remove_firewall_rule, :toggle_firewall_rule, :apply_firewall_rules, :vulnerability_scanner, :check_scanner_status, :install_go, :install_osv_scanner]
   
   def index
     @pagy, @servers = pagy(current_user.servers.order(:name), limit: 10)
@@ -539,6 +539,82 @@ class ServersController < ApplicationController
           redirect_to firewall_rules_server_path(@server)
         end
       end
+    end
+  end
+
+  def vulnerability_scanner
+    @go_version_target = AppSetting.go_lang_version
+  end
+
+  def check_scanner_status
+    begin
+      service = SshConnectionService.new(@server)
+
+      # Check Go installation
+      go_result = service.check_go_version
+
+      # Check OSV Scanner installation
+      osv_result = service.check_osv_scanner_version
+
+      render json: {
+        success: true,
+        go: {
+          installed: go_result[:installed],
+          version: go_result[:version],
+          target_version: AppSetting.go_lang_version
+        },
+        osv_scanner: {
+          installed: osv_result[:installed],
+          version: osv_result[:version]
+        }
+      }
+    rescue StandardError => e
+      Rails.logger.error "Failed to check scanner status: #{e.message}"
+      render json: { success: false, message: e.message }, status: :internal_server_error
+    end
+  end
+
+  def install_go
+    begin
+      version = AppSetting.go_lang_version
+
+      # Start background job for Go installation
+      Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do
+          service = SshConnectionService.new(@server)
+          result = service.install_go(version, @server.uuid)
+
+          if result[:success]
+            log_activity('go_installed', details: "Installed Go #{version} on server: #{@server.display_name}")
+          end
+        end
+      end
+
+      render json: { success: true, message: "Go installation started" }
+    rescue StandardError => e
+      Rails.logger.error "Failed to start Go installation: #{e.message}"
+      render json: { success: false, message: e.message }, status: :internal_server_error
+    end
+  end
+
+  def install_osv_scanner
+    begin
+      # Start background job for OSV Scanner installation
+      Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do
+          service = SshConnectionService.new(@server)
+          result = service.install_osv_scanner(@server.uuid)
+
+          if result[:success]
+            log_activity('osv_scanner_installed', details: "Installed OSV Scanner on server: #{@server.display_name}")
+          end
+        end
+      end
+
+      render json: { success: true, message: "OSV Scanner installation started" }
+    rescue StandardError => e
+      Rails.logger.error "Failed to start OSV Scanner installation: #{e.message}"
+      render json: { success: false, message: e.message }, status: :internal_server_error
     end
   end
 
