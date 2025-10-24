@@ -82,36 +82,63 @@ class OsvScannerParser
 
     # Find the table section
     table_start = @lines.index { |line| line.include?('OSV URL') && line.include?('CVSS') }
-    return vulns unless table_start
+
+    if table_start.nil?
+      Rails.logger.warn "[OsvScannerParser] Could not find table header with 'OSV URL' and 'CVSS'"
+      Rails.logger.debug "[OsvScannerParser] Available lines: #{@lines.inspect}"
+      return vulns
+    end
+
+    Rails.logger.info "[OsvScannerParser] Found table header at line #{table_start}"
 
     # Skip header and separator lines
     data_start = table_start + 2
 
-    @lines[data_start..-1].each do |line|
+    @lines[data_start..-1].each_with_index do |line, index|
+      Rails.logger.debug "[OsvScannerParser] Processing line #{data_start + index}: #{line}"
+
       # Stop at table end
-      break if line.start_with?('╰') || line.strip.empty?
+      if line.start_with?('╰') || line.strip.empty?
+        Rails.logger.info "[OsvScannerParser] Reached table end at line #{data_start + index}"
+        break
+      end
 
       # Skip separator lines
-      next if line.start_with?('├')
+      if line.start_with?('├')
+        Rails.logger.debug "[OsvScannerParser] Skipping separator line"
+        next
+      end
 
       # Parse vulnerability data
       vuln = parse_vulnerability_line(line)
-      vulns << vuln if vuln
+      if vuln
+        Rails.logger.info "[OsvScannerParser] Successfully parsed vulnerability: #{vuln[:osv_id]}"
+        vulns << vuln
+      else
+        Rails.logger.warn "[OsvScannerParser] Failed to parse line: #{line}"
+      end
     end
 
+    Rails.logger.info "[OsvScannerParser] Extracted #{vulns.count} vulnerabilities from table"
     vulns
   end
 
   def parse_vulnerability_line(line)
     # Split by │ and clean up
     parts = line.split('│').map(&:strip).reject(&:empty?)
-    return nil if parts.length < 7
+
+    Rails.logger.debug "[OsvScannerParser] Split line into #{parts.length} parts: #{parts.inspect}"
+
+    if parts.length < 7
+      Rails.logger.warn "[OsvScannerParser] Line has only #{parts.length} parts, need at least 7"
+      return nil
+    end
 
     # Determine severity from CVSS score
     cvss = parts[1].to_f
     severity = severity_from_cvss(cvss)
 
-    {
+    vuln_data = {
       osv_url: parts[0],
       osv_id: extract_osv_id(parts[0]),
       cvss_score: cvss,
@@ -122,9 +149,13 @@ class OsvScannerParser
       source_file: parts[6],
       severity: severity
     }
+
+    Rails.logger.debug "[OsvScannerParser] Parsed vulnerability data: #{vuln_data.inspect}"
+    vuln_data
   rescue => e
-    Rails.logger.error "Failed to parse vulnerability line: #{line}"
-    Rails.logger.error "Error: #{e.message}"
+    Rails.logger.error "[OsvScannerParser] Failed to parse vulnerability line: #{line}"
+    Rails.logger.error "[OsvScannerParser] Error: #{e.message}"
+    Rails.logger.error "[OsvScannerParser] Backtrace: #{e.backtrace.first(5).join("\n")}"
     nil
   end
 
