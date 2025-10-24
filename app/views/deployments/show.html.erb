@@ -86,6 +86,47 @@
               </div>
             </div>
           <% end %>
+
+          <!-- Latest Vulnerability Scan -->
+          <% if @latest_vulnerability_scan.present? %>
+            <hr class="my-3">
+            <div class="row">
+              <div class="col-md-12">
+                <h6 class="text-muted">
+                  <i class="fas fa-shield-alt me-1"></i>Latest Vulnerability Scan
+                </h6>
+                <div class="d-flex align-items-center justify-content-between">
+                  <div>
+                    <% if @latest_vulnerability_scan.vulnerabilities_found > 0 %>
+                      <span class="badge bg-<%= @latest_vulnerability_scan.severity_badge_class %> me-2">
+                        <%= @latest_vulnerability_scan.vulnerabilities_found %>
+                        <%= 'vulnerability'.pluralize(@latest_vulnerability_scan.vulnerabilities_found) %> found
+                      </span>
+                      <small class="text-muted"><%= @latest_vulnerability_scan.severity_summary %></small>
+                    <% else %>
+                      <span class="badge bg-success me-2">
+                        <i class="fas fa-check-circle me-1"></i>No vulnerabilities
+                      </span>
+                    <% end %>
+                    <br>
+                    <small class="text-muted">
+                      Scanned <%= time_ago_in_words(@latest_vulnerability_scan.created_at) %> ago
+                    </small>
+                  </div>
+                  <div>
+                    <%= link_to scans_deployment_path(@deployment), class: "btn btn-sm btn-outline-primary" do %>
+                      <i class="fas fa-list me-1"></i>View All Scans
+                    <% end %>
+                    <% if @latest_vulnerability_scan.vulnerabilities_found > 0 %>
+                      <%= link_to deployment_vulnerability_scan_path(@deployment, @latest_vulnerability_scan), class: "btn btn-sm btn-primary ms-2" do %>
+                        <i class="fas fa-eye me-1"></i>View Report
+                      <% end %>
+                    <% end %>
+                  </div>
+                </div>
+              </div>
+            </div>
+          <% end %>
         </div>
       </div>
 
