@@ -95,6 +95,14 @@ class ServerPolicy < ApplicationPolicy
     user.present? && (record.user == user || user.admin?)
   end
 
+  def update_scan_config?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def scan_all_deployments?
+    user.present? && (record.user == user || user.admin?)
+  end
+
   class Scope < Scope
     def resolve
       if user.admin?
