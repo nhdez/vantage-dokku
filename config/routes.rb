@@ -41,6 +41,7 @@ Rails.application.routes.draw do
       get :scans
       post :trigger_scan
     end
+    resources :vulnerability_scans, only: [:show], param: :id
   end
   resources :ssh_keys
   resources :servers, param: :uuid do

@@ -274,18 +274,13 @@
                     <th class="border-0">Vulnerabilities</th>
                     <th class="border-0">Severity</th>
                     <th class="border-0">Duration</th>
+                    <th class="border-0 text-end">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   <% @vulnerability_scans.each_with_index do |scan, index| %>
-                    <!-- Main Row - Clickable -->
-                    <tr class="scan-row <%= scan.vulnerabilities_found > 0 ? 'cursor-pointer' : '' %>"
-                        data-scan-id="<%= scan.id %>"
-                        <%= scan.vulnerabilities_found > 0 ? "data-has-vulns='true'" : "data-has-vulns='false'" %>>
+                    <tr class="scan-row">
                       <td class="align-middle">
-                        <% if scan.vulnerabilities_found > 0 %>
-                          <i class="fas fa-chevron-right text-muted me-2 collapse-icon" id="icon-<%= scan.id %>"></i>
-                        <% end %>
                         <span class="fw-medium"><%= scan.created_at.strftime("%b %d, %Y") %></span>
                         <br>
                         <small class="text-muted"><%= scan.created_at.strftime("%H:%M") %></small>
@@ -332,121 +327,12 @@
                           <span class="text-muted">-</span>
                         <% end %>
                       </td>
+                      <td class="align-middle text-end">
+                        <%= link_to deployment_vulnerability_scan_path(@deployment, scan), class: "btn btn-sm btn-outline-primary" do %>
+                          <i class="fas fa-eye me-1"></i>View Details
+                        <% end %>
+                      </td>
                     </tr>
-
-                    <!-- Collapsible Details Row -->
-                    <% if scan.vulnerabilities_found > 0 %>
-                      <tr class="collapse-row" id="collapse-row-<%= scan.id %>" style="display: none;">
-                        <td colspan="7" class="p-0 border-0">
-                          <div class="vulnerability-details bg-light">
-                            <div class="p-4">
-                              <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h6 class="mb-0">
-                                  <i class="fas fa-bug text-danger me-2"></i>
-                                  <span class="text-danger fw-bold">Vulnerability Details</span>
-                                  <span class="badge bg-danger ms-2"><%= scan.vulnerabilities_found %></span>
-                                </h6>
-                                <div class="severity-badges">
-                                  <% if scan.critical_count > 0 %>
-                                    <span class="badge bg-danger me-1">
-                                      <i class="fas fa-exclamation-circle"></i> <%= scan.critical_count %> Critical
-                                    </span>
-                                  <% end %>
-                                  <% if scan.high_count > 0 %>
-                                    <span class="badge bg-warning me-1">
-                                      <i class="fas fa-exclamation-triangle"></i> <%= scan.high_count %> High
-                                    </span>
-                                  <% end %>
-                                  <% if scan.medium_count > 0 %>
-                                    <span class="badge bg-info me-1">
-                                      <i class="fas fa-info-circle"></i> <%= scan.medium_count %> Medium
-                                    </span>
-                                  <% end %>
-                                  <% if scan.low_count > 0 %>
-                                    <span class="badge bg-secondary">
-                                      <i class="fas fa-minus-circle"></i> <%= scan.low_count %> Low
-                                    </span>
-                                  <% end %>
-                                </div>
-                              </div>
-
-                              <div class="table-responsive">
-                                <table class="table table-sm table-hover mb-0 bg-white rounded">
-                                  <thead class="table-dark">
-                                    <tr>
-                                      <th class="ps-3">Severity</th>
-                                      <th>CVE ID</th>
-                                      <th>Package</th>
-                                      <th>Current</th>
-                                      <th>Fixed</th>
-                                      <th>CVSS</th>
-                                      <th>Source</th>
-                                      <th class="text-center">Details</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    <% scan.vulnerabilities.by_severity.each do |vuln| %>
-                                      <tr class="vulnerability-row">
-                                        <td class="ps-3">
-                                          <span class="badge bg-<%= vuln.severity_badge_class %> px-3">
-                                            <%= vuln.severity %>
-                                          </span>
-                                        </td>
-                                        <td>
-                                          <code class="text-primary"><%= vuln.osv_id %></code>
-                                        </td>
-                                        <td>
-                                          <div>
-                                            <strong class="text-dark"><%= vuln.package_name %></strong>
-                                            <br>
-                                            <small class="text-muted">
-                                              <i class="fas fa-layer-group me-1"></i><%= vuln.ecosystem %>
-                                            </small>
-                                          </div>
-                                        </td>
-                                        <td>
-                                          <code class="bg-light px-2 py-1 rounded"><%= vuln.current_version %></code>
-                                        </td>
-                                        <td>
-                                          <% if vuln.fixable? %>
-                                            <code class="bg-success-subtle text-success px-2 py-1 rounded border border-success">
-                                              <%= vuln.fixed_version %>
-                                            </code>
-                                          <% else %>
-                                            <span class="text-muted small">
-                                              <i class="fas fa-times-circle"></i> No fix
-                                            </span>
-                                          <% end %>
-                                        </td>
-                                        <td>
-                                          <% if vuln.cvss_score > 0 %>
-                                            <span class="badge bg-dark"><%= vuln.cvss_score %></span>
-                                          <% else %>
-                                            <span class="text-muted small">N/A</span>
-                                          <% end %>
-                                        </td>
-                                        <td>
-                                          <small class="text-muted font-monospace">
-                                            <i class="far fa-file-code me-1"></i><%= vuln.short_source_file || vuln.source_file %>
-                                          </small>
-                                        </td>
-                                        <td class="text-center">
-                                          <% if vuln.osv_url.present? %>
-                                            <%= link_to vuln.osv_url, target: "_blank", class: "btn btn-sm btn-outline-primary" do %>
-                                              <i class="fas fa-external-link-alt"></i>
-                                            <% end %>
-                                          <% end %>
-                                        </td>
-                                      </tr>
-                                    <% end %>
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    <% end %>
                   <% end %>
                 </tbody>
               </table>
@@ -582,41 +468,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 10);
   }
 
-  // Handle expandable scan details rows
-  const scanRows = document.querySelectorAll('.scan-row[data-has-vulns="true"]');
-
-  scanRows.forEach(row => {
-    row.addEventListener('click', function(e) {
-      // Don't trigger if clicking on a link or button
-      if (e.target.closest('a') || e.target.closest('button')) {
-        return;
-      }
-
-      const scanId = this.dataset.scanId;
-      const collapseRow = document.getElementById('collapse-row-' + scanId);
-      const icon = document.getElementById('icon-' + scanId);
-
-      if (collapseRow) {
-        const isVisible = collapseRow.style.display !== 'none';
-
-        if (isVisible) {
-          // Close the row
-          collapseRow.style.display = 'none';
-          if (icon) {
-            icon.classList.remove('fa-chevron-down');
-            icon.classList.add('fa-chevron-right');
-          }
-        } else {
-          // Open the row
-          collapseRow.style.display = '';
-          if (icon) {
-            icon.classList.remove('fa-chevron-right');
-            icon.classList.add('fa-chevron-down');
-          }
-        }
-      }
-    });
-  });
 });
 </script>
 
@@ -636,46 +487,11 @@ document.addEventListener('DOMContentLoaded', function() {
   background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
 }
 
-/* Expandable table rows styling */
-.scan-row.cursor-pointer {
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.scan-row.cursor-pointer:hover {
-  background-color: rgba(78, 115, 223, 0.05);
-  transform: scale(1.002);
-}
-.collapse-icon {
-  transition: all 0.3s ease;
-  display: inline-block;
-  font-size: 0.85rem;
-}
-.collapse-row {
-  background-color: transparent;
-}
-.collapse-row td {
-  border: none !important;
-}
-.vulnerability-details {
-  border-left: 4px solid #e74a3b;
-  animation: slideDown 0.3s ease;
-}
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Vulnerability row hover */
-.vulnerability-row {
+/* Table row hover */
+.scan-row {
   transition: background-color 0.15s ease;
 }
-.vulnerability-row:hover {
+.scan-row:hover {
   background-color: rgba(78, 115, 223, 0.03);
 }
 
