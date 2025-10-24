@@ -41,7 +41,14 @@ Rails.application.routes.draw do
       get :scans
       post :trigger_scan
     end
-    resources :vulnerability_scans, only: [:show], param: :id
+    resources :vulnerability_scans, only: [:show], param: :id do
+      member do
+        get :fetch_osv_details
+      end
+      collection do
+        get :fetch_all_osv_details
+      end
+    end
   end
   resources :ssh_keys
   resources :servers, param: :uuid do
