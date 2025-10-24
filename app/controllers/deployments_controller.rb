@@ -10,6 +10,7 @@ class DeploymentsController < ApplicationController
   end
 
   def show
+    @latest_vulnerability_scan = @deployment.vulnerability_scans.completed.recent.first
     log_activity('deployment_viewed', details: "Viewed deployment: #{@deployment.display_name}")
   end
 
