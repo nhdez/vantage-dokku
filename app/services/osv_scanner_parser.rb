@@ -36,7 +36,8 @@ class OsvScannerParser
 
   def extract_vulnerability_count
     # Look for line like: "Total 4 packages affected by 9 known vulnerabilities"
-    summary_line = @lines.find { |line| line.include?('packages affected by') && line.include?('known vulnerabilities') }
+    # or "Total 1 package affected by 5 known vulnerabilities" (singular)
+    summary_line = @lines.find { |line| line.include?('affected by') && line.include?('known vulnerabilities') }
     return 0 unless summary_line
 
     match = summary_line.match(/by (\d+) known vulnerabilities/)
@@ -69,7 +70,7 @@ class OsvScannerParser
     if @raw_output.include?('No issues found')
       'No vulnerabilities found'
     elsif @raw_output.include?('known vulnerabilities')
-      summary_line = @lines.find { |line| line.include?('packages affected by') && line.include?('known vulnerabilities') }
+      summary_line = @lines.find { |line| line.include?('affected by') && line.include?('known vulnerabilities') }
       summary_line || 'Scan completed'
     else
       'Scan completed'
@@ -129,7 +130,7 @@ class OsvScannerParser
 
   def extract_osv_id(url)
     # Extract ID from URL like "https://osv.dev/GHSA-9hjg-9r4m-mvj7"
-    match = url.match(%r{osv\.dev/([A-Z0-9-]+)})
+    match = url.match(%r{osv\.dev/([\w-]+)})
     match ? match[1] : url
   end
 
