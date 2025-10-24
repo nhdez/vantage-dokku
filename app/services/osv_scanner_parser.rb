@@ -97,14 +97,14 @@ class OsvScannerParser
     @lines[data_start..-1].each_with_index do |line, index|
       Rails.logger.debug "[OsvScannerParser] Processing line #{data_start + index}: #{line}"
 
-      # Stop at table end
-      if line.start_with?('╰') || line.strip.empty?
+      # Stop at table end - handle both box drawing and regular characters
+      if line.start_with?('╰') || line.start_with?('+---') || line.strip.empty?
         Rails.logger.info "[OsvScannerParser] Reached table end at line #{data_start + index}"
         break
       end
 
-      # Skip separator lines
-      if line.start_with?('├')
+      # Skip separator lines - handle both box drawing and regular characters
+      if line.start_with?('├') || line.start_with?('+---')
         Rails.logger.debug "[OsvScannerParser] Skipping separator line"
         next
       end
@@ -124,10 +124,12 @@ class OsvScannerParser
   end
 
   def parse_vulnerability_line(line)
-    # Split by │ and clean up
-    parts = line.split('│').map(&:strip).reject(&:empty?)
+    # Split by either │ (box drawing) or | (regular pipe) and clean up
+    # OSV scanner output format changed to use regular pipes
+    separator = line.include?('│') ? '│' : '|'
+    parts = line.split(separator).map(&:strip).reject(&:empty?)
 
-    Rails.logger.debug "[OsvScannerParser] Split line into #{parts.length} parts: #{parts.inspect}"
+    Rails.logger.debug "[OsvScannerParser] Split line using '#{separator}' into #{parts.length} parts: #{parts.inspect}"
 
     if parts.length < 7
       Rails.logger.warn "[OsvScannerParser] Line has only #{parts.length} parts, need at least 7"
