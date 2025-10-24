@@ -30,132 +30,84 @@
   <% if @latest_scan.present? %>
     <div class="row mb-4">
       <div class="col-lg-12">
-        <div class="card shadow-lg border-0">
-          <div class="card-header py-3 bg-gradient-primary text-white">
-            <h6 class="m-0 font-weight-bold">
+        <div class="card shadow">
+          <div class="card-header py-3 bg-light">
+            <h6 class="m-0 font-weight-bold text-primary">
               <i class="fas fa-chart-line me-2"></i>Latest Scan Results
             </h6>
           </div>
           <div class="card-body">
-            <div class="row g-3">
-              <div class="col-md-3">
-                <div class="stat-card border-0 shadow-sm rounded p-3 h-100 bg-primary bg-opacity-10">
-                  <div class="d-flex align-items-center">
-                    <div class="stat-icon bg-primary bg-opacity-25 rounded-circle p-3 me-3">
-                      <i class="fas fa-cube text-primary fs-4"></i>
-                    </div>
-                    <div>
-                      <div class="text-muted small mb-1">Total Packages</div>
-                      <div class="h3 mb-0 fw-bold text-primary"><%= @latest_scan.total_packages %></div>
-                    </div>
+            <div class="row">
+              <div class="col-md-3 mb-3">
+                <div class="border rounded p-3 text-center">
+                  <div class="text-muted small mb-1">Total Packages</div>
+                  <div class="h3 mb-0"><%= @latest_scan.total_packages %></div>
+                </div>
+              </div>
+              <div class="col-md-3 mb-3">
+                <div class="border rounded p-3 text-center">
+                  <div class="text-muted small mb-1">Vulnerabilities Found</div>
+                  <div class="h3 mb-0 text-<%= @latest_scan.vulnerabilities_found > 0 ? 'danger' : 'success' %>">
+                    <%= @latest_scan.vulnerabilities_found %>
                   </div>
                 </div>
               </div>
-              <div class="col-md-3">
-                <div class="stat-card border-0 shadow-sm rounded p-3 h-100 bg-<%= @latest_scan.vulnerabilities_found > 0 ? 'danger' : 'success' %> bg-opacity-10">
-                  <div class="d-flex align-items-center">
-                    <div class="stat-icon bg-<%= @latest_scan.vulnerabilities_found > 0 ? 'danger' : 'success' %> bg-opacity-25 rounded-circle p-3 me-3">
-                      <i class="fas fa-<%= @latest_scan.vulnerabilities_found > 0 ? 'exclamation-triangle' : 'shield-check' %> text-<%= @latest_scan.vulnerabilities_found > 0 ? 'danger' : 'success' %> fs-4"></i>
-                    </div>
-                    <div>
-                      <div class="text-muted small mb-1">Vulnerabilities</div>
-                      <div class="h3 mb-0 fw-bold text-<%= @latest_scan.vulnerabilities_found > 0 ? 'danger' : 'success' %>">
-                        <%= @latest_scan.vulnerabilities_found %>
-                      </div>
-                    </div>
+              <div class="col-md-3 mb-3">
+                <div class="border rounded p-3 text-center">
+                  <div class="text-muted small mb-1">Status</div>
+                  <div>
+                    <span class="badge bg-<%= @latest_scan.severity_badge_class %>">
+                      <%= @latest_scan.status.titleize %>
+                    </span>
                   </div>
                 </div>
               </div>
-              <div class="col-md-3">
-                <div class="stat-card border-0 shadow-sm rounded p-3 h-100 bg-info bg-opacity-10">
-                  <div class="d-flex align-items-center">
-                    <div class="stat-icon bg-info bg-opacity-25 rounded-circle p-3 me-3">
-                      <i class="fas fa-tasks text-info fs-4"></i>
-                    </div>
-                    <div>
-                      <div class="text-muted small mb-1">Status</div>
-                      <div>
-                        <span class="badge rounded-pill bg-<%= @latest_scan.severity_badge_class %> fs-6 px-3">
-                          <%= @latest_scan.status.titleize %>
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-3">
-                <div class="stat-card border-0 shadow-sm rounded p-3 h-100 bg-secondary bg-opacity-10">
-                  <div class="d-flex align-items-center">
-                    <div class="stat-icon bg-secondary bg-opacity-25 rounded-circle p-3 me-3">
-                      <i class="far fa-clock text-secondary fs-4"></i>
-                    </div>
-                    <div>
-                      <div class="text-muted small mb-1">Scanned At</div>
-                      <div class="small fw-medium">
-                        <%= @latest_scan.completed_at&.strftime("%b %d, %H:%M") || "In Progress" %>
-                      </div>
-                    </div>
+              <div class="col-md-3 mb-3">
+                <div class="border rounded p-3 text-center">
+                  <div class="text-muted small mb-1">Scanned At</div>
+                  <div class="small">
+                    <%= @latest_scan.completed_at&.strftime("%Y-%m-%d %H:%M") || "In Progress" %>
                   </div>
                 </div>
               </div>
             </div>
 
             <% if @latest_scan.vulnerabilities_found > 0 %>
-              <div class="alert alert-<%= @latest_scan.severity_badge_class %> border-0 shadow-sm mt-4 mb-3">
-                <div class="d-flex align-items-center">
-                  <i class="fas fa-exclamation-triangle fs-4 me-3"></i>
-                  <div>
-                    <strong>Security Alert:</strong> <%= @latest_scan.severity_summary %>
-                  </div>
-                </div>
+              <div class="alert alert-<%= @latest_scan.severity_badge_class %> mt-3">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Severity Breakdown:</strong> <%= @latest_scan.severity_summary %>
               </div>
 
-              <div class="row g-3 mt-2">
-                <% if @latest_scan.critical_count > 0 %>
-                  <div class="col-6 col-md-3">
-                    <div class="severity-badge-card bg-danger bg-opacity-10 border border-danger rounded p-3 text-center">
-                      <i class="fas fa-exclamation-circle text-danger fs-3 mb-2"></i>
-                      <div class="h4 mb-1 text-danger fw-bold"><%= @latest_scan.critical_count %></div>
-                      <div class="small text-danger fw-medium">Critical</div>
-                    </div>
-                  </div>
-                <% end %>
-                <% if @latest_scan.high_count > 0 %>
-                  <div class="col-6 col-md-3">
-                    <div class="severity-badge-card bg-warning bg-opacity-10 border border-warning rounded p-3 text-center">
-                      <i class="fas fa-exclamation-triangle text-warning fs-3 mb-2"></i>
-                      <div class="h4 mb-1 text-warning fw-bold"><%= @latest_scan.high_count %></div>
-                      <div class="small text-warning fw-medium">High</div>
-                    </div>
-                  </div>
-                <% end %>
-                <% if @latest_scan.medium_count > 0 %>
-                  <div class="col-6 col-md-3">
-                    <div class="severity-badge-card bg-info bg-opacity-10 border border-info rounded p-3 text-center">
-                      <i class="fas fa-info-circle text-info fs-3 mb-2"></i>
-                      <div class="h4 mb-1 text-info fw-bold"><%= @latest_scan.medium_count %></div>
-                      <div class="small text-info fw-medium">Medium</div>
-                    </div>
-                  </div>
-                <% end %>
-                <% if @latest_scan.low_count > 0 %>
-                  <div class="col-6 col-md-3">
-                    <div class="severity-badge-card bg-secondary bg-opacity-10 border border-secondary rounded p-3 text-center">
-                      <i class="fas fa-minus-circle text-secondary fs-3 mb-2"></i>
-                      <div class="h4 mb-1 text-secondary fw-bold"><%= @latest_scan.low_count %></div>
-                      <div class="small text-secondary fw-medium">Low</div>
-                    </div>
-                  </div>
-                <% end %>
-              </div>
-            <% else %>
-              <div class="alert alert-success border-0 shadow-sm mt-4 mb-0">
-                <div class="d-flex align-items-center">
-                  <i class="fas fa-check-circle fs-4 me-3"></i>
-                  <div>
-                    <strong>All Clear!</strong> No vulnerabilities were found in this deployment.
+              <div class="row mt-3">
+                <div class="col-6 col-md-3 mb-2">
+                  <div class="d-flex align-items-center">
+                    <span class="badge bg-danger me-2">Critical</span>
+                    <span><%= @latest_scan.critical_count %></span>
                   </div>
                 </div>
+                <div class="col-6 col-md-3 mb-2">
+                  <div class="d-flex align-items-center">
+                    <span class="badge bg-warning me-2">High</span>
+                    <span><%= @latest_scan.high_count %></span>
+                  </div>
+                </div>
+                <div class="col-6 col-md-3 mb-2">
+                  <div class="d-flex align-items-center">
+                    <span class="badge bg-info me-2">Medium</span>
+                    <span><%= @latest_scan.medium_count %></span>
+                  </div>
+                </div>
+                <div class="col-6 col-md-3 mb-2">
+                  <div class="d-flex align-items-center">
+                    <span class="badge bg-secondary me-2">Low</span>
+                    <span><%= @latest_scan.low_count %></span>
+                  </div>
+                </div>
+              </div>
+            <% else %>
+              <div class="alert alert-success mt-3">
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Great news!</strong> No vulnerabilities were found in this deployment.
               </div>
             <% end %>
           </div>
@@ -165,13 +117,9 @@
   <% else %>
     <div class="row mb-4">
       <div class="col-lg-12">
-        <div class="alert alert-info border-0 shadow-sm">
-          <div class="d-flex align-items-center">
-            <i class="fas fa-info-circle fs-4 me-3"></i>
-            <div>
-              <strong>No scans yet.</strong> Click "Run Scan Now" to start your first vulnerability scan.
-            </div>
-          </div>
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>
+          <strong>No scans yet.</strong> Click "Run Scan Now" to start your first vulnerability scan.
         </div>
       </div>
     </div>
@@ -255,81 +203,65 @@
   <!-- Scan History -->
   <div class="row">
     <div class="col-lg-12">
-      <div class="card shadow-lg border-0">
-        <div class="card-header py-3 bg-gradient-primary text-white">
-          <h6 class="m-0 font-weight-bold">
+      <div class="card shadow">
+        <div class="card-header py-3 bg-light">
+          <h6 class="m-0 font-weight-bold text-primary">
             <i class="fas fa-history me-2"></i>Scan History
           </h6>
         </div>
         <div class="card-body">
           <% if @vulnerability_scans.any? %>
             <div class="table-responsive">
-              <table class="table table-hover mb-0" id="scans-table">
-                <thead class="table-light">
+              <table class="table table-hover">
+                <thead>
                   <tr>
-                    <th class="border-0">Date</th>
-                    <th class="border-0">Type</th>
-                    <th class="border-0">Status</th>
-                    <th class="border-0">Packages</th>
-                    <th class="border-0">Vulnerabilities</th>
-                    <th class="border-0">Severity</th>
-                    <th class="border-0">Duration</th>
-                    <th class="border-0 text-end">Actions</th>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Packages</th>
+                    <th>Vulnerabilities</th>
+                    <th>Severity</th>
+                    <th>Duration</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <% @vulnerability_scans.each_with_index do |scan, index| %>
-                    <tr class="scan-row">
-                      <td class="align-middle">
-                        <span class="fw-medium"><%= scan.created_at.strftime("%b %d, %Y") %></span>
-                        <br>
-                        <small class="text-muted"><%= scan.created_at.strftime("%H:%M") %></small>
-                      </td>
-                      <td class="align-middle">
-                        <span class="badge rounded-pill bg-<%= scan.scan_type == 'manual' ? 'primary' : 'info' %>">
-                          <i class="fas fa-<%= scan.scan_type == 'manual' ? 'hand-pointer' : 'clock' %> me-1"></i>
+                  <% @vulnerability_scans.each do |scan| %>
+                    <tr>
+                      <td><%= scan.created_at.strftime("%Y-%m-%d %H:%M") %></td>
+                      <td>
+                        <span class="badge bg-<%= scan.scan_type == 'manual' ? 'primary' : 'info' %>">
                           <%= scan.scan_type.titleize %>
                         </span>
                       </td>
-                      <td class="align-middle">
-                        <span class="badge rounded-pill bg-<%= scan.severity_badge_class %>">
+                      <td>
+                        <span class="badge bg-<%= scan.severity_badge_class %>">
                           <%= scan.status.titleize %>
                         </span>
                       </td>
-                      <td class="align-middle">
-                        <span class="badge bg-light text-dark border">
-                          <i class="fas fa-cube me-1"></i><%= scan.total_packages %>
+                      <td><%= scan.total_packages %></td>
+                      <td>
+                        <span class="<%= scan.vulnerabilities_found > 0 ? 'text-danger fw-bold' : 'text-success' %>">
+                          <%= scan.vulnerabilities_found %>
                         </span>
                       </td>
-                      <td class="align-middle">
+                      <td>
                         <% if scan.vulnerabilities_found > 0 %>
-                          <span class="badge bg-danger-subtle text-danger border border-danger fw-bold fs-6">
-                            <i class="fas fa-exclamation-triangle me-1"></i><%= scan.vulnerabilities_found %>
-                          </span>
+                          <small><%= scan.severity_summary %></small>
                         <% else %>
-                          <span class="badge bg-success-subtle text-success border border-success">
-                            <i class="fas fa-check-circle me-1"></i>0
-                          </span>
+                          <span class="text-muted">None</span>
                         <% end %>
                       </td>
-                      <td class="align-middle">
-                        <% if scan.vulnerabilities_found > 0 %>
-                          <small class="text-muted"><%= scan.severity_summary %></small>
-                        <% else %>
-                          <span class="text-muted"><i class="fas fa-shield-alt me-1"></i>Clean</span>
-                        <% end %>
-                      </td>
-                      <td class="align-middle">
+                      <td>
                         <% if scan.completed_at && scan.started_at %>
-                          <i class="far fa-clock me-1 text-muted"></i>
                           <%= distance_of_time_in_words(scan.started_at, scan.completed_at) %>
                         <% else %>
                           <span class="text-muted">-</span>
                         <% end %>
                       </td>
-                      <td class="align-middle text-end">
-                        <%= link_to deployment_vulnerability_scan_path(@deployment, scan), class: "btn btn-sm btn-outline-primary" do %>
-                          <i class="fas fa-eye me-1"></i>View Details
+                      <td>
+                        <%= link_to deployment_vulnerability_scan_path(@deployment, scan), class: "btn btn-sm btn-primary" do %>
+                          <i class="fas fa-eye me-1"></i>View
                         <% end %>
                       </td>
                     </tr>
@@ -340,10 +272,9 @@
 
             <%== pagy_bootstrap_nav(@pagy) if @pagy.pages > 1 %>
           <% else %>
-            <div class="text-center py-5">
-              <i class="fas fa-clipboard-list fa-4x text-muted mb-3"></i>
-              <p class="text-muted">No scan history available yet.</p>
-              <p class="text-muted small">Run your first scan to see results here.</p>
+            <div class="text-center py-4 text-muted">
+              <i class="fas fa-inbox fa-3x mb-3"></i>
+              <p>No scan history available yet.</p>
             </div>
           <% end %>
         </div>
@@ -480,75 +411,5 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 .font-weight-bold {
   font-weight: 600;
-}
-
-/* Gradient header */
-.bg-gradient-primary {
-  background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
-}
-
-/* Table row hover */
-.scan-row {
-  transition: background-color 0.15s ease;
-}
-.scan-row:hover {
-  background-color: rgba(78, 115, 223, 0.03);
-}
-
-/* Badge enhancements */
-.badge.rounded-pill {
-  padding: 0.5em 0.9em;
-}
-
-/* Better subtle backgrounds for Bootstrap 5.3+ */
-.bg-danger-subtle {
-  background-color: rgba(220, 53, 69, 0.1) !important;
-}
-.bg-success-subtle {
-  background-color: rgba(25, 135, 84, 0.1) !important;
-}
-
-/* Monospace font for code */
-.font-monospace {
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 0.85em;
-}
-
-/* Table improvements */
-#scans-table tbody tr {
-  border-bottom: 1px solid rgba(0,0,0,0.05);
-}
-
-#scans-table thead th {
-  font-weight: 600;
-  text-transform: uppercase;
-  font-size: 0.85rem;
-  color: #5a5c69;
-  letter-spacing: 0.5px;
-}
-
-/* Stat cards */
-.stat-card {
-  transition: all 0.2s ease;
-}
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-}
-.stat-icon {
-  width: 60px;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Severity badge cards */
-.severity-badge-card {
-  transition: all 0.2s ease;
-}
-.severity-badge-card:hover {
-  transform: scale(1.05);
-  box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
 }
 </style>
