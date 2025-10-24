@@ -1623,6 +1623,218 @@ class SshConnectionService
     result
   end
 
+  # Check if Dokku app is running and get container info
+  def check_app_running(app_name)
+    result = {
+      success: false,
+      running: false,
+      container_id: nil,
+      workdir: nil,
+      error: nil
+    }
+
+    begin
+      Rails.logger.info "[SshConnectionService] Checking if #{app_name} is running on #{@server.name}"
+
+      Timeout::timeout(CONNECTION_TIMEOUT) do
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options
+        ) do |ssh|
+          # Check if app is running
+          status_output = execute_command(ssh, "dokku ps:report #{app_name} | grep 'Status web' 2>&1")
+
+          if status_output && status_output.include?('running')
+            result[:running] = true
+
+            # Get container ID
+            cid_output = execute_command(ssh, "dokku ps:report #{app_name} | grep 'CID:' | awk '{print $NF}' | tr -d ')' 2>&1")
+
+            if cid_output && !cid_output.strip.empty?
+              container_id = cid_output.strip
+              result[:container_id] = container_id
+
+              # Get working directory from container
+              workdir_output = execute_command(ssh, "docker inspect #{container_id} --format='{{.Config.WorkingDir}}' 2>&1")
+
+              if workdir_output && !workdir_output.strip.empty? && !workdir_output.include?('Error')
+                result[:workdir] = workdir_output.strip
+                result[:success] = true
+                Rails.logger.info "[SshConnectionService] #{app_name} is running with container #{container_id} at #{result[:workdir]}"
+              else
+                result[:error] = "Failed to get working directory"
+                Rails.logger.error "[SshConnectionService] #{result[:error]}"
+              end
+            else
+              result[:error] = "Failed to get container ID"
+              Rails.logger.error "[SshConnectionService] #{result[:error]}"
+            end
+          else
+            result[:error] = "App is not running"
+            Rails.logger.info "[SshConnectionService] #{app_name} is not running"
+          end
+
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue StandardError => e
+      result[:error] = "Failed to check app status: #{e.message}"
+      Rails.logger.error "[SshConnectionService] #{result[:error]}"
+    end
+
+    result
+  end
+
+  # Run OSV scanner on a Dokku app using container copy approach
+  def run_osv_scanner_on_container(app_name)
+    result = {
+      success: false,
+      raw_output: nil,
+      error: nil
+    }
+
+    begin
+      Rails.logger.info "[SshConnectionService] Running OSV scanner for #{app_name} on #{@server.name}"
+
+      Timeout::timeout(COMMAND_TIMEOUT * 3) do # Give extra time for copy + scan
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options(COMMAND_TIMEOUT * 3)
+        ) do |ssh|
+          # Step 1: Check if app is running and get container info
+          app_info = check_app_running(app_name)
+
+          unless app_info[:success] && app_info[:running]
+            result[:error] = app_info[:error] || "App is not running"
+            return result
+          end
+
+          container_id = app_info[:container_id]
+          workdir = app_info[:workdir] || '/app'
+
+          # Step 2: Create temporary directory for scanning
+          temp_dir = "/tmp/#{app_name}-scan-#{Time.now.to_i}"
+          execute_command(ssh, "mkdir -p #{temp_dir}")
+
+          # Step 3: Copy container content to temp directory
+          Rails.logger.info "[SshConnectionService] Copying container #{container_id}:#{workdir} to #{temp_dir}"
+          copy_output = execute_long_command(ssh, "docker cp #{container_id}:#{workdir} #{temp_dir} 2>&1", 120)
+
+          if copy_output && copy_output.downcase.include?('error')
+            result[:error] = "Failed to copy container content: #{copy_output}"
+            execute_command(ssh, "rm -rf #{temp_dir}") # Clean up
+            return result
+          end
+
+          # Step 4: Run OSV scanner on the copied content
+          Rails.logger.info "[SshConnectionService] Running OSV scanner on #{temp_dir}"
+          scan_command = "export PATH=$PATH:~/go/bin && osv-scanner scan #{temp_dir} 2>&1"
+          scan_output = execute_long_command(ssh, scan_command, 300) # 5 minutes for scan
+
+          # Step 5: Clean up temp directory
+          Rails.logger.info "[SshConnectionService] Cleaning up #{temp_dir}"
+          execute_command(ssh, "rm -rf #{temp_dir}")
+
+          result[:raw_output] = scan_output || "No output from scanner"
+          result[:success] = true
+          Rails.logger.info "[SshConnectionService] OSV scan completed for #{app_name}"
+
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue StandardError => e
+      result[:error] = "Failed to run OSV scanner: #{e.message}"
+      Rails.logger.error "[SshConnectionService] #{result[:error]}"
+    end
+
+    result
+  end
+
+  # Perform a complete vulnerability scan for a deployment
+  def perform_vulnerability_scan(deployment, scan_type = 'manual')
+    scan = VulnerabilityScan.create!(
+      deployment: deployment,
+      server: @server,
+      status: 'running',
+      scan_type: scan_type,
+      started_at: Time.current
+    )
+
+    begin
+      Rails.logger.info "[SshConnectionService] Starting vulnerability scan for #{deployment.dokku_app_name}"
+
+      # Step 1: Check if app is running
+      app_info = check_app_running(deployment.dokku_app_name)
+
+      unless app_info[:success] && app_info[:running]
+        error_message = app_info[:error] || "App is not running"
+        scan.update!(
+          status: 'failed',
+          completed_at: Time.current,
+          summary: error_message
+        )
+        return { success: false, scan: scan, error: error_message }
+      end
+
+      # Step 2: Run OSV scanner on container
+      scan_result = run_osv_scanner_on_container(deployment.dokku_app_name)
+
+      unless scan_result[:success]
+        raise StandardError, scan_result[:error]
+      end
+
+      # Step 3: Parse results
+      parser = OsvScannerParser.new(scan_result[:raw_output])
+      parsed_data = parser.parse
+
+      # Step 4: Update scan record
+      scan.update!(
+        status: 'completed',
+        completed_at: Time.current,
+        total_packages: parsed_data[:total_packages],
+        vulnerabilities_found: parsed_data[:vulnerabilities_found],
+        critical_count: parsed_data[:severity_counts][:critical],
+        high_count: parsed_data[:severity_counts][:high],
+        medium_count: parsed_data[:severity_counts][:medium],
+        low_count: parsed_data[:severity_counts][:low],
+        unknown_count: parsed_data[:severity_counts][:unknown],
+        raw_output: scan_result[:raw_output],
+        summary: parsed_data[:summary]
+      )
+
+      # Step 5: Create vulnerability records
+      parsed_data[:vulnerabilities].each do |vuln_data|
+        scan.vulnerabilities.create!(
+          osv_id: vuln_data[:osv_id],
+          cvss_score: vuln_data[:cvss_score],
+          ecosystem: vuln_data[:ecosystem],
+          package_name: vuln_data[:package_name],
+          current_version: vuln_data[:current_version],
+          fixed_version: vuln_data[:fixed_version],
+          severity: vuln_data[:severity],
+          source_file: vuln_data[:source_file],
+          osv_url: vuln_data[:osv_url]
+        )
+      end
+
+      Rails.logger.info "[SshConnectionService] Vulnerability scan completed for #{deployment.dokku_app_name}: #{parsed_data[:vulnerabilities_found]} vulnerabilities found"
+
+      { success: true, scan: scan }
+    rescue StandardError => e
+      Rails.logger.error "[SshConnectionService] Vulnerability scan failed: #{e.message}"
+
+      scan.update!(
+        status: 'failed',
+        completed_at: Time.current,
+        summary: "Scan failed: #{e.message}"
+      )
+
+      { success: false, scan: scan, error: e.message }
+    end
+  end
+
   private
   
   def ssh_options(custom_timeout = nil)
@@ -2613,217 +2825,5 @@ class SshConnectionService
     end
 
     result
-  end
-
-  # Check if Dokku app is running and get container info
-  def check_app_running(app_name)
-    result = {
-      success: false,
-      running: false,
-      container_id: nil,
-      workdir: nil,
-      error: nil
-    }
-
-    begin
-      Rails.logger.info "[SshConnectionService] Checking if #{app_name} is running on #{@server.name}"
-
-      Timeout::timeout(CONNECTION_TIMEOUT) do
-        Net::SSH.start(
-          @connection_details[:host],
-          @connection_details[:username],
-          ssh_options
-        ) do |ssh|
-          # Check if app is running
-          status_output = execute_command(ssh, "dokku ps:report #{app_name} | grep 'Status web' 2>&1")
-
-          if status_output && status_output.include?('running')
-            result[:running] = true
-
-            # Get container ID
-            cid_output = execute_command(ssh, "dokku ps:report #{app_name} | grep 'CID:' | awk '{print $NF}' | tr -d ')' 2>&1")
-
-            if cid_output && !cid_output.strip.empty?
-              container_id = cid_output.strip
-              result[:container_id] = container_id
-
-              # Get working directory from container
-              workdir_output = execute_command(ssh, "docker inspect #{container_id} --format='{{.Config.WorkingDir}}' 2>&1")
-
-              if workdir_output && !workdir_output.strip.empty? && !workdir_output.include?('Error')
-                result[:workdir] = workdir_output.strip
-                result[:success] = true
-                Rails.logger.info "[SshConnectionService] #{app_name} is running with container #{container_id} at #{result[:workdir]}"
-              else
-                result[:error] = "Failed to get working directory"
-                Rails.logger.error "[SshConnectionService] #{result[:error]}"
-              end
-            else
-              result[:error] = "Failed to get container ID"
-              Rails.logger.error "[SshConnectionService] #{result[:error]}"
-            end
-          else
-            result[:error] = "App is not running"
-            Rails.logger.info "[SshConnectionService] #{app_name} is not running"
-          end
-
-          @server.update!(last_connected_at: Time.current)
-        end
-      end
-    rescue StandardError => e
-      result[:error] = "Failed to check app status: #{e.message}"
-      Rails.logger.error "[SshConnectionService] #{result[:error]}"
-    end
-
-    result
-  end
-
-  # Run OSV scanner on a Dokku app using container copy approach
-  def run_osv_scanner_on_container(app_name)
-    result = {
-      success: false,
-      raw_output: nil,
-      error: nil
-    }
-
-    begin
-      Rails.logger.info "[SshConnectionService] Running OSV scanner for #{app_name} on #{@server.name}"
-
-      Timeout::timeout(COMMAND_TIMEOUT * 3) do # Give extra time for copy + scan
-        Net::SSH.start(
-          @connection_details[:host],
-          @connection_details[:username],
-          ssh_options(COMMAND_TIMEOUT * 3)
-        ) do |ssh|
-          # Step 1: Check if app is running and get container info
-          app_info = check_app_running(app_name)
-
-          unless app_info[:success] && app_info[:running]
-            result[:error] = app_info[:error] || "App is not running"
-            return result
-          end
-
-          container_id = app_info[:container_id]
-          workdir = app_info[:workdir] || '/app'
-
-          # Step 2: Create temporary directory for scanning
-          temp_dir = "/tmp/#{app_name}-scan-#{Time.now.to_i}"
-          execute_command(ssh, "mkdir -p #{temp_dir}")
-
-          # Step 3: Copy container content to temp directory
-          Rails.logger.info "[SshConnectionService] Copying container #{container_id}:#{workdir} to #{temp_dir}"
-          copy_output = execute_long_command(ssh, "docker cp #{container_id}:#{workdir} #{temp_dir} 2>&1", 120)
-
-          if copy_output && copy_output.downcase.include?('error')
-            result[:error] = "Failed to copy container content: #{copy_output}"
-            execute_command(ssh, "rm -rf #{temp_dir}") # Clean up
-            return result
-          end
-
-          # Step 4: Run OSV scanner on the copied content
-          Rails.logger.info "[SshConnectionService] Running OSV scanner on #{temp_dir}"
-          scan_command = "export PATH=$PATH:~/go/bin && osv-scanner scan #{temp_dir} 2>&1"
-          scan_output = execute_long_command(ssh, scan_command, 300) # 5 minutes for scan
-
-          # Step 5: Clean up temp directory
-          Rails.logger.info "[SshConnectionService] Cleaning up #{temp_dir}"
-          execute_command(ssh, "rm -rf #{temp_dir}")
-
-          result[:raw_output] = scan_output || "No output from scanner"
-          result[:success] = true
-          Rails.logger.info "[SshConnectionService] OSV scan completed for #{app_name}"
-
-          @server.update!(last_connected_at: Time.current)
-        end
-      end
-    rescue StandardError => e
-      result[:error] = "Failed to run OSV scanner: #{e.message}"
-      Rails.logger.error "[SshConnectionService] #{result[:error]}"
-    end
-
-    result
-  end
-
-  # Perform a complete vulnerability scan for a deployment
-  def perform_vulnerability_scan(deployment, scan_type = 'manual')
-    scan = VulnerabilityScan.create!(
-      deployment: deployment,
-      server: @server,
-      status: 'running',
-      scan_type: scan_type,
-      started_at: Time.current
-    )
-
-    begin
-      Rails.logger.info "[SshConnectionService] Starting vulnerability scan for #{deployment.dokku_app_name}"
-
-      # Step 1: Check if app is running
-      app_info = check_app_running(deployment.dokku_app_name)
-
-      unless app_info[:success] && app_info[:running]
-        error_message = app_info[:error] || "App is not running"
-        scan.update!(
-          status: 'failed',
-          completed_at: Time.current,
-          summary: error_message
-        )
-        return { success: false, scan: scan, error: error_message }
-      end
-
-      # Step 2: Run OSV scanner on container
-      scan_result = run_osv_scanner_on_container(deployment.dokku_app_name)
-
-      unless scan_result[:success]
-        raise StandardError, scan_result[:error]
-      end
-
-      # Step 3: Parse results
-      parser = OsvScannerParser.new(scan_result[:raw_output])
-      parsed_data = parser.parse
-
-      # Step 4: Update scan record
-      scan.update!(
-        status: 'completed',
-        completed_at: Time.current,
-        total_packages: parsed_data[:total_packages],
-        vulnerabilities_found: parsed_data[:vulnerabilities_found],
-        critical_count: parsed_data[:severity_counts][:critical],
-        high_count: parsed_data[:severity_counts][:high],
-        medium_count: parsed_data[:severity_counts][:medium],
-        low_count: parsed_data[:severity_counts][:low],
-        unknown_count: parsed_data[:severity_counts][:unknown],
-        raw_output: scan_result[:raw_output],
-        summary: parsed_data[:summary]
-      )
-
-      # Step 5: Create vulnerability records
-      parsed_data[:vulnerabilities].each do |vuln_data|
-        scan.vulnerabilities.create!(
-          osv_id: vuln_data[:osv_id],
-          cvss_score: vuln_data[:cvss_score],
-          ecosystem: vuln_data[:ecosystem],
-          package_name: vuln_data[:package_name],
-          current_version: vuln_data[:current_version],
-          fixed_version: vuln_data[:fixed_version],
-          severity: vuln_data[:severity],
-          source_file: vuln_data[:source_file],
-          osv_url: vuln_data[:osv_url]
-        )
-      end
-
-      Rails.logger.info "[SshConnectionService] Vulnerability scan completed for #{deployment.dokku_app_name}: #{parsed_data[:vulnerabilities_found]} vulnerabilities found"
-
-      { success: true, scan: scan }
-    rescue StandardError => e
-      Rails.logger.error "[SshConnectionService] Vulnerability scan failed: #{e.message}"
-
-      scan.update!(
-        status: 'failed',
-        completed_at: Time.current,
-        summary: "Scan failed: #{e.message}"
-      )
-
-      { success: false, scan: scan, error: e.message }
-    end
   end
 end
