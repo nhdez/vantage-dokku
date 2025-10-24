@@ -303,32 +303,94 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(response => response.json())
       .then(data => {
         if (data.success) {
-          // Show success message and reload after a delay
-          const alert = document.createElement('div');
-          alert.className = 'alert alert-success alert-dismissible fade show';
-          alert.innerHTML = `
-            <i class="fas fa-check-circle me-2"></i>
-            ${data.message} Refreshing in 3 seconds...
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-          `;
-          document.querySelector('.container-fluid').insertBefore(alert, document.querySelector('.container-fluid').firstChild);
+          // Show success toast
+          showToast('success', data.message + ' Refreshing in 3 seconds...', 'Scan Started');
 
           setTimeout(() => {
             location.reload();
           }, 3000);
         } else {
-          alert('Error: ' + data.message);
+          showToast('error', data.message, 'Scan Error');
           btn.disabled = false;
           btn.innerHTML = originalHTML;
         }
       })
       .catch(error => {
         console.error('Error starting scan:', error);
-        alert('Failed to start scan. Please try again.');
+        showToast('error', 'Failed to start scan. Please try again.', 'Scan Error');
         btn.disabled = false;
         btn.innerHTML = originalHTML;
       });
     });
+  }
+
+  // Helper function to show toast notifications
+  function showToast(type, message, title) {
+    // Create toast container if it doesn't exist
+    let container = document.getElementById('toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toast-container';
+      container.className = 'toast-container position-fixed top-0 end-0 p-3';
+      container.style.zIndex = '9999';
+      document.body.appendChild(container);
+    }
+
+    const toastId = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const iconMap = {
+      success: 'fas fa-check-circle',
+      error: 'fas fa-exclamation-circle',
+      warning: 'fas fa-exclamation-triangle',
+      info: 'fas fa-info-circle'
+    };
+
+    const colorMap = {
+      success: 'success',
+      error: 'danger',
+      warning: 'warning',
+      info: 'info'
+    };
+
+    const toastIcon = iconMap[type] || 'fas fa-info-circle';
+    const toastColor = colorMap[type] || 'info';
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+    const toastHTML = `
+      <div id="${toastId}" class="toast fade show" role="alert" aria-live="assertive" aria-atomic="true"
+           data-mdb-autohide="true" data-mdb-delay="5000">
+        <div class="toast-header bg-${toastColor} text-white">
+          <i class="${toastIcon} me-2"></i>
+          <strong class="me-auto">${title}</strong>
+          <small class="text-white-50">${timeString}</small>
+          <button type="button" class="btn-close btn-close-white ms-2" data-mdb-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body bg-${toastColor} bg-opacity-10 border-${toastColor} border-start border-4">
+          <div class="d-flex align-items-start">
+            <i class="${toastIcon} text-${toastColor} me-3 mt-1"></i>
+            <div class="flex-grow-1">
+              ${message}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    container.insertAdjacentHTML('afterbegin', toastHTML);
+
+    const toastElement = document.getElementById(toastId);
+    const toast = new mdb.Toast(toastElement);
+
+    toastElement.addEventListener('hidden.mdb.toast', () => {
+      toastElement.remove();
+    });
+
+    toastElement.style.transform = 'translateX(100%)';
+    toastElement.style.transition = 'transform 0.3s ease-in-out';
+
+    setTimeout(() => {
+      toastElement.style.transform = 'translateX(0)';
+    }, 10);
   }
 });
 </script>
