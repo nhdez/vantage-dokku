@@ -37,6 +37,9 @@ gem "ransack"
 gem "octokit"
 gem "faraday-retry"
 
+# Markdown rendering
+gem "redcarpet"
+
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 # gem "bcrypt", "~> 3.1.7"
 
