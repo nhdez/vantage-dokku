@@ -533,7 +533,11 @@
             <%= link_to logs_deployment_path(@deployment), class: "btn btn-outline-primary" do %>
               <i class="fas fa-list me-2"></i>Deployment Logs
             <% end %>
-            
+
+            <%= link_to scans_deployment_path(@deployment), class: "btn btn-outline-danger" do %>
+              <i class="fas fa-shield-alt me-2"></i>Vulnerability Scans
+            <% end %>
+
             <%= link_to @deployment.server, class: "btn btn-outline-warning" do %>
               <i class="fas fa-server me-2"></i>Manage Server
             <% end %>
