@@ -5,7 +5,10 @@ class OsvScannerParser
   end
 
   def parse
-    {
+    Rails.logger.info "[OsvScannerParser] Parsing output (#{@raw_output.length} characters)"
+    Rails.logger.debug "[OsvScannerParser] Raw output: #{@raw_output}"
+
+    result = {
       success: !@raw_output.include?('Error'),
       total_packages: extract_total_packages,
       vulnerabilities_found: extract_vulnerability_count,
@@ -13,6 +16,11 @@ class OsvScannerParser
       vulnerabilities: extract_vulnerabilities,
       summary: extract_summary
     }
+
+    Rails.logger.info "[OsvScannerParser] Parsed result: #{result.except(:vulnerabilities).inspect}"
+    Rails.logger.info "[OsvScannerParser] Found #{result[:vulnerabilities].count} vulnerabilities"
+
+    result
   end
 
   private

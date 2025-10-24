@@ -1729,8 +1729,11 @@ class SshConnectionService
           end
 
           # Step 4: Run OSV scanner on the copied content
-          Rails.logger.info "[SshConnectionService] Running OSV scanner on #{temp_dir}"
-          scan_command = "export PATH=$PATH:~/go/bin && osv-scanner scan #{temp_dir} 2>&1"
+          # docker cp creates a subdirectory with the basename of workdir, so adjust path
+          workdir_basename = File.basename(workdir)
+          scan_path = "#{temp_dir}/#{workdir_basename}"
+          Rails.logger.info "[SshConnectionService] Running OSV scanner on #{scan_path}"
+          scan_command = "export PATH=$PATH:~/go/bin && osv-scanner scan #{scan_path} 2>&1"
           scan_output = execute_long_command(ssh, scan_command, 300) # 5 minutes for scan
 
           # Step 5: Clean up temp directory
