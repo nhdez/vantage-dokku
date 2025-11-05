@@ -65,10 +65,10 @@
                         <%= link_to linked_account_path(account), class: "btn btn-outline-primary btn-sm flex-fill" do %>
                           <i class="fas fa-eye me-1"></i>View
                         <% end %>
-                        <button class="btn btn-outline-success btn-sm flex-fill" onclick="testConnection('<%= test_connection_linked_account_path(account) %>', '<%= account.id %>')">
+                        <button class="btn btn-outline-primary btn-sm flex-fill" onclick="testConnection('<%= test_connection_linked_account_path(account) %>', '<%= account.id %>')">
                           <i class="fas fa-plug me-1"></i>Test
                         </button>
-                        <%= link_to edit_linked_account_path(account), class: "btn btn-outline-secondary btn-sm flex-fill" do %>
+                        <%= link_to edit_linked_account_path(account), class: "btn btn-outline-primary btn-sm flex-fill" do %>
                           <i class="fas fa-edit me-1"></i>Edit
                         <% end %>
                       </div>

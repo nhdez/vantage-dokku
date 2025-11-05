@@ -87,6 +87,12 @@ module ApplicationHelper
       elsif action_name == 'server_logs' && @deployment
         add_breadcrumb @deployment.name, deployment_path(@deployment)
         add_breadcrumb 'Server Logs', nil, icon: 'fas fa-file-alt'
+      elsif action_name == 'port_mappings' && @deployment
+        add_breadcrumb @deployment.name, deployment_path(@deployment)
+        add_breadcrumb 'Port Mappings'
+      elsif action_name == 'scans' && @deployment
+        add_breadcrumb @deployment.name, deployment_path(@deployment)
+        add_breadcrumb 'Vulnerability Scans'
       end
     when 'servers'
       add_breadcrumb 'Dashboard', dashboard_path
@@ -102,6 +108,12 @@ module ApplicationHelper
       elsif action_name == 'logs' && @server
         add_breadcrumb @server.name, server_path(@server)
         add_breadcrumb 'Activity Logs'
+      elsif action_name == 'firewall_rules' && @server
+        add_breadcrumb @server.name, server_path(@server)
+        add_breadcrumb 'Firewall Rules'
+      elsif action_name == 'vulnerability_scanner' && @server
+        add_breadcrumb @server.name, server_path(@server)
+        add_breadcrumb 'Vulnerability Scanner'
       end
     when 'ssh_keys'
       add_breadcrumb 'Dashboard', dashboard_path
