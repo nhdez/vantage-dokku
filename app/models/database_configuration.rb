@@ -94,11 +94,13 @@ class DatabaseConfiguration < ApplicationRecord
     env_var_name = environment_variable_name
     redis_env_var_name = redis_environment_variable_name
     
-    env_vars = deployment.environment_variables.pluck(:key)
+    # Only check for USER-MANAGED environment variables
+    # System-managed variables (from Dokku plugins) are not conflicts
+    user_env_vars = deployment.environment_variables.user_managed.pluck(:key)
     
     conflicts = []
-    conflicts << env_var_name if env_var_name && env_vars.include?(env_var_name)
-    conflicts << redis_env_var_name if redis_enabled? && redis_env_var_name && env_vars.include?(redis_env_var_name)
+    conflicts << env_var_name if env_var_name && user_env_vars.include?(env_var_name)
+    conflicts << redis_env_var_name if redis_enabled? && redis_env_var_name && user_env_vars.include?(redis_env_var_name)
     
     conflicts
   end

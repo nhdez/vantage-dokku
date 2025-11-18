@@ -10,8 +10,19 @@ class EnvironmentVariable < ApplicationRecord
   validates :key, uniqueness: { scope: :deployment_id, message: "already exists for this deployment" }
   validates :value, length: { maximum: 10000 }
   validates :description, length: { maximum: 500 }
+  validates :source, inclusion: { in: %w[user system], message: "must be 'user' or 'system'" }
   
   scope :ordered, -> { order(:key) }
+  scope :user_managed, -> { where(source: 'user') }
+  scope :system_managed, -> { where(source: 'system') }
+  
+  def system_managed?
+    source == 'system'
+  end
+  
+  def user_managed?
+    source == 'user'
+  end
   
   def display_name
     key

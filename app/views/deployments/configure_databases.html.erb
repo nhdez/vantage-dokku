@@ -25,21 +25,21 @@
     <!-- Database Configuration Form -->
     <div class="col-md-8">
       <% if @has_conflicts %>
-        <!-- Environment Variable Conflict Warning -->
+        <!-- Environment Variable Warning (informational, not blocking) -->
         <div class="card shadow mb-4">
-          <div class="card-header py-3 bg-danger text-white">
+          <div class="card-header py-3 bg-warning text-dark">
             <h6 class="m-0 font-weight-bold">
-              <i class="fas fa-exclamation-triangle me-2"></i>Environment Variable Conflict
+              <i class="fas fa-exclamation-triangle me-2"></i>External Database Detected
             </h6>
           </div>
           <div class="card-body">
-            <div class="alert alert-danger">
+            <div class="alert alert-warning">
               <i class="fas fa-exclamation-triangle me-2"></i>
-              <strong>Conflict Detected:</strong> You have manually set environment variables that conflict with managed databases.
+              <strong>Warning:</strong> You have manually configured environment variables for an external database.
             </div>
             
             <p class="mb-3">
-              The following environment variables are already configured and will take precedence over managed databases:
+              The following environment variables are currently set:
             </p>
             
             <ul class="mb-3">
@@ -48,12 +48,18 @@
               <% end %>
             </ul>
             
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle me-2"></i>
+              <strong>Note:</strong> If you configure a managed database below, it will <strong>overwrite</strong> these environment variables with the new database connection details.
+            </div>
+            
             <p class="mb-0">
               <strong>Options:</strong>
             </p>
             <ul class="mb-0">
-              <li>Remove the conflicting environment variables to use managed databases</li>
-              <li>Keep your manual environment variables (managed databases will be disabled)</li>
+              <li><strong>Keep external database:</strong> Do not configure a managed database below</li>
+              <li><strong>Switch to managed database:</strong> Configure below (will replace your external DATABASE_URL)</li>
+              <li><strong>Remove external database:</strong> <%= link_to "Manage Environment Variables", manage_environment_deployment_path(@deployment), class: "text-decoration-none" %> to delete the manual DATABASE_URL</li>
             </ul>
           </div>
         </div>
@@ -68,17 +74,16 @@
         </div>
         <div class="card-body">
           <%= form_with model: @database_configuration, url: update_database_configuration_deployment_path(@deployment), method: :post, local: false, id: "database-form" do |form| %>
-            <% unless @has_conflicts %>
-              <div class="alert alert-info">
-                <i class="fas fa-info-circle me-2"></i>
-                <strong>Managed Databases:</strong> Dokku will automatically install plugins, create databases, and configure connection details.
-                Database credentials will be available as environment variables in your application.
-              </div>
-              
-              <div class="alert alert-warning">
-                <i class="fas fa-clock me-2"></i>
-                <strong>Setup Time:</strong> Database configuration may take 5-10 minutes as plugins are installed and databases are created.
-              </div>
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle me-2"></i>
+              <strong>Managed Databases:</strong> Dokku will automatically install plugins, create databases, and configure connection details.
+              Database credentials will be available as environment variables in your application.
+            </div>
+            
+            <div class="alert alert-warning">
+              <i class="fas fa-clock me-2"></i>
+              <strong>Setup Time:</strong> Database configuration may take 5-10 minutes as plugins are installed and databases are created.
+            </div>
               
               <!-- Database Type Selection -->
               <div class="mb-4">
@@ -316,18 +321,6 @@
                     </div>
                   </div>
                 </div>
-              </div>
-            <% else %>
-              <div class="text-center py-4">
-                <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
-                <h5 class="text-muted">Cannot Configure Managed Databases</h5>
-                <p class="text-muted mb-4">
-                  Environment variable conflicts prevent automatic database setup.
-                  Resolve conflicts above to enable managed databases.
-                </p>
-                <%= link_to manage_environment_deployment_path(@deployment), class: "btn btn-warning" do %>
-                  <i class="fas fa-cogs me-2"></i>Manage Environment Variables
-                <% end %>
               </div>
             <% end %>
           <% end %>

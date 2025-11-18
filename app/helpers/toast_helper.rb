@@ -1,7 +1,20 @@
 module ToastHelper
   def render_flash_toasts
     content = []
+    seen_messages = {}
     
+    # Define flash type priority (higher number = higher priority)
+    # When duplicate messages exist, show the one with highest priority
+    priority_map = {
+      'error' => 5,
+      'alert' => 5,  # Same as error
+      'warning' => 4,
+      'success' => 3,
+      'notice' => 2,  # Lower priority than success
+      'info' => 1
+    }
+    
+    # First pass: collect all messages and track highest priority for each
     flash.each do |type, message|
       next if message.blank?
       
@@ -9,18 +22,43 @@ module ToastHelper
       messages = message.is_a?(Array) ? message : [message]
       
       messages.each do |msg|
-        content << content_tag(:div, '',
-          data: {
-            controller: 'toast',
-            toast_type_value: normalize_flash_type(type),
-            toast_message_value: msg,
-            toast_title_value: flash_title(type),
-            toast_autohide_value: true,
-            toast_delay_value: flash_delay(type)
-          },
-          class: 'toast-trigger d-none'
-        )
+        normalized_type = normalize_flash_type(type)
+        current_priority = priority_map[normalized_type] || 0
+        
+        # Track this message and its priority
+        if seen_messages[msg]
+          # If we've seen this message before, keep the higher priority type
+          if current_priority > seen_messages[msg][:priority]
+            seen_messages[msg] = {
+              type: type,
+              normalized_type: normalized_type,
+              priority: current_priority
+            }
+          end
+        else
+          # First time seeing this message
+          seen_messages[msg] = {
+            type: type,
+            normalized_type: normalized_type,
+            priority: current_priority
+          }
+        end
       end
+    end
+    
+    # Second pass: render toasts for unique messages only
+    seen_messages.each do |msg, info|
+      content << content_tag(:div, '',
+        data: {
+          controller: 'toast',
+          toast_type_value: info[:normalized_type],
+          toast_message_value: msg,
+          toast_title_value: flash_title(info[:type]),
+          toast_autohide_value: true,
+          toast_delay_value: flash_delay(info[:type])
+        },
+        class: 'toast-trigger d-none'
+      )
     end
     
     safe_join(content)

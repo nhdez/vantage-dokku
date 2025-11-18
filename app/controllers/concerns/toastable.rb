@@ -23,11 +23,15 @@ module Toastable
   end
 
   # For backwards compatibility
+  # NOTE: Prefer using toast_success instead of toast_notice to avoid flash type conflicts
+  # toast_notice sets flash[:notice] which gets normalized to 'success' type
   def toast_notice(message, title: nil)
     flash[:notice] = message
     flash[:notice_title] = title if title
   end
 
+  # NOTE: Prefer using toast_error instead of toast_alert to avoid flash type conflicts
+  # toast_alert sets flash[:alert] which gets normalized to 'error' type
   def toast_alert(message, title: nil)
     flash[:alert] = message
     flash[:alert_title] = title if title
