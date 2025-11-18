@@ -84,245 +84,244 @@
               <i class="fas fa-clock me-2"></i>
               <strong>Setup Time:</strong> Database configuration may take 5-10 minutes as plugins are installed and databases are created.
             </div>
-              
-              <!-- Database Type Selection -->
-              <div class="mb-4">
-                <label class="form-label">
-                  <i class="fas fa-database me-2"></i>Primary Database
-                </label>
-                <div class="row">
-                  <!-- PostgreSQL Option -->
-                  <div class="col-md-6 mb-3">
-                    <div class="card border <%= @database_configuration.database_type == 'postgres' ? 'border-primary' : 'border-light' %>">
-                      <div class="card-body p-3">
-                        <div class="form-check">
-                          <%= form.radio_button :database_type, 'postgres', 
-                              class: "form-check-input",
-                              id: "database_postgres" %>
-                          <%= form.label "database_postgres", class: "form-check-label flex-grow-1" do %>
-                            <div class="d-flex align-items-center">
-                              <i class="fas fa-database text-primary me-2"></i>
-                              <div class="flex-grow-1">
-                                <strong>PostgreSQL</strong>
-                                <br><small class="text-muted">Advanced open-source relational database</small>
-                                <br><small class="badge bg-success">Recommended</small>
-                              </div>
+            
+            <!-- Database Type Selection -->
+            <div class="mb-4">
+              <label class="form-label">
+                <i class="fas fa-database me-2"></i>Primary Database
+              </label>
+              <div class="row">
+                <!-- PostgreSQL Option -->
+                <div class="col-md-6 mb-3">
+                  <div class="card border <%= @database_configuration.database_type == 'postgres' ? 'border-primary' : 'border-light' %>">
+                    <div class="card-body p-3">
+                      <div class="form-check">
+                        <%= form.radio_button :database_type, 'postgres', 
+                            class: "form-check-input",
+                            id: "database_postgres" %>
+                        <%= form.label "database_postgres", class: "form-check-label flex-grow-1" do %>
+                          <div class="d-flex align-items-center">
+                            <i class="fas fa-database text-primary me-2"></i>
+                            <div class="flex-grow-1">
+                              <strong>PostgreSQL</strong>
+                              <br><small class="text-muted">Advanced open-source relational database</small>
+                              <br><small class="badge bg-success">Recommended</small>
                             </div>
-                          <% end %>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <!-- MySQL Option -->
-                  <div class="col-md-6 mb-3">
-                    <div class="card border <%= @database_configuration.database_type == 'mysql' ? 'border-primary' : 'border-light' %>">
-                      <div class="card-body p-3">
-                        <div class="form-check">
-                          <%= form.radio_button :database_type, 'mysql', 
-                              class: "form-check-input",
-                              id: "database_mysql" %>
-                          <%= form.label "database_mysql", class: "form-check-label flex-grow-1" do %>
-                            <div class="d-flex align-items-center">
-                              <i class="fas fa-database text-warning me-2"></i>
-                              <div class="flex-grow-1">
-                                <strong>MySQL</strong>
-                                <br><small class="text-muted">Popular open-source relational database</small>
-                                <br><small class="badge bg-info">New</small>
-                              </div>
-                            </div>
-                          <% end %>
-                        </div>
+                          </div>
+                        <% end %>
                       </div>
                     </div>
                   </div>
                 </div>
                 
-                <div class="row">
-                  <!-- MariaDB Option -->
-                  <div class="col-md-6 mb-3">
-                    <div class="card border <%= @database_configuration.database_type == 'mariadb' ? 'border-primary' : 'border-light' %>">
-                      <div class="card-body p-3">
-                        <div class="form-check">
-                          <%= form.radio_button :database_type, 'mariadb', 
-                              class: "form-check-input",
-                              id: "database_mariadb" %>
-                          <%= form.label "database_mariadb", class: "form-check-label flex-grow-1" do %>
-                            <div class="d-flex align-items-center">
-                              <i class="fas fa-database text-info me-2"></i>
-                              <div class="flex-grow-1">
-                                <strong>MariaDB</strong>
-                                <br><small class="text-muted">MySQL-compatible database fork</small>
-                                <br><small class="badge bg-info">New</small>
-                              </div>
+                <!-- MySQL Option -->
+                <div class="col-md-6 mb-3">
+                  <div class="card border <%= @database_configuration.database_type == 'mysql' ? 'border-primary' : 'border-light' %>">
+                    <div class="card-body p-3">
+                      <div class="form-check">
+                        <%= form.radio_button :database_type, 'mysql', 
+                            class: "form-check-input",
+                            id: "database_mysql" %>
+                        <%= form.label "database_mysql", class: "form-check-label flex-grow-1" do %>
+                          <div class="d-flex align-items-center">
+                            <i class="fas fa-database text-warning me-2"></i>
+                            <div class="flex-grow-1">
+                              <strong>MySQL</strong>
+                              <br><small class="text-muted">Popular open-source relational database</small>
+                              <br><small class="badge bg-info">New</small>
                             </div>
-                          <% end %>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <!-- MongoDB Option -->
-                  <div class="col-md-6 mb-3">
-                    <div class="card border <%= @database_configuration.database_type == 'mongo' ? 'border-primary' : 'border-light' %>">
-                      <div class="card-body p-3">
-                        <div class="form-check">
-                          <%= form.radio_button :database_type, 'mongo', 
-                              class: "form-check-input",
-                              id: "database_mongo" %>
-                          <%= form.label "database_mongo", class: "form-check-label flex-grow-1" do %>
-                            <div class="d-flex align-items-center">
-                              <i class="fas fa-leaf text-success me-2"></i>
-                              <div class="flex-grow-1">
-                                <strong>MongoDB</strong>
-                                <br><small class="text-muted">Document-oriented NoSQL database</small>
-                                <br><small class="badge bg-info">New</small>
-                              </div>
-                            </div>
-                          <% end %>
-                        </div>
+                          </div>
+                        <% end %>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
               
-              <!-- Redis Option -->
-              <div class="mb-4">
-                <label class="form-label">
-                  <i class="fas fa-memory me-2"></i>Additional Services
-                </label>
-                <div class="card border <%= @database_configuration.redis_enabled? ? 'border-success' : 'border-light' %>">
-                  <div class="card-body p-3">
-                    <div class="form-check">
-                      <%= form.check_box :redis_enabled, 
-                          class: "form-check-input",
-                          id: "redis_enabled" %>
-                      <%= form.label "redis_enabled", class: "form-check-label flex-grow-1" do %>
-                        <div class="d-flex align-items-center">
-                          <i class="fas fa-memory text-success me-2"></i>
-                          <div class="flex-grow-1">
-                            <strong>Redis</strong>
-                            <br><small class="text-muted">In-memory data structure store (caching, sessions, queues)</small>
-                          </div>
-                        </div>
-                      <% end %>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <!-- Database Information Display -->
-              <% if @database_configuration.persisted? %>
-                <div class="alert alert-success">
-                  <i class="fas fa-check-circle me-2"></i>
-                  <strong>Current Configuration:</strong>
-                  <ul class="mb-0 mt-2">
-                    <li><strong>Database:</strong> <%= @database_configuration.display_name %> (<code><%= @database_configuration.database_name %></code>)</li>
-                    <% if @database_configuration.redis_enabled? %>
-                      <li><strong>Redis:</strong> <%= @database_configuration.redis_display_name %></li>
-                    <% end %>
-                    <li><strong>Status:</strong>
-                      <span class="badge <%= @database_configuration.status_class %>">
-                        <%= @database_configuration.status_text %>
-                      </span>
-                    </li>
-                  </ul>
-                </div>
-
-                <!-- Connection Details Card -->
-                <% if @database_configuration.configured? %>
-                  <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-primary text-white py-2">
-                      <h6 class="m-0">
-                        <i class="fas fa-plug me-2"></i>Connection Details
-                      </h6>
-                    </div>
-                    <div class="card-body">
-                      <p class="text-muted mb-3">
-                        <i class="fas fa-info-circle me-1"></i>
-                        Use these connection strings in your application to connect to your databases.
-                      </p>
-
-                      <!-- Database URL -->
-                      <% if @database_configuration.database_url.present? %>
-                        <div class="mb-3">
-                          <label class="form-label mb-1">
-                            <i class="fas fa-database text-primary me-1"></i>
-                            <strong><%= @database_configuration.environment_variable_name %></strong>
-                          </label>
-                          <div class="input-group">
-                            <input type="text"
-                                   class="form-control font-monospace small"
-                                   id="database-url-input"
-                                   value="<%= @database_configuration.database_url %>"
-                                   readonly>
-                            <button class="btn btn-outline-secondary"
-                                    type="button"
-                                    onclick="copyToClipboard('database-url-input', this)"
-                                    title="Copy to clipboard">
-                              <i class="fas fa-copy"></i>
-                            </button>
-                          </div>
-                          <small class="text-muted">
-                            <i class="fas fa-check text-success me-1"></i>
-                            Also available in your app's environment variables
-                          </small>
-                        </div>
-                      <% end %>
-
-                      <!-- Redis URL -->
-                      <% if @database_configuration.redis_enabled? && @database_configuration.redis_url.present? %>
-                        <div class="mb-0">
-                          <label class="form-label mb-1">
-                            <i class="fas fa-memory text-success me-1"></i>
-                            <strong><%= @database_configuration.redis_environment_variable_name %></strong>
-                          </label>
-                          <div class="input-group">
-                            <input type="text"
-                                   class="form-control font-monospace small"
-                                   id="redis-url-input"
-                                   value="<%= @database_configuration.redis_url %>"
-                                   readonly>
-                            <button class="btn btn-outline-secondary"
-                                    type="button"
-                                    onclick="copyToClipboard('redis-url-input', this)"
-                                    title="Copy to clipboard">
-                              <i class="fas fa-copy"></i>
-                            </button>
-                          </div>
-                          <small class="text-muted">
-                            <i class="fas fa-check text-success me-1"></i>
-                            Also available in your app's environment variables
-                          </small>
-                        </div>
-                      <% end %>
-                    </div>
-                  </div>
-                <% end %>
-              <% end %>
-              
-              <!-- Submit Button -->
               <div class="row">
-                <div class="col-12">
-                  <div class="d-flex gap-2 align-items-center">
-                    <%= form.submit "Configure Database", class: "btn btn-primary", id: "database-submit-btn",
-                        data: { 
-                          loading_text: "Configuring database... (this may take 5-10 minutes)",
-                          original_text: "Configure Database"
-                        } %>
-                    <%= link_to "Cancel", @deployment, class: "btn btn-secondary" %>
-                    
-                    <div class="ms-auto">
-                      <small class="text-muted">
-                        <i class="fas fa-info-circle me-1"></i>
-                        Process may take 5-10 minutes
-                      </small>
+                <!-- MariaDB Option -->
+                <div class="col-md-6 mb-3">
+                  <div class="card border <%= @database_configuration.database_type == 'mariadb' ? 'border-primary' : 'border-light' %>">
+                    <div class="card-body p-3">
+                      <div class="form-check">
+                        <%= form.radio_button :database_type, 'mariadb', 
+                            class: "form-check-input",
+                            id: "database_mariadb" %>
+                        <%= form.label "database_mariadb", class: "form-check-label flex-grow-1" do %>
+                          <div class="d-flex align-items-center">
+                            <i class="fas fa-database text-info me-2"></i>
+                            <div class="flex-grow-1">
+                              <strong>MariaDB</strong>
+                              <br><small class="text-muted">MySQL-compatible database fork</small>
+                              <br><small class="badge bg-info">New</small>
+                            </div>
+                          </div>
+                        <% end %>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- MongoDB Option -->
+                <div class="col-md-6 mb-3">
+                  <div class="card border <%= @database_configuration.database_type == 'mongo' ? 'border-primary' : 'border-light' %>">
+                    <div class="card-body p-3">
+                      <div class="form-check">
+                        <%= form.radio_button :database_type, 'mongo', 
+                            class: "form-check-input",
+                            id: "database_mongo" %>
+                        <%= form.label "database_mongo", class: "form-check-label flex-grow-1" do %>
+                          <div class="d-flex align-items-center">
+                            <i class="fas fa-leaf text-success me-2"></i>
+                            <div class="flex-grow-1">
+                              <strong>MongoDB</strong>
+                              <br><small class="text-muted">Document-oriented NoSQL database</small>
+                              <br><small class="badge bg-info">New</small>
+                            </div>
+                          </div>
+                        <% end %>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
+            
+            <!-- Redis Option -->
+            <div class="mb-4">
+              <label class="form-label">
+                <i class="fas fa-memory me-2"></i>Additional Services
+              </label>
+              <div class="card border <%= @database_configuration.redis_enabled? ? 'border-success' : 'border-light' %>">
+                <div class="card-body p-3">
+                  <div class="form-check">
+                    <%= form.check_box :redis_enabled, 
+                        class: "form-check-input",
+                        id: "redis_enabled" %>
+                    <%= form.label "redis_enabled", class: "form-check-label flex-grow-1" do %>
+                      <div class="d-flex align-items-center">
+                        <i class="fas fa-memory text-success me-2"></i>
+                        <div class="flex-grow-1">
+                          <strong>Redis</strong>
+                          <br><small class="text-muted">In-memory data structure store (caching, sessions, queues)</small>
+                        </div>
+                      </div>
+                    <% end %>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Database Information Display -->
+            <% if @database_configuration.persisted? %>
+              <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Current Configuration:</strong>
+                <ul class="mb-0 mt-2">
+                  <li><strong>Database:</strong> <%= @database_configuration.display_name %> (<code><%= @database_configuration.database_name %></code>)</li>
+                  <% if @database_configuration.redis_enabled? %>
+                    <li><strong>Redis:</strong> <%= @database_configuration.redis_display_name %></li>
+                  <% end %>
+                  <li><strong>Status:</strong>
+                    <span class="badge <%= @database_configuration.status_class %>">
+                      <%= @database_configuration.status_text %>
+                    </span>
+                  </li>
+                </ul>
+              </div>
+
+              <!-- Connection Details Card -->
+              <% if @database_configuration.configured? %>
+                <div class="card shadow-sm mb-4">
+                  <div class="card-header bg-primary text-white py-2">
+                    <h6 class="m-0">
+                      <i class="fas fa-plug me-2"></i>Connection Details
+                    </h6>
+                  </div>
+                  <div class="card-body">
+                    <p class="text-muted mb-3">
+                      <i class="fas fa-info-circle me-1"></i>
+                      Use these connection strings in your application to connect to your databases.
+                    </p>
+
+                    <!-- Database URL -->
+                    <% if @database_configuration.database_url.present? %>
+                      <div class="mb-3">
+                        <label class="form-label mb-1">
+                          <i class="fas fa-database text-primary me-1"></i>
+                          <strong><%= @database_configuration.environment_variable_name %></strong>
+                        </label>
+                        <div class="input-group">
+                          <input type="text"
+                                 class="form-control font-monospace small"
+                                 id="database-url-input"
+                                 value="<%= @database_configuration.database_url %>"
+                                 readonly>
+                          <button class="btn btn-outline-secondary"
+                                  type="button"
+                                  onclick="copyToClipboard('database-url-input', this)"
+                                  title="Copy to clipboard">
+                            <i class="fas fa-copy"></i>
+                          </button>
+                        </div>
+                        <small class="text-muted">
+                          <i class="fas fa-check text-success me-1"></i>
+                          Also available in your app's environment variables
+                        </small>
+                      </div>
+                    <% end %>
+
+                    <!-- Redis URL -->
+                    <% if @database_configuration.redis_enabled? && @database_configuration.redis_url.present? %>
+                      <div class="mb-0">
+                        <label class="form-label mb-1">
+                          <i class="fas fa-memory text-success me-1"></i>
+                          <strong><%= @database_configuration.redis_environment_variable_name %></strong>
+                        </label>
+                        <div class="input-group">
+                          <input type="text"
+                                 class="form-control font-monospace small"
+                                 id="redis-url-input"
+                                 value="<%= @database_configuration.redis_url %>"
+                                 readonly>
+                          <button class="btn btn-outline-secondary"
+                                  type="button"
+                                  onclick="copyToClipboard('redis-url-input', this)"
+                                  title="Copy to clipboard">
+                            <i class="fas fa-copy"></i>
+                          </button>
+                        </div>
+                        <small class="text-muted">
+                          <i class="fas fa-check text-success me-1"></i>
+                          Also available in your app's environment variables
+                        </small>
+                      </div>
+                    <% end %>
+                  </div>
+                </div>
+              <% end %>
             <% end %>
+            
+            <!-- Submit Button -->
+            <div class="row">
+              <div class="col-12">
+                <div class="d-flex gap-2 align-items-center">
+                  <%= form.submit "Configure Database", class: "btn btn-primary", id: "database-submit-btn",
+                      data: { 
+                        loading_text: "Configuring database... (this may take 5-10 minutes)",
+                        original_text: "Configure Database"
+                      } %>
+                  <%= link_to "Cancel", @deployment, class: "btn btn-secondary" %>
+                  
+                  <div class="ms-auto">
+                    <small class="text-muted">
+                      <i class="fas fa-info-circle me-1"></i>
+                      Process may take 5-10 minutes
+                    </small>
+                  </div>
+                </div>
+              </div>
+            </div>
           <% end %>
         </div>
       </div>
