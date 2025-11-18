@@ -1134,11 +1134,12 @@ class DeploymentsController < ApplicationController
       if existing_var.nil?
         @deployment.environment_variables.create!(
           key: db_env_var_name,
-          value: database_url_from_dokku
+          value: database_url_from_dokku,
+          source: 'system'  # Mark as system-managed
         )
         Rails.logger.info "[DeploymentsController] Created #{db_env_var_name} in EnvironmentVariables for deployment #{@deployment.uuid}"
       elsif existing_var.value != database_url_from_dokku
-        existing_var.update!(value: database_url_from_dokku)
+        existing_var.update!(value: database_url_from_dokku, source: 'system')
         Rails.logger.info "[DeploymentsController] Updated #{db_env_var_name} in EnvironmentVariables for deployment #{@deployment.uuid}"
       end
     end
@@ -1159,11 +1160,12 @@ class DeploymentsController < ApplicationController
       if existing_redis_var.nil?
         @deployment.environment_variables.create!(
           key: redis_env_var_name,
-          value: redis_url_from_dokku
+          value: redis_url_from_dokku,
+          source: 'system'  # Mark as system-managed
         )
         Rails.logger.info "[DeploymentsController] Created #{redis_env_var_name} in EnvironmentVariables for deployment #{@deployment.uuid}"
       elsif existing_redis_var.value != redis_url_from_dokku
-        existing_redis_var.update!(value: redis_url_from_dokku)
+        existing_redis_var.update!(value: redis_url_from_dokku, source: 'system')
         Rails.logger.info "[DeploymentsController] Updated #{redis_env_var_name} in EnvironmentVariables for deployment #{@deployment.uuid}"
       end
     end

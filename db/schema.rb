@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_23_231758) do
+ActiveRecord::Schema[8.0].define(version: 2025_11_18_181209) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -174,8 +174,10 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_23_231758) do
     t.string "description"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "source", default: "user", null: false
     t.index ["deployment_id", "key"], name: "index_environment_variables_on_deployment_id_and_key", unique: true
     t.index ["deployment_id"], name: "index_environment_variables_on_deployment_id"
+    t.index ["source"], name: "index_environment_variables_on_source"
   end
 
   create_table "firewall_rules", force: :cascade do |t|
@@ -271,6 +273,16 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_23_231758) do
     t.index ["user_id", "name"], name: "index_servers_on_user_id_and_name"
     t.index ["user_id"], name: "index_servers_on_user_id"
     t.index ["uuid"], name: "index_servers_on_uuid", unique: true
+  end
+
+  create_table "solid_cable_messages", force: :cascade do |t|
+    t.binary "channel", null: false
+    t.binary "payload", null: false
+    t.datetime "created_at", null: false
+    t.bigint "channel_hash", null: false
+    t.index ["channel"], name: "index_solid_cable_messages_on_channel"
+    t.index ["channel_hash"], name: "index_solid_cable_messages_on_channel_hash"
+    t.index ["created_at"], name: "index_solid_cable_messages_on_created_at"
   end
 
   create_table "solid_queue_blocked_executions", force: :cascade do |t|

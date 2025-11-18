@@ -7,7 +7,9 @@ class Users::OmniauthCallbacksController < Devise::OmniauthCallbacksController
 
     if user.present?
       sign_out_all_scopes
-      flash[:notice] = t 'devise.omniauth_callbacks.success', kind: 'Google'
+      # Use flash[:success] instead of flash[:notice] to avoid toast duplication
+      # (notice gets normalized to 'success' type, causing potential conflicts)
+      flash[:success] = t 'devise.omniauth_callbacks.success', kind: 'Google'
       sign_in_and_redirect user, event: :authentication
     else
       flash[:alert] = t 'devise.omniauth_callbacks.failure', kind: 'Google', reason: "#{auth.info.email} is not authorized."
