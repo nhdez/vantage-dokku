@@ -1,8 +1,14 @@
 class DeploymentsController < ApplicationController
   include ActivityTrackable
 
-  before_action :set_deployment, only: [ :show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :delete_domain, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :port_mappings, :sync_port_mappings, :add_port_mapping, :remove_port_mapping, :clear_port_mappings, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command, :server_logs, :start_log_streaming, :stop_log_streaming, :scans, :trigger_scan ]
-  before_action :authorize_deployment, only: [ :show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :delete_domain, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :port_mappings, :sync_port_mappings, :add_port_mapping, :remove_port_mapping, :clear_port_mappings, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command, :server_logs, :start_log_streaming, :stop_log_streaming, :scans, :trigger_scan ]
+  KAMAL_ACTIONS = %i[
+    kamal_configuration update_kamal_configuration
+    kamal_registry update_kamal_registry test_kamal_registry
+    kamal_push_env
+  ].freeze
+
+  before_action :set_deployment, only: [ :show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :delete_domain, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :port_mappings, :sync_port_mappings, :add_port_mapping, :remove_port_mapping, :clear_port_mappings, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command, :server_logs, :start_log_streaming, :stop_log_streaming, :scans, :trigger_scan, *KAMAL_ACTIONS ]
+  before_action :authorize_deployment, only: [ :show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :delete_domain, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :port_mappings, :sync_port_mappings, :add_port_mapping, :remove_port_mapping, :clear_port_mappings, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command, :server_logs, :start_log_streaming, :stop_log_streaming, :scans, :trigger_scan, *KAMAL_ACTIONS ]
 
   def index
     @pagy, @deployments = pagy(current_user.deployments.includes(:server).recent, limit: 15)
@@ -16,24 +22,31 @@ class DeploymentsController < ApplicationController
 
   def new
     @deployment = current_user.deployments.build
-    @available_servers = current_user.servers.where.not(dokku_version: [ nil, "" ])
+    @dokku_servers = current_user.servers.where.not(dokku_version: [ nil, "" ])
+    @kamal_servers = current_user.servers.connected
     authorize @deployment
 
-    if @available_servers.empty?
-      toast_error("You need at least one server with Dokku installed to create a deployment.", title: "No Dokku Servers")
+    if @dokku_servers.empty? && @kamal_servers.empty?
+      toast_error("You need at least one configured server to create a deployment.", title: "No Servers")
       redirect_to deployments_path
     end
   end
 
   def create
     @deployment = current_user.deployments.build(deployment_params)
-    @available_servers = current_user.servers.where.not(dokku_version: [ nil, "" ])
+    @dokku_servers = current_user.servers.where.not(dokku_version: [ nil, "" ])
+    @kamal_servers = current_user.servers.connected
     authorize @deployment
 
     if @deployment.save
-      log_activity("deployment_created", details: "Created deployment: #{@deployment.display_name}")
-      toast_success("Deployment '#{@deployment.name}' created successfully with Dokku app name '#{@deployment.dokku_app_name}'!", title: "Deployment Created")
-      redirect_to @deployment
+      log_activity("deployment_created", details: "Created deployment: #{@deployment.display_name} (#{@deployment.deployment_method_text})")
+      if @deployment.kamal?
+        toast_success("Kamal app '#{@deployment.name}' created! Configure your deployment settings below.", title: "App Created")
+        redirect_to kamal_configuration_deployment_path(@deployment)
+      else
+        toast_success("Deployment '#{@deployment.name}' created successfully with Dokku app name '#{@deployment.dokku_app_name}'!", title: "Deployment Created")
+        redirect_to @deployment
+      end
     else
       toast_error("Failed to create deployment. Please check the form for errors.", title: "Creation Failed")
       render :new, status: :unprocessable_entity
@@ -637,6 +650,15 @@ class DeploymentsController < ApplicationController
       # Convert parameters to a serializable hash for the job
       env_vars_hash = env_vars_params.to_unsafe_h
 
+      # Persist the `secret` flag for Kamal deployments directly in the DB
+      if @deployment.kamal?
+        env_vars_hash.each_value do |attrs|
+          next unless attrs["key"].present?
+          ev = @deployment.environment_variables.find_by(key: attrs["key"])
+          ev&.update_column(:secret, attrs["secret"].to_s == "1")
+        end
+      end
+
       # Start the environment variables update in the background
       UpdateEnvironmentJob.perform_later(@deployment.id, current_user.id, env_vars_hash)
 
@@ -1072,6 +1094,83 @@ class DeploymentsController < ApplicationController
     end
   end
 
+  # ─── Kamal configuration (DAT-10) ──────────────────────────────────────────
+
+  def kamal_configuration
+    @kamal_config = @deployment.kamal_configuration || @deployment.create_kamal_configuration
+    @available_servers = current_user.servers.connected.order(:name)
+    @assigned_servers = @kamal_config.kamal_servers.includes(:server)
+    log_activity("kamal_configuration_viewed", details: "Viewed Kamal configuration for: #{@deployment.display_name}")
+  end
+
+  def update_kamal_configuration
+    @kamal_config = @deployment.kamal_configuration || @deployment.create_kamal_configuration
+
+    if @kamal_config.update(kamal_configuration_params)
+      sync_kamal_servers(@kamal_config, params[:kamal_server_assignments] || {})
+
+      configured = @kamal_config.service_name.present? && @kamal_config.image.present? && @kamal_config.kamal_servers.web.any?
+      @kamal_config.update!(configured: configured)
+
+      log_activity("kamal_configuration_updated", details: "Updated Kamal configuration for: #{@deployment.display_name}")
+      toast_success("Kamal configuration saved.", title: "Configuration Saved")
+      redirect_to kamal_configuration_deployment_path(@deployment)
+    else
+      @available_servers = current_user.servers.connected.order(:name)
+      @assigned_servers = @kamal_config.kamal_servers.includes(:server)
+      toast_error("Failed to save configuration. Please check the form.", title: "Save Failed")
+      render :kamal_configuration, status: :unprocessable_entity
+    end
+  end
+
+  # ─── Kamal registry (DAT-11) ────────────────────────────────────────────────
+
+  def kamal_registry
+    @kamal_config = @deployment.kamal_configuration || @deployment.create_kamal_configuration
+    @registry = @kamal_config.kamal_registry || @kamal_config.build_kamal_registry
+    log_activity("kamal_registry_viewed", details: "Viewed registry configuration for: #{@deployment.display_name}")
+  end
+
+  def update_kamal_registry
+    @kamal_config = @deployment.kamal_configuration || @deployment.create_kamal_configuration
+    @registry = @kamal_config.kamal_registry || @kamal_config.build_kamal_registry
+
+    registry_attrs = kamal_registry_params
+    # Don't overwrite password if the placeholder was submitted
+    registry_attrs.delete(:password) if registry_attrs[:password] == "••••••••"
+
+    if @registry.update(registry_attrs)
+      log_activity("kamal_registry_updated", details: "Updated registry credentials for: #{@deployment.display_name}")
+      toast_success("Registry credentials saved.", title: "Registry Saved")
+      redirect_to kamal_registry_deployment_path(@deployment)
+    else
+      toast_error("Failed to save registry credentials.", title: "Save Failed")
+      render :kamal_registry, status: :unprocessable_entity
+    end
+  end
+
+  def test_kamal_registry
+    @kamal_config = @deployment.kamal_configuration
+    registry = @kamal_config&.kamal_registry
+
+    unless registry
+      render json: { success: false, error: "Registry not configured" }, status: :unprocessable_entity
+      return
+    end
+
+    result = test_registry_login(registry)
+    render json: result
+  end
+
+  # ─── Kamal env push (DAT-12) ────────────────────────────────────────────────
+
+  def kamal_push_env
+    KamalEnvPushJob.perform_later(@deployment)
+    log_activity("kamal_env_push_triggered", details: "Triggered env push for: #{@deployment.display_name}")
+    toast_info("Pushing environment variables to servers...", title: "Env Push Started")
+    redirect_to manage_environment_deployment_path(@deployment)
+  end
+
   private
 
   def set_deployment
@@ -1086,7 +1185,69 @@ class DeploymentsController < ApplicationController
   end
 
   def deployment_params
-    params.require(:deployment).permit(:name, :description, :server_id)
+    params.require(:deployment).permit(:name, :description, :server_id, :deployment_method)
+  end
+
+  def kamal_configuration_params
+    params.require(:kamal_configuration).permit(
+      :service_name, :image,
+      :builder_arch, :builder_remote,
+      :asset_path, :healthcheck_path, :healthcheck_port,
+      :proxy_host, :proxy_ssl, :proxy_app_port,
+      :proxy_response_timeout, :proxy_buffering, :proxy_max_body_size, :proxy_forward_headers
+    )
+  end
+
+  def kamal_registry_params
+    params.require(:kamal_registry).permit(:registry_server, :username, :password)
+  end
+
+  # Sync KamalServer records from the servers assignment form.
+  # params format: { "server_id" => { "role" => "web", "primary" => "1", "cmd" => "" } }
+  def sync_kamal_servers(kamal_config, assignments)
+    return unless assignments.is_a?(ActionController::Parameters) || assignments.is_a?(Hash)
+
+    # Build the desired set of server_id+role pairs
+    desired = assignments.to_unsafe_h.each_with_object([]) do |(server_id, attrs), arr|
+      next unless attrs["role"].present?
+      arr << {
+        server_id: server_id.to_i,
+        role: attrs["role"],
+        primary: attrs["primary"].to_s == "1",
+        cmd: attrs["cmd"].presence,
+        stop_wait_time: attrs["stop_wait_time"].presence&.to_i,
+        docker_options: {}
+      }
+    end
+
+    desired_server_ids = desired.map { |d| d[:server_id] }
+
+    # Remove assignments no longer in the form
+    kamal_config.kamal_servers.where.not(server_id: desired_server_ids).destroy_all
+
+    # Upsert each desired assignment
+    desired.each do |attrs|
+      ks = kamal_config.kamal_servers.find_or_initialize_by(server_id: attrs[:server_id], role: attrs[:role])
+      ks.update!(attrs.except(:server_id, :role))
+    rescue ActiveRecord::RecordInvalid => e
+      Rails.logger.warn "[DeploymentsController] Could not assign server #{attrs[:server_id]}: #{e.message}"
+    end
+  end
+
+  def test_registry_login(registry)
+    require "open3"
+    cmd = [ "docker", "login", registry.registry_server,
+            "-u", registry.username, "--password-stdin" ]
+    stdout, stderr, status = Open3.capture3(*cmd, stdin_data: registry.password)
+    if status.success?
+      { success: true, message: "Successfully authenticated with #{registry.registry_server}" }
+    else
+      { success: false, error: (stderr.presence || stdout).strip.truncate(200) }
+    end
+  rescue Errno::ENOENT
+    { success: false, error: "Docker is not installed on the Vantage server" }
+  rescue StandardError => e
+    { success: false, error: e.message }
   end
 
   def sync_database_urls_to_environment_variables

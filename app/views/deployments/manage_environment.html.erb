@@ -32,11 +32,20 @@
         </div>
         <div class="card-body">
           <%= form_with url: update_environment_deployment_path(@deployment), method: :post, local: false, id: "environment-form" do |form| %>
-            <div class="alert alert-info">
-              <i class="fas fa-info-circle me-2"></i>
-              <strong>Important:</strong> Changes will be synced to the Dokku server immediately. 
-              Use uppercase letters, numbers, and underscores only for variable names.
-            </div>
+            <% if @deployment.kamal? %>
+              <div class="alert alert-info">
+                <i class="fas fa-ship me-2"></i>
+                <strong>Kamal:</strong> Variables marked <strong>Secret</strong> go into <code>.kamal/secrets</code>
+                and are never committed. Non-secret vars go into <code>env.clear</code> in <code>deploy.yml</code>.
+                After saving, click <strong>Push Env</strong> to sync to your servers.
+              </div>
+            <% else %>
+              <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Important:</strong> Changes will be synced to the Dokku server immediately.
+                Use uppercase letters, numbers, and underscores only for variable names.
+              </div>
+            <% end %>
             
             <div id="environment-variables-container">
               <% if @environment_variables.any? %>
@@ -51,7 +60,7 @@
                             pattern: "[A-Z][A-Z0-9_]*",
                             title: "Must start with a letter and contain only uppercase letters, numbers, and underscores" %>
                       </div>
-                      <div class="col-md-8">
+                      <div class="col-md-<%= @deployment.kamal? ? '6' : '8' %>">
                         <label class="form-label">Value</label>
                         <div class="input-group">
                           <%= text_area_tag "environment_variables[#{index}][value]", env_var.value,
@@ -65,6 +74,20 @@
                           <% end %>
                         </div>
                       </div>
+                      <% if @deployment.kamal? %>
+                        <div class="col-md-2">
+                          <label class="form-label">
+                            <i class="fas fa-lock text-warning me-1"></i>Secret
+                          </label>
+                          <div class="form-check form-switch mt-1">
+                            <%= check_box_tag "environment_variables[#{index}][secret]",
+                                "1",
+                                env_var.secret,
+                                class: "form-check-input" %>
+                          </div>
+                          <%= hidden_field_tag "environment_variables[#{index}][secret]", "0" %>
+                        </div>
+                      <% end %>
                       <div class="col-md-1">
                         <label class="form-label">&nbsp;</label>
                         <button type="button" class="btn btn-danger btn-sm d-block remove-env-var">
@@ -105,11 +128,21 @@
                 <div class="d-flex gap-2 align-items-center">
                   <%= form.submit "Update Environment Variables", class: "btn btn-primary", id: "update-env-btn" %>
                   <%= link_to "Cancel", @deployment, class: "btn btn-secondary" %>
-                  
+                  <% if @deployment.kamal? %>
+                    <%= button_to "Push Env to Servers", kamal_push_env_deployment_path(@deployment),
+                          method: :post,
+                          class: "btn btn-outline-info",
+                          data: { confirm: "Push environment variables to all Kamal servers now?" } %>
+                  <% end %>
+
                   <div class="ms-auto">
                     <small class="text-muted">
                       <i class="fas fa-info-circle me-1"></i>
-                      Changes sync immediately to the server
+                      <% if @deployment.kamal? %>
+                        Save then Push Env to sync to servers
+                      <% else %>
+                        Changes sync immediately to the server
+                      <% end %>
                     </small>
                   </div>
                 </div>

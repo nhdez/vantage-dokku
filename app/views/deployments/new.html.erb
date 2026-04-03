@@ -10,7 +10,7 @@
             <i class="fas fa-plus me-2 text-primary"></i>
             Create New App
           </h1>
-          <p class="text-muted mb-0">Create a new Dokku application for deployment</p>
+          <p class="text-muted mb-0">Choose a deployment platform and configure your application</p>
         </div>
         <div>
           <%= link_to deployments_path, class: "btn btn-outline-secondary" do %>
@@ -24,6 +24,41 @@
   <div class="row">
     <!-- Form -->
     <div class="col-md-8">
+
+      <!-- Platform selector -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-layer-group me-2"></i>Deployment Platform
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row g-3" id="platform-cards">
+            <div class="col-md-6">
+              <div class="platform-card card border-2 cursor-pointer h-100 <%= 'border-primary' if @deployment.deployment_method != 'kamal' %>"
+                   data-platform="dokku" style="cursor:pointer;">
+                <div class="card-body text-center py-4">
+                  <i class="fas fa-server fa-2x mb-3 text-primary"></i>
+                  <h5 class="mb-1">Dokku</h5>
+                  <p class="text-muted small mb-0">Git-push deployments on your Dokku server</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="platform-card card border-2 cursor-pointer h-100 <%= 'border-primary' if @deployment.deployment_method == 'kamal' %>"
+                   data-platform="kamal" style="cursor:pointer;">
+                <div class="card-body text-center py-4">
+                  <i class="fas fa-ship fa-2x mb-3 text-info"></i>
+                  <h5 class="mb-1">Kamal</h5>
+                  <p class="text-muted small mb-0">Docker-based deployments with kamal-proxy</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- App details form -->
       <div class="card shadow">
         <div class="card-header py-3">
           <h6 class="m-0 font-weight-bold text-primary">
@@ -32,69 +67,65 @@
         </div>
         <div class="card-body">
           <%= form_with model: @deployment, local: true, class: "needs-validation", novalidate: true do |form| %>
-            <div class="row">
-              <div class="col-md-12 mb-3">
-                <%= form.label :name, "Application Name", class: "form-label" %>
-                <%= form.text_field :name, class: "form-control #{'is-invalid' if @deployment.errors[:name].any?}", 
-                    placeholder: "e.g., My Portfolio Website, Blog API, E-commerce Store" %>
-                <% if @deployment.errors[:name].any? %>
-                  <div class="invalid-feedback">
-                    <%= @deployment.errors[:name].first %>
-                  </div>
-                <% end %>
-                <div class="form-text">Choose a descriptive name for your application</div>
-              </div>
+            <%= form.hidden_field :deployment_method, id: "deployment_method_field", value: "manual" %>
+
+            <div class="mb-3">
+              <%= form.label :name, "Application Name", class: "form-label" %>
+              <%= form.text_field :name,
+                    class: "form-control #{'is-invalid' if @deployment.errors[:name].any?}",
+                    placeholder: "e.g., My Portfolio Website, Blog API" %>
+              <% if @deployment.errors[:name].any? %>
+                <div class="invalid-feedback"><%= @deployment.errors[:name].first %></div>
+              <% end %>
+              <div class="form-text">Choose a descriptive name for your application.</div>
             </div>
 
-            <div class="row">
-              <div class="col-md-12 mb-3">
-                <%= form.label :server_id, "Target Server", class: "form-label" %>
-                <%= form.select :server_id, 
-                    options_from_collection_for_select(@available_servers, :id, :display_name, @deployment.server_id),
+            <!-- Dokku server selector -->
+            <div class="mb-3" id="dokku-server-field">
+              <%= form.label :server_id, "Target Server (Dokku)", class: "form-label" %>
+              <%= form.select :server_id,
+                    options_from_collection_for_select(@dokku_servers, :id, :display_name, @deployment.server_id),
                     { prompt: "Select a server with Dokku installed..." },
                     { class: "form-select #{'is-invalid' if @deployment.errors[:server].any?}" } %>
-                <% if @deployment.errors[:server].any? %>
-                  <div class="invalid-feedback">
-                    <%= @deployment.errors[:server].first %>
-                  </div>
-                <% end %>
-                <div class="form-text">
-                  Choose which server will host this application. Only servers with Dokku installed are shown.
-                </div>
-              </div>
+              <% if @deployment.errors[:server].any? %>
+                <div class="invalid-feedback"><%= @deployment.errors[:server].first %></div>
+              <% end %>
+              <div class="form-text">Only servers with Dokku installed are shown.</div>
             </div>
 
-            <div class="row">
-              <div class="col-md-12 mb-3">
-                <%= form.label :description, "Description (Optional)", class: "form-label" %>
-                <%= form.text_area :description, rows: 3, class: "form-control #{'is-invalid' if @deployment.errors[:description].any?}", 
+            <!-- Kamal server selector -->
+            <div class="mb-3 d-none" id="kamal-server-field">
+              <%= form.label :server_id, "Target Server (Kamal)", class: "form-label" %>
+              <%= form.select :server_id,
+                    options_from_collection_for_select(@kamal_servers, :id, :display_name, @deployment.server_id),
+                    { prompt: "Select a connected server..." },
+                    { class: "form-select" } %>
+              <div class="form-text">Any connected server works. You'll assign server roles after creation.</div>
+            </div>
+
+            <div class="mb-3">
+              <%= form.label :description, "Description (Optional)", class: "form-label" %>
+              <%= form.text_area :description, rows: 2,
+                    class: "form-control",
                     placeholder: "Brief description of your application..." %>
-                <% if @deployment.errors[:description].any? %>
-                  <div class="invalid-feedback">
-                    <%= @deployment.errors[:description].first %>
-                  </div>
-                <% end %>
-                <div class="form-text">Optional description to help you identify this application</div>
-              </div>
+              <div class="form-text">Optional — helps you identify this app later.</div>
             </div>
 
-            <div class="row">
-              <div class="col-md-12">
-                <div class="alert alert-info">
-                  <i class="fas fa-info-circle me-2"></i>
-                  <strong>Dokku App Name:</strong> A unique internal name will be automatically generated for this app 
-                  (e.g., "brave-butterfly-kingdom"). This will be used for deployments and URL generation.
-                </div>
-              </div>
+            <!-- Dokku info box -->
+            <div id="dokku-info" class="alert alert-info">
+              <i class="fas fa-info-circle me-2"></i>
+              <strong>Dokku App Name:</strong> A unique name will be auto-generated (e.g., "brave-butterfly-kingdom").
             </div>
 
-            <div class="row">
-              <div class="col-md-12">
-                <div class="d-flex gap-2">
-                  <%= form.submit "Create Application", class: "btn btn-primary" %>
-                  <%= link_to "Cancel", deployments_path, class: "btn btn-secondary" %>
-                </div>
-              </div>
+            <!-- Kamal info box -->
+            <div id="kamal-info" class="alert alert-info d-none">
+              <i class="fas fa-info-circle me-2"></i>
+              <strong>Kamal:</strong> After creation you'll configure Docker image, registry, servers, and proxy settings.
+            </div>
+
+            <div class="d-flex gap-2">
+              <%= form.submit "Create Application", class: "btn btn-primary" %>
+              <%= link_to "Cancel", deployments_path, class: "btn btn-secondary" %>
             </div>
           <% end %>
         </div>
@@ -103,84 +134,78 @@
 
     <!-- Help Sidebar -->
     <div class="col-md-4">
-      <div class="card shadow mb-4">
+      <div class="card shadow mb-4" id="dokku-help">
         <div class="card-header py-3">
           <h6 class="m-0 font-weight-bold text-primary">
             <i class="fas fa-question-circle me-2"></i>What is a Dokku App?
           </h6>
         </div>
         <div class="card-body">
-          <p class="small">
-            A Dokku application is a containerized deployment that runs on your server. 
-            Each app gets its own isolated environment and can be deployed using Git.
-          </p>
-          
-          <h6 class="mt-3">Features:</h6>
-          <ul class="small">
+          <ul class="small mb-0">
             <li>Automatic HTTPS with Let's Encrypt</li>
-            <li>Zero-downtime deployments</li>
-            <li>Built-in database support</li>
+            <li>Zero-downtime deployments via Git push</li>
+            <li>Built-in database plugins</li>
             <li>Custom domain support</li>
             <li>Environment variable management</li>
           </ul>
-          
-          <div class="alert alert-warning">
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            <strong>Note:</strong> You need at least one server with Dokku installed to create applications.
-          </div>
         </div>
       </div>
 
-      <% if @available_servers.any? %>
-        <div class="card shadow">
-          <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">
-              <i class="fas fa-server me-2"></i>Available Servers
-            </h6>
-          </div>
-          <div class="card-body">
-            <% @available_servers.each do |server| %>
-              <div class="d-flex align-items-center mb-2">
-                <i class="fas fa-server text-success me-2"></i>
-                <div class="flex-grow-1">
-                  <strong><%= server.name %></strong>
-                  <br><small class="text-muted"><%= server.ip %></small>
-                </div>
-                <span class="badge bg-success fs-6">
-                  <i class="fas fa-check me-1"></i>Dokku
-                </span>
-              </div>
-            <% end %>
-          </div>
+      <div class="card shadow mb-4 d-none" id="kamal-help">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-info">
+            <i class="fas fa-ship me-2"></i>What is Kamal?
+          </h6>
         </div>
-      <% else %>
-        <div class="card shadow">
-          <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">
-              <i class="fas fa-exclamation-triangle me-2"></i>No Servers Available
-            </h6>
-          </div>
-          <div class="card-body">
-            <p class="text-muted small">
-              You need to have at least one server with Dokku installed to create applications.
-            </p>
-            <div class="d-grid">
-              <%= link_to servers_path, class: "btn btn-outline-primary btn-sm" do %>
-                <i class="fas fa-server me-2"></i>Manage Servers
-              <% end %>
-            </div>
-          </div>
+        <div class="card-body">
+          <ul class="small mb-0">
+            <li>Docker-based deployments to any Linux server</li>
+            <li>Zero-downtime with kamal-proxy</li>
+            <li>Automatic Let's Encrypt SSL</li>
+            <li>Multi-server and worker role support</li>
+            <li>Managed accessories (PostgreSQL, Redis, etc.)</li>
+          </ul>
         </div>
-      <% end %>
+      </div>
     </div>
   </div>
 </div>
 
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const cards = document.querySelectorAll(".platform-card");
+    const methodField = document.getElementById("deployment_method_field");
+    const dokkuServer = document.getElementById("dokku-server-field");
+    const kamalServer = document.getElementById("kamal-server-field");
+    const dokkuInfo = document.getElementById("dokku-info");
+    const kamalInfo = document.getElementById("kamal-info");
+    const dokkuHelp = document.getElementById("dokku-help");
+    const kamalHelp = document.getElementById("kamal-help");
+
+    function selectPlatform(platform) {
+      cards.forEach(c => c.classList.toggle("border-primary", c.dataset.platform === platform));
+
+      const isKamal = platform === "kamal";
+      methodField.value = isKamal ? "kamal" : "manual";
+
+      dokkuServer.classList.toggle("d-none", isKamal);
+      kamalServer.classList.toggle("d-none", !isKamal);
+      dokkuInfo.classList.toggle("d-none", isKamal);
+      kamalInfo.classList.toggle("d-none", !isKamal);
+      dokkuHelp.classList.toggle("d-none", isKamal);
+      kamalHelp.classList.toggle("d-none", !isKamal);
+    }
+
+    // Default to dokku
+    selectPlatform("<%= @deployment.deployment_method == 'kamal' ? 'kamal' : 'dokku' %>");
+
+    cards.forEach(card => {
+      card.addEventListener("click", () => selectPlatform(card.dataset.platform));
+    });
+  });
+</script>
+
 <style>
-.text-gray-800 {
-  color: #5a5c69 !important;
-}
-.card {
-  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
-}
+.text-gray-800 { color: #5a5c69 !important; }
+.platform-card:hover { border-color: #4e73df !important; background: #f8f9fc; }
 </style>

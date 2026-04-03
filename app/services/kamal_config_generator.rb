@@ -214,11 +214,16 @@ class KamalConfigGenerator
   # ─── Helpers ────────────────────────────────────────────────────────────────
 
   def clear_env_vars
-    @env_vars.reject(&:sensitive?)
+    @env_vars.reject { |ev| kamal_secret?(ev) }
   end
 
   def secret_env_vars
-    @env_vars.select(&:sensitive?)
+    @env_vars.select { |ev| kamal_secret?(ev) }
+  end
+
+  # Use the explicit `secret` column when available, fall back to heuristic
+  def kamal_secret?(env_var)
+    env_var.respond_to?(:secret) ? env_var.secret : env_var.sensitive?
   end
 
   def accessory_secret_keys
