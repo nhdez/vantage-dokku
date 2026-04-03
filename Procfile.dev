@@ -1,0 +1,2 @@
+web: env SOLID_QUEUE_IN_PUMA=0 bin/rails server -p ${PORT:-3000}
+worker: bin/rails solid_queue:start
