@@ -1,7 +1,13 @@
 #!/usr/bin/env sh
 
+# Ensure PostgreSQL is running
+if ! pg_isready -q 2>/dev/null; then
+  echo "==> PostgreSQL is not running. Starting it..."
+  sudo pg_ctlcluster 16 main start
+fi
+
 if ! command -v foreman > /dev/null; then
-  echo "Installing foreman..."
+  echo "==> Installing foreman..."
   gem install foreman
 fi
 
