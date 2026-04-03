@@ -464,7 +464,7 @@ if (typeof window.databaseDeletionChannel === 'undefined') {
   window.databaseDeletionChannel = null;
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('turbo:load', function() {
   // Subscribe to database deletion updates on page load
   subscribeToDatabaseDeletion();
   // Handle form submission with AJAX

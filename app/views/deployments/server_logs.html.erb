@@ -494,7 +494,7 @@
   }
 
   // Initialize on page load
-  document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('turbo:load', function() {
     // Stop streaming when user leaves the page
     window.addEventListener('beforeunload', function() {
       if (streamingActive) {

@@ -310,7 +310,7 @@ function showDeploymentToast(type, message, title) {
 }
 
 // Subscribe to deployment deletion updates for real-time notifications
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('turbo:load', function() {
   if (window.actionCableConsumer) {
     const userId = '<%= current_user.id %>';
 

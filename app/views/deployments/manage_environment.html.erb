@@ -245,7 +245,7 @@
 <script>
 let updateEnvironmentChannel = null;
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('turbo:load', function() {
   let envVarIndex = <%= @environment_variables.count %>;
   
   // Handle form submission

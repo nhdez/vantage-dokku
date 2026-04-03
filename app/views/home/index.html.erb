@@ -809,7 +809,7 @@ const observer = new IntersectionObserver((entries) => {
 }, observerOptions);
 
 // Initialize animations
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('turbo:load', function() {
   // Observe all animate-on-scroll elements
   document.querySelectorAll('.animate-on-scroll').forEach(el => {
     observer.observe(el);

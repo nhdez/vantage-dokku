@@ -193,7 +193,7 @@
   }
 
   // Registry server dropdown — show custom input when "Custom..." selected
-  document.addEventListener("DOMContentLoaded", function () {
+  document.addEventListener("turbo:load", function () {
     const select = document.getElementById("registry_server_select");
     const custom = document.getElementById("registry_server_custom");
     if (!select) return;
