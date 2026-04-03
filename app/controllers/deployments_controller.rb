@@ -5,6 +5,11 @@ class DeploymentsController < ApplicationController
     kamal_configuration update_kamal_configuration
     kamal_registry update_kamal_registry test_kamal_registry
     kamal_push_env
+    kamal_rollback kamal_restart kamal_stop kamal_start kamal_app_details
+    kamal_accessories add_kamal_accessory remove_kamal_accessory
+    boot_kamal_accessory reboot_kamal_accessory
+    kamal_setup kamal_proxy_reboot
+    kamal_config_preview download_kamal_config
   ].freeze
 
   before_action :set_deployment, only: [ :show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :delete_domain, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :port_mappings, :sync_port_mappings, :add_port_mapping, :remove_port_mapping, :clear_port_mappings, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command, :server_logs, :start_log_streaming, :stop_log_streaming, :scans, :trigger_scan, *KAMAL_ACTIONS ]
@@ -842,23 +847,30 @@ class DeploymentsController < ApplicationController
 
   def deploy
     unless @deployment.can_deploy?
-      toast_error("Deployment not ready. Ensure server has Dokku installed and is connected.", title: "Deployment Failed")
+      msg = @deployment.kamal? ? "Ensure registry and web server are configured." : "Ensure server has Dokku installed and is connected."
+      toast_error("Deployment not ready. #{msg}", title: "Deployment Failed")
       redirect_to @deployment
       return
     end
 
-    unless @deployment.deployment_configured?
-      toast_error("Git configuration required before deployment.", title: "Configuration Required")
-      redirect_to git_configuration_deployment_path(@deployment)
-      return
+    if @deployment.kamal?
+      attempt = build_deployment_attempt
+      KamalDeploymentJob.perform_later(@deployment, attempt)
+      log_activity("kamal_deployment_started", details: "Started Kamal deployment for: #{@deployment.display_name}")
+      toast_success("Kamal deployment started! Monitor progress in the logs.", title: "Deployment Started")
+    else
+      unless @deployment.deployment_configured?
+        toast_error("Git configuration required before deployment.", title: "Configuration Required")
+        redirect_to git_configuration_deployment_path(@deployment)
+        return
+      end
+
+      @deployment.update!(deployment_status: "deploying")
+      DeploymentJob.perform_later(@deployment)
+      log_activity("deployment_started", details: "Started deployment for: #{@deployment.display_name}")
+      toast_success("Deployment started! You can monitor progress in the logs.", title: "Deployment Started")
     end
 
-    # Start deployment in background
-    @deployment.update!(deployment_status: "deploying")
-    DeploymentJob.perform_later(@deployment)
-
-    log_activity("deployment_started", details: "Started deployment for: #{@deployment.display_name}")
-    toast_success("Deployment started! You can monitor progress in the logs.", title: "Deployment Started")
     redirect_to logs_deployment_path(@deployment)
   end
 
@@ -1094,6 +1106,145 @@ class DeploymentsController < ApplicationController
     end
   end
 
+  # ─── Kamal operations (DAT-14, DAT-15) ─────────────────────────────────────
+
+  def kamal_rollback
+    version = params[:version].to_s.strip
+    if version.blank?
+      toast_error("Version is required for rollback.", title: "Rollback Failed")
+      redirect_to logs_deployment_path(@deployment)
+      return
+    end
+
+    attempt = build_deployment_attempt
+    KamalRollbackJob.perform_later(@deployment, version, attempt)
+    log_activity("kamal_rollback_started", details: "Rolling back #{@deployment.display_name} to #{version}")
+    toast_info("Rollback to #{version} started.", title: "Rollback Started")
+    redirect_to logs_deployment_path(@deployment)
+  end
+
+  def kamal_restart
+    KamalAppLifecycleJob.perform_later(@deployment, "restart")
+    log_activity("kamal_restart", details: "Restarted #{@deployment.display_name}")
+    toast_info("Restart triggered.", title: "Restarting")
+    redirect_to @deployment
+  end
+
+  def kamal_stop
+    KamalAppLifecycleJob.perform_later(@deployment, "stop")
+    log_activity("kamal_stop", details: "Stopped #{@deployment.display_name}")
+    toast_info("Stop triggered.", title: "Stopping")
+    redirect_to @deployment
+  end
+
+  def kamal_start
+    KamalAppLifecycleJob.perform_later(@deployment, "start")
+    log_activity("kamal_start", details: "Started #{@deployment.display_name}")
+    toast_info("Start triggered.", title: "Starting")
+    redirect_to @deployment
+  end
+
+  def kamal_app_details
+    service = KamalCommandService.new(@deployment.kamal_configuration)
+    result = service.app_details
+    render json: result
+  end
+
+  # ─── Kamal accessories (DAT-13) ─────────────────────────────────────────────
+
+  def kamal_accessories
+    @kamal_config = @deployment.kamal_configuration
+    @accessories = @kamal_config&.kamal_accessories&.order(:name) || []
+    @available_servers = @deployment.kamal_configuration&.kamal_servers&.includes(:server)&.map(&:server) || []
+    log_activity("kamal_accessories_viewed", details: "Viewed accessories for: #{@deployment.display_name}")
+  end
+
+  def add_kamal_accessory
+    @kamal_config = @deployment.kamal_configuration
+    accessory = @kamal_config.kamal_accessories.build(kamal_accessory_params)
+
+    if accessory.save
+      log_activity("kamal_accessory_added", details: "Added accessory #{accessory.name} to #{@deployment.display_name}")
+      toast_success("Accessory '#{accessory.name}' added.", title: "Accessory Added")
+    else
+      toast_error(accessory.errors.full_messages.join(", "), title: "Save Failed")
+    end
+
+    redirect_to kamal_accessories_deployment_path(@deployment)
+  end
+
+  def remove_kamal_accessory
+    @kamal_config = @deployment.kamal_configuration
+    accessory = @kamal_config.kamal_accessories.find(params[:accessory_id])
+    name = accessory.name
+    accessory.destroy!
+    log_activity("kamal_accessory_removed", details: "Removed accessory #{name} from #{@deployment.display_name}")
+    toast_success("Accessory '#{name}' removed.", title: "Accessory Removed")
+    redirect_to kamal_accessories_deployment_path(@deployment)
+  rescue ActiveRecord::RecordNotFound
+    toast_error("Accessory not found.", title: "Not Found")
+    redirect_to kamal_accessories_deployment_path(@deployment)
+  end
+
+  def boot_kamal_accessory
+    name = params[:accessory_name].to_s.strip
+    KamalAccessoryJob.perform_later(@deployment, name, "boot")
+    log_activity("kamal_accessory_boot", details: "Booting accessory #{name}")
+    toast_info("Booting accessory '#{name}'...", title: "Boot Started")
+    redirect_to kamal_accessories_deployment_path(@deployment)
+  end
+
+  def reboot_kamal_accessory
+    name = params[:accessory_name].to_s.strip
+    KamalAccessoryJob.perform_later(@deployment, name, "reboot")
+    log_activity("kamal_accessory_reboot", details: "Rebooting accessory #{name}")
+    toast_info("Rebooting accessory '#{name}'...", title: "Reboot Started")
+    redirect_to kamal_accessories_deployment_path(@deployment)
+  end
+
+  # ─── Kamal setup (DAT-17) ───────────────────────────────────────────────────
+
+  def kamal_setup
+    @kamal_config = @deployment.kamal_configuration
+    generator = KamalConfigGenerator.new(@kamal_config)
+
+    unless generator.valid_for_generation?
+      toast_error("Configuration incomplete: #{generator.missing_fields.join(', ')}", title: "Setup Blocked")
+      redirect_to kamal_configuration_deployment_path(@deployment)
+      return
+    end
+
+    KamalSetupJob.perform_later(@deployment)
+    log_activity("kamal_setup_started", details: "Started kamal setup for: #{@deployment.display_name}")
+    toast_info("Server setup started. This will take a few minutes.", title: "Setup Started")
+    redirect_to kamal_configuration_deployment_path(@deployment)
+  end
+
+  def kamal_proxy_reboot
+    service = KamalCommandService.new(@deployment.kamal_configuration, broadcast_channel: "deployment_logs_#{@deployment.uuid}")
+    service.proxy_reboot
+    log_activity("kamal_proxy_reboot", details: "Rebooted kamal-proxy for #{@deployment.display_name}")
+    toast_success("kamal-proxy rebooted.", title: "Proxy Rebooted")
+    redirect_to @deployment
+  end
+
+  # ─── Kamal config preview (DAT-19) ──────────────────────────────────────────
+
+  def kamal_config_preview
+    @kamal_config = @deployment.kamal_configuration
+    @generator = KamalConfigGenerator.new(@kamal_config)
+    @deploy_yml = @generator.deploy_yml
+    @secrets_template = @generator.secrets_template
+    log_activity("kamal_config_preview_viewed", details: "Viewed config preview for: #{@deployment.display_name}")
+  end
+
+  def download_kamal_config
+    @kamal_config = @deployment.kamal_configuration
+    generator = KamalConfigGenerator.new(@kamal_config)
+    log_activity("kamal_config_downloaded", details: "Downloaded deploy.yml for: #{@deployment.display_name}")
+    send_data generator.deploy_yml, filename: "deploy.yml", type: "application/yaml", disposition: "attachment"
+  end
+
   # ─── Kamal configuration (DAT-10) ──────────────────────────────────────────
 
   def kamal_configuration
@@ -1186,6 +1337,21 @@ class DeploymentsController < ApplicationController
 
   def deployment_params
     params.require(:deployment).permit(:name, :description, :server_id, :deployment_method)
+  end
+
+  def build_deployment_attempt
+    attempt_number = @deployment.deployment_attempts.count + 1
+    @deployment.deployment_attempts.create!(
+      attempt_number: attempt_number,
+      status: "pending"
+    )
+  end
+
+  def kamal_accessory_params
+    params.require(:kamal_accessory).permit(
+      :name, :image, :host, :port, :status,
+      env_vars: {}, volumes: []
+    )
   end
 
   def kamal_configuration_params

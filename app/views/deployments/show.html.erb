@@ -11,7 +11,14 @@
             <%= @deployment.name %>
           </h1>
           <p class="text-muted mb-0">
-            Dokku application: <code class="text-info"><%= @deployment.dokku_app_name %></code>
+            <% if @deployment.kamal? %>
+              <i class="fas fa-ship text-info me-1"></i>Kamal deployment
+              <% if @deployment.kamal_configuration&.service_name.present? %>
+                &mdash; service: <code class="text-info"><%= @deployment.kamal_configuration.service_name %></code>
+              <% end %>
+            <% else %>
+              Dokku application: <code class="text-info"><%= @deployment.dokku_app_name %></code>
+            <% end %>
           </p>
         </div>
         <div>
@@ -42,10 +49,17 @@
               <p class="h5 mb-0"><%= @deployment.name %></p>
             </div>
             <div class="col-md-6 mb-3">
-              <h6 class="text-muted">Dokku App Name</h6>
-              <p class="h5 mb-0">
-                <code class="text-info fs-6"><%= @deployment.dokku_app_name %></code>
-              </p>
+              <% if @deployment.kamal? %>
+                <h6 class="text-muted">Docker Image</h6>
+                <p class="h5 mb-0">
+                  <code class="text-info fs-6"><%= @deployment.kamal_configuration&.image.presence || "Not set" %></code>
+                </p>
+              <% else %>
+                <h6 class="text-muted">Dokku App Name</h6>
+                <p class="h5 mb-0">
+                  <code class="text-info fs-6"><%= @deployment.dokku_app_name %></code>
+                </p>
+              <% end %>
             </div>
           </div>
           
@@ -139,28 +153,35 @@
         </div>
         <div class="card-body">
           <div class="row">
-            <!-- Git Repository -->
+            <!-- Git Repository / Kamal Config -->
             <div class="col-md-6 mb-3">
               <div class="d-flex align-items-center">
-                <i class="fas fa-code-branch text-primary me-2"></i>
+                <i class="fas fa-<%= @deployment.kamal? ? 'ship' : 'code-branch' %> text-primary me-2"></i>
                 <div class="flex-grow-1">
-                  <h6 class="mb-0">Git Repository</h6>
-                  <% if @deployment.repository_url.present? %>
-                    <small class="text-success">
-                      <i class="fas fa-check-circle me-1"></i>
-                      <%= @deployment.deployment_method.humanize %>
-                    </small>
-                    <div class="text-muted small">
-                      <%= truncate(@deployment.repository_url, length: 40) %>
-                      <% if @deployment.repository_branch.present? %>
-                        (branch: <%= @deployment.repository_branch %>)
-                      <% end %>
-                    </div>
+                  <% if @deployment.kamal? %>
+                    <h6 class="mb-0">Kamal Configuration</h6>
+                    <% kc = @deployment.kamal_configuration %>
+                    <% if kc&.configured? %>
+                      <small class="text-success"><i class="fas fa-check-circle me-1"></i>Configured</small>
+                      <div class="text-muted small"><%= kc.service_name %> — <%= kc.web_servers.count %> web server(s)</div>
+                    <% else %>
+                      <small class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>
+                        <%= link_to "Configure Kamal", kamal_configuration_deployment_path(@deployment), class: "text-warning" %>
+                      </small>
+                    <% end %>
                   <% else %>
-                    <small class="text-warning">
-                      <i class="fas fa-exclamation-triangle me-1"></i>
-                      Not configured
-                    </small>
+                    <h6 class="mb-0">Git Repository</h6>
+                    <% if @deployment.repository_url.present? %>
+                      <small class="text-success"><i class="fas fa-check-circle me-1"></i><%= @deployment.deployment_method.humanize %></small>
+                      <div class="text-muted small">
+                        <%= truncate(@deployment.repository_url, length: 40) %>
+                        <% if @deployment.repository_branch.present? %>
+                          (branch: <%= @deployment.repository_branch %>)
+                        <% end %>
+                      </div>
+                    <% else %>
+                      <small class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>Not configured</small>
+                    <% end %>
                   <% end %>
                 </div>
               </div>
@@ -399,57 +420,79 @@
         </div>
       </div>
 
-      <!-- Deployment Instructions -->
-      <div class="card shadow">
-        <div class="card-header py-3">
-          <h6 class="m-0 font-weight-bold text-primary">
-            <i class="fas fa-terminal me-2"></i>Manual Deployment Instructions
-          </h6>
-        </div>
-        <div class="card-body">
-          <p class="text-muted mb-3">
-            You can deploy your application to Dokku using Git. Make sure you have SSH access to the server.
-          </p>
-          
-          <h6>1. Add Dokku remote to your Git repository:</h6>
-          <div class="bg-dark text-white p-3 rounded mb-3 position-relative">
-            <code class="text-white">git remote add dokku dokku@<%= @deployment.server.ip %>:<%= @deployment.dokku_app_name %></code>
-            <button class="btn btn-sm btn-outline-light position-absolute top-0 end-0 mt-2 me-2" 
-                    onclick="copyToClipboard(this)" 
-                    data-text="git remote add dokku dokku@<%= @deployment.server.ip %>:<%= @deployment.dokku_app_name %>">
-              <i class="fas fa-copy"></i>
-            </button>
+      <% if @deployment.kamal? %>
+        <!-- Kamal deployment info -->
+        <div class="card shadow">
+          <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+              <i class="fas fa-ship me-2"></i>Kamal Deployment
+            </h6>
           </div>
-          
-          <h6>2. Deploy your application:</h6>
-          <div class="bg-dark text-white p-3 rounded mb-3 position-relative">
-            <code class="text-white">git push dokku main</code>
-            <button class="btn btn-sm btn-outline-light position-absolute top-0 end-0 mt-2 me-2" 
-                    onclick="copyToClipboard(this)" 
-                    data-text="git push dokku main">
-              <i class="fas fa-copy"></i>
-            </button>
-          </div>
-          
-          <% unless @deployment.can_deploy? %>
-            <div class="alert alert-warning">
-              <i class="fas fa-exclamation-triangle me-2"></i>
-              <strong>Deployment Requirements:</strong>
-              <% unless @deployment.server.dokku_installed? %>
-                Server must have Dokku installed.
+          <div class="card-body">
+            <% kc = @deployment.kamal_configuration %>
+            <% if kc&.proxy_host.present? %>
+              <div class="mb-3">
+                <h6 class="text-muted">Application URL</h6>
+                <% url = @deployment.app_url %>
+                <a href="<%= url %>" target="_blank" rel="noopener" class="text-info"><%= url %></a>
+              </div>
+            <% end %>
+            <div class="row small">
+              <div class="col-md-4">
+                <strong>Service:</strong> <%= kc&.service_name.presence || "—" %><br>
+                <strong>Image:</strong> <code><%= kc&.image.presence || "—" %></code>
+              </div>
+              <div class="col-md-4">
+                <strong>Builder:</strong> <%= kc&.builder_arch %><br>
+                <strong>Proxy SSL:</strong> <%= kc&.proxy_ssl ? "Yes" : "No" %>
+              </div>
+              <div class="col-md-4">
+                <strong>Web servers:</strong> <%= kc&.web_servers&.count || 0 %><br>
+                <strong>Accessories:</strong> <%= kc&.kamal_accessories&.count || 0 %>
+              </div>
+            </div>
+            <div class="mt-3 d-flex gap-2">
+              <%= link_to kamal_configuration_deployment_path(@deployment), class: "btn btn-outline-info btn-sm" do %>
+                <i class="fas fa-cog me-1"></i>Configure
               <% end %>
-              <% unless @deployment.server.connection_status == 'connected' %>
-                Server connection must be verified.
+              <% if kc && KamalConfigGenerator.new(kc).valid_for_generation? %>
+                <%= button_to "Run Setup", kamal_setup_deployment_path(@deployment),
+                      method: :post, class: "btn btn-outline-warning btn-sm",
+                      data: { confirm: "Run kamal setup on all assigned servers?" } %>
               <% end %>
             </div>
-          <% end %>
-          
-          <div class="alert alert-info">
-            <i class="fas fa-info-circle me-2"></i>
-            <strong>First Deployment:</strong> Dokku will automatically detect your application type and create the necessary containers.
           </div>
         </div>
-      </div>
+      <% else %>
+        <!-- Dokku deployment instructions -->
+        <div class="card shadow">
+          <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+              <i class="fas fa-terminal me-2"></i>Manual Deployment Instructions
+            </h6>
+          </div>
+          <div class="card-body">
+            <p class="text-muted mb-3">Deploy your application to Dokku using Git.</p>
+            <h6>1. Add Dokku remote:</h6>
+            <div class="bg-dark text-white p-3 rounded mb-3 position-relative">
+              <code class="text-white">git remote add dokku dokku@<%= @deployment.server.ip %>:<%= @deployment.dokku_app_name %></code>
+              <button class="btn btn-sm btn-outline-light position-absolute top-0 end-0 mt-2 me-2"
+                      onclick="copyToClipboard(this)"
+                      data-text="git remote add dokku dokku@<%= @deployment.server.ip %>:<%= @deployment.dokku_app_name %>">
+                <i class="fas fa-copy"></i>
+              </button>
+            </div>
+            <h6>2. Deploy:</h6>
+            <div class="bg-dark text-white p-3 rounded mb-3 position-relative">
+              <code class="text-white">git push dokku main</code>
+              <button class="btn btn-sm btn-outline-light position-absolute top-0 end-0 mt-2 me-2"
+                      onclick="copyToClipboard(this)" data-text="git push dokku main">
+                <i class="fas fa-copy"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      <% end %>
     </div>
 
     <!-- Actions Sidebar -->
@@ -466,19 +509,29 @@
               <%= link_to logs_deployment_path(@deployment), class: "btn btn-warning w-100" do %>
                 <i class="fas fa-spinner fa-spin me-2"></i>View Deployment
               <% end %>
-            <% elsif @deployment.can_deploy? && @deployment.deployment_configured? %>
+            <% elsif @deployment.can_deploy? %>
               <%= form_with url: deploy_deployment_path(@deployment), method: :post, local: true do |f| %>
                 <%= submit_tag "Deploy Now", class: "btn btn-success w-100",
-                    data: { confirm: "Start deployment? This will clone the repository and deploy to Dokku.", turbo: false } %>
+                    data: { confirm: "Start deployment?", turbo: false } %>
               <% end %>
             <% end %>
-            
-            <% if @deployment.dokku_url.present? %>
-              <%= link_to @deployment.dokku_url, target: "_blank", rel: "noopener", class: "btn btn-outline-success" do %>
+
+            <% if @deployment.kamal? && @deployment.deployment_status == 'deployed' %>
+              <%= button_to "Restart", kamal_restart_deployment_path(@deployment),
+                    method: :post, class: "btn btn-outline-warning",
+                    data: { confirm: "Restart the app containers?" } %>
+              <%= button_to "Stop", kamal_stop_deployment_path(@deployment),
+                    method: :post, class: "btn btn-outline-danger",
+                    data: { confirm: "Stop the app?" } %>
+            <% end %>
+
+            <% app_url = @deployment.kamal? ? @deployment.app_url : @deployment.dokku_url %>
+            <% if app_url.present? %>
+              <%= link_to app_url, target: "_blank", rel: "noopener", class: "btn btn-outline-success" do %>
                 <i class="fas fa-external-link-alt me-2"></i>Visit Application
               <% end %>
             <% end %>
-            
+
             <%= link_to edit_deployment_path(@deployment), class: "btn btn-outline-primary" do %>
               <i class="fas fa-edit me-2"></i>Edit Application
             <% end %>
@@ -514,71 +567,75 @@
               <i class="fas fa-check-circle me-2"></i>
               <strong>Ready to deploy!</strong> Configuration complete and server connected.
             </div>
-          <% elsif !@deployment.deployment_configured? %>
+          <% elsif !@deployment.deployment_configured? && !@deployment.kamal? %>
             <div class="alert alert-info py-2">
               <i class="fas fa-cogs me-2"></i>
               <strong>Configuration needed:</strong>
               <%= link_to "Configure Git repository", git_configuration_deployment_path(@deployment), class: "alert-link" %> to enable deployment.
             </div>
+          <% elsif @deployment.kamal? && !@deployment.can_deploy? %>
+            <div class="alert alert-warning py-2">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              <strong>Kamal not ready:</strong>
+              <%= link_to "Complete configuration", kamal_configuration_deployment_path(@deployment), class: "alert-link" %>
+            </div>
           <% elsif !@deployment.can_deploy? %>
             <div class="alert alert-warning py-2">
               <i class="fas fa-exclamation-triangle me-2"></i>
               <strong>Server not ready:</strong>
-              <% unless @deployment.server.dokku_installed? %>
-                Install Dokku on the server first.
-              <% end %>
-              <% unless @deployment.server.connection_status == 'connected' %>
-                Verify server connection.
-              <% end %>
+              <% unless @deployment.server.dokku_installed? %>Install Dokku on the server first.<% end %>
+              <% unless @deployment.server.connection_status == 'connected' %>Verify server connection.<% end %>
             </div>
           <% end %>
 
           <div class="d-grid gap-2">
-            <%= link_to git_configuration_deployment_path(@deployment), class: "btn btn-outline-success",
-                        data: { turbo: false } do %>
-              <i class="fab fa-git-alt me-2"></i>Git Configuration
+            <% if @deployment.kamal? %>
+              <%= link_to kamal_configuration_deployment_path(@deployment), class: "btn btn-outline-info" do %>
+                <i class="fas fa-ship me-2"></i>Kamal Configuration
+              <% end %>
+              <%= link_to kamal_registry_deployment_path(@deployment), class: "btn btn-outline-secondary" do %>
+                <i class="fas fa-key me-2"></i>Registry Credentials
+              <% end %>
+              <%= link_to kamal_accessories_deployment_path(@deployment), class: "btn btn-outline-secondary" do %>
+                <i class="fas fa-boxes me-2"></i>Accessories
+              <% end %>
+              <%= link_to kamal_config_preview_deployment_path(@deployment), class: "btn btn-outline-secondary" do %>
+                <i class="fas fa-file-code me-2"></i>Preview deploy.yml
+              <% end %>
+            <% else %>
+              <%= link_to git_configuration_deployment_path(@deployment), class: "btn btn-outline-success",
+                          data: { turbo: false } do %>
+                <i class="fab fa-git-alt me-2"></i>Git Configuration
+              <% end %>
+              <%= link_to configure_domain_deployment_path(@deployment), class: "btn btn-outline-primary",
+                          data: { turbo: false } do %>
+                <i class="fas fa-globe me-2"></i>Configure Domain
+              <% end %>
+              <%= link_to attach_ssh_keys_deployment_path(@deployment), class: "btn btn-outline-primary" do %>
+                <i class="fas fa-key me-2"></i>Attach SSH Keys
+              <% end %>
+              <%= link_to configure_databases_deployment_path(@deployment), class: "btn btn-outline-primary" do %>
+                <i class="fas fa-database me-2"></i>Configure Databases
+              <% end %>
+              <%= link_to port_mappings_deployment_path(@deployment), class: "btn btn-outline-primary" do %>
+                <i class="fas fa-network-wired me-2"></i>Port Mappings
+              <% end %>
             <% end %>
-            
-            <%= link_to configure_domain_deployment_path(@deployment), class: "btn btn-outline-primary",
-                        data: { turbo: false } do %>
-              <i class="fas fa-globe me-2"></i>Configure Domain
-            <% end %>
-            
-            <%= link_to attach_ssh_keys_deployment_path(@deployment), class: "btn btn-outline-primary" do %>
-              <i class="fas fa-key me-2"></i>Attach SSH Keys
-            <% end %>
-            
+
             <%= link_to manage_environment_deployment_path(@deployment), class: "btn btn-outline-primary",
                         data: { turbo: false } do %>
               <i class="fas fa-cogs me-2"></i>Environment Variables
             <% end %>
-            
-            <%= link_to configure_databases_deployment_path(@deployment), class: "btn btn-outline-primary" do %>
-              <i class="fas fa-database me-2"></i>Configure Databases
-            <% end %>
-
-            <%= link_to port_mappings_deployment_path(@deployment), class: "btn btn-outline-primary" do %>
-              <i class="fas fa-network-wired me-2"></i>Port Mappings
-            <% end %>
-
             <%= link_to execute_commands_deployment_path(@deployment), class: "btn btn-outline-primary",
                         data: { turbo: false } do %>
               <i class="fas fa-terminal me-2"></i>Execute Commands
             <% end %>
-            
-            <%= link_to server_logs_deployment_path(@deployment), class: "btn btn-outline-primary",
-                        data: { turbo: false } do %>
-              <i class="fas fa-file-alt me-2"></i>View Server Logs
-            <% end %>
-
             <%= link_to logs_deployment_path(@deployment), class: "btn btn-outline-primary" do %>
               <i class="fas fa-list me-2"></i>Deployment Logs
             <% end %>
-
             <%= link_to scans_deployment_path(@deployment), class: "btn btn-outline-danger", data: { turbo: false } do %>
               <i class="fas fa-shield-alt me-2"></i>Vulnerability Scans
             <% end %>
-
             <%= link_to @deployment.server, class: "btn btn-outline-warning" do %>
               <i class="fas fa-server me-2"></i>Manage Server
             <% end %>
@@ -604,14 +661,27 @@
             <code class="text-info"><%= @deployment.server.ip %></code>
           </div>
           
-          <div class="mb-3">
-            <h6 class="text-muted">Dokku Version</h6>
-            <% if @deployment.server.dokku_installed? %>
-              <span class="badge bg-success fs-6"><%= @deployment.server.formatted_dokku_version %></span>
-            <% else %>
-              <span class="text-muted">Not installed</span>
-            <% end %>
-          </div>
+          <% if @deployment.kamal? %>
+            <div class="mb-3">
+              <h6 class="text-muted">Docker</h6>
+              <% if @deployment.server.docker_installed? %>
+                <span class="badge bg-success fs-6"><%= @deployment.server.formatted_docker_version %></span>
+              <% else %>
+                <span class="text-muted">Not detected</span>
+                <%= button_to "Check", check_kamal_prerequisites_server_path(@deployment.server),
+                      method: :post, class: "btn btn-link btn-sm p-0 ms-2" %>
+              <% end %>
+            </div>
+          <% else %>
+            <div class="mb-3">
+              <h6 class="text-muted">Dokku Version</h6>
+              <% if @deployment.server.dokku_installed? %>
+                <span class="badge bg-success fs-6"><%= @deployment.server.formatted_dokku_version %></span>
+              <% else %>
+                <span class="text-muted">Not installed</span>
+              <% end %>
+            </div>
+          <% end %>
           
           <div class="mb-3">
             <h6 class="text-muted">Connection Status</h6>

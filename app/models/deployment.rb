@@ -71,6 +71,18 @@ class Deployment < ApplicationRecord
     server&.name || "Unknown Server"
   end
 
+  # Public URL for the deployment regardless of platform (used by health checks).
+  def app_url
+    if kamal?
+      host = kamal_configuration&.proxy_host
+      return nil if host.blank?
+      ssl = kamal_configuration&.proxy_ssl
+      "#{ssl ? 'https' : 'http'}://#{host}"
+    else
+      dokku_url
+    end
+  end
+
   def dokku_url
     # Use default domain if available, otherwise fallback to nip.io
     default_domain = domains.find_by(default_domain: true)
