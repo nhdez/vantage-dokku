@@ -5,6 +5,7 @@ class Server < ApplicationRecord
 
   belongs_to :user
   has_many :deployments, dependent: :destroy
+  has_many :kamal_servers, dependent: :destroy
   has_many :firewall_rules, dependent: :destroy
   has_one :vulnerability_scan_config, dependent: :destroy
   has_many :vulnerability_scans, dependent: :destroy
@@ -132,6 +133,24 @@ class Server < ApplicationRecord
   def formatted_dokku_version
     return "Not detected" if dokku_version.blank?
     dokku_version
+  end
+
+  def docker_installed?
+    docker_version.present?
+  end
+
+  def docker_checked?
+    docker_checked_at.present?
+  end
+
+  def formatted_docker_version
+    return "Not detected" if docker_version.blank?
+    docker_version
+  end
+
+  def docker_checked_ago
+    return "Never" if docker_checked_at.blank?
+    "#{time_ago_in_words(docker_checked_at)} ago"
   end
 
   private

@@ -7,6 +7,7 @@ class Deployment < ApplicationRecord
   has_many :environment_variables, dependent: :destroy
   has_many :domains, dependent: :destroy
   has_one :database_configuration, dependent: :destroy
+  has_one :kamal_configuration, dependent: :destroy
   has_many :application_healths, dependent: :destroy
   has_many :deployment_attempts, dependent: :destroy
   has_many :port_mappings, dependent: :destroy
@@ -21,18 +22,19 @@ class Deployment < ApplicationRecord
   }
   validates :description, length: { maximum: 1000 }, allow_blank: true
   validates :uuid, presence: true, uniqueness: true
-  validates :deployment_method, inclusion: { in: %w[manual github_repo public_repo], allow_blank: true }
+  validates :deployment_method, inclusion: { in: %w[manual github_repo public_repo kamal], allow_blank: true }
   validates :deployment_status, inclusion: { in: %w[pending deploying deployed failed], allow_blank: true }
   validates :repository_branch, presence: true, if: -> { deployment_method.in?([ "github_repo", "public_repo" ]) }
   validates :repository_url, presence: true, if: -> { deployment_method.in?([ "github_repo", "public_repo" ]) }
 
-  validate :server_must_have_dokku_installed
+  validate :server_must_have_dokku_installed, unless: :kamal?
 
   before_validation :generate_uuid, on: :create
   before_validation :generate_dokku_app_name, on: :create
   before_validation :normalize_dokku_app_name
 
-  after_create :create_dokku_app_async
+  after_create :create_dokku_app_async, unless: :kamal?
+  after_create :create_kamal_configuration_async, if: :kamal?
 
   scope :for_server, ->(server) { where(server: server) }
   scope :recent, -> { order(created_at: :desc) }
@@ -97,8 +99,20 @@ class Deployment < ApplicationRecord
     database_configuration&.database_type
   end
 
+  def kamal?
+    deployment_method == "kamal"
+  end
+
+  def dokku?
+    !kamal?
+  end
+
   def can_deploy?
-    server&.dokku_installed? && server&.connection_status == "connected"
+    if kamal?
+      server&.connected? && kamal_configuration&.has_web_server? && kamal_configuration&.has_registry?
+    else
+      server&.dokku_installed? && server&.connection_status == "connected"
+    end
   end
 
   def deployment_method_text
@@ -109,13 +123,19 @@ class Deployment < ApplicationRecord
       "GitHub Repository"
     when "public_repo"
       "Public Repository"
+    when "kamal"
+      "Kamal"
     else
       "Not Configured"
     end
   end
 
   def deployment_configured?
-    deployment_method.present? && deployment_method != "manual"
+    if kamal?
+      kamal_configuration&.configured?
+    else
+      deployment_method.present? && deployment_method != "manual"
+    end
   end
 
   def status_badge_class
@@ -290,5 +310,11 @@ class Deployment < ApplicationRecord
   rescue StandardError => e
     Rails.logger.error "Failed to execute Dokku app creation job: #{e.message}"
     # Don't fail the deployment creation if job execution fails
+  end
+
+  def create_kamal_configuration_async
+    KamalConfiguration.create!(deployment: self)
+  rescue StandardError => e
+    Rails.logger.error "Failed to create KamalConfiguration for deployment #{id}: #{e.message}"
   end
 end

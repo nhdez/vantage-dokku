@@ -72,6 +72,7 @@ Rails.application.routes.draw do
       post :install_osv_scanner
       post :update_scan_config
       get :scan_all_deployments
+      post :check_kamal_prerequisites
     end
   end
   patch "themes/update", to: "themes#update", as: :update_theme

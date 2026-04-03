@@ -2829,4 +2829,92 @@ class SshConnectionService
 
     result
   end
+
+  # ─────────────────────────────────────────────
+  # Kamal Prerequisites
+  # ─────────────────────────────────────────────
+
+  def check_docker_installed
+    result = { success: false, installed: false, version: nil, error: nil }
+
+    begin
+      Rails.logger.info "[SshConnectionService] Checking Docker on #{@server.name}"
+
+      Timeout.timeout(CONNECTION_TIMEOUT) do
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options
+        ) do |ssh|
+          output = execute_command(ssh, "docker --version 2>&1")
+
+          if output && output.match?(/Docker version/i)
+            version_match = output.match(/Docker version ([\d.]+)/)
+            result[:installed] = true
+            result[:version] = version_match ? version_match[1] : output.strip
+            result[:success] = true
+            Rails.logger.info "[SshConnectionService] Docker #{result[:version]} on #{@server.name}"
+          else
+            result[:success] = true
+            Rails.logger.info "[SshConnectionService] Docker not found on #{@server.name}"
+          end
+
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue Net::SSH::AuthenticationFailed => e
+      result[:error] = "Authentication failed. Please check your SSH key or password."
+    rescue Net::SSH::ConnectionTimeout, Timeout::Error => e
+      result[:error] = "Connection timeout. Server may be unreachable."
+    rescue Errno::ECONNREFUSED => e
+      result[:error] = "Connection refused. Check if SSH service is running on port #{@connection_details[:port]}."
+    rescue Errno::EHOSTUNREACH => e
+      result[:error] = "Host unreachable. Check the IP address and network connectivity."
+    rescue StandardError => e
+      result[:error] = "Operation failed: #{e.message}"
+    end
+
+    result
+  end
+
+  def check_kamal_proxy_running
+    result = { success: false, running: false, status: nil, error: nil }
+
+    begin
+      Rails.logger.info "[SshConnectionService] Checking kamal-proxy on #{@server.name}"
+
+      Timeout.timeout(CONNECTION_TIMEOUT) do
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options
+        ) do |ssh|
+          output = execute_command(ssh, "docker inspect kamal-proxy --format '{{.State.Status}}' 2>&1")
+
+          if output && !output.include?("No such object") && !output.include?("Error")
+            result[:status] = output.strip
+            result[:running] = output.strip == "running"
+            result[:success] = true
+          else
+            result[:success] = true
+            result[:status] = "not_installed"
+          end
+
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue Net::SSH::AuthenticationFailed => e
+      result[:error] = "Authentication failed. Please check your SSH key or password."
+    rescue Net::SSH::ConnectionTimeout, Timeout::Error => e
+      result[:error] = "Connection timeout. Server may be unreachable."
+    rescue Errno::ECONNREFUSED => e
+      result[:error] = "Connection refused. Check if SSH service is running on port #{@connection_details[:port]}."
+    rescue Errno::EHOSTUNREACH => e
+      result[:error] = "Host unreachable. Check the IP address and network connectivity."
+    rescue StandardError => e
+      result[:error] = "Operation failed: #{e.message}"
+    end
+
+    result
+  end
 end
