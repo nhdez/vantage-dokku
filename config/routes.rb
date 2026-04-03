@@ -46,6 +46,7 @@ Rails.application.routes.draw do
       get :kamal_registry
       patch :update_kamal_registry
       post :test_kamal_registry
+      post :provision_self_hosted_registry
       post :kamal_push_env
       # Kamal — Phase 4 (deploy operations & accessories)
       post :kamal_rollback

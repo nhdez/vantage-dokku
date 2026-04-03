@@ -3,7 +3,7 @@ class DeploymentsController < ApplicationController
 
   KAMAL_ACTIONS = %i[
     kamal_configuration update_kamal_configuration
-    kamal_registry update_kamal_registry test_kamal_registry
+    kamal_registry update_kamal_registry test_kamal_registry provision_self_hosted_registry
     kamal_push_env
     kamal_rollback kamal_restart kamal_stop kamal_start kamal_app_details
     kamal_accessories add_kamal_accessory remove_kamal_accessory
@@ -1311,6 +1311,69 @@ class DeploymentsController < ApplicationController
 
     result = test_registry_login(registry)
     render json: result
+  end
+
+  # ─── Self-hosted registry provisioning ─────────────────────────────────────
+
+  def provision_self_hosted_registry
+    @kamal_config = @deployment.kamal_configuration
+
+    primary_kamal_server = @kamal_config.kamal_servers.find_by(role: "web", primary: true) ||
+                           @kamal_config.kamal_servers.where(role: "web").first
+
+    unless primary_kamal_server
+      toast_error("Assign at least one web server in Kamal Configuration first.", title: "No Server Assigned")
+      redirect_to kamal_registry_deployment_path(@deployment)
+      return
+    end
+
+    server     = primary_kamal_server.server
+    registry_address = "#{server.ip}:#{KamalRegistry::SELF_HOSTED_PORT}"
+    reg_user   = "vantage"
+    reg_pass   = SecureRandom.hex(16)
+
+    # Create registry:2 accessory if not already present
+    unless @kamal_config.kamal_accessories.exists?(name: "registry")
+      @kamal_config.kamal_accessories.create!(
+        name: "registry",
+        image: "registry:2",
+        host: server.ip,
+        port: KamalRegistry::SELF_HOSTED_PORT,
+        env_vars: {
+          "REGISTRY_AUTH" => "htpasswd",
+          "REGISTRY_AUTH_HTPASSWD_REALM" => "Vantage Registry",
+          "REGISTRY_AUTH_HTPASSWD_PATH" => "/auth/htpasswd"
+        },
+        volumes: [ "registry-data:/var/lib/registry", "registry-auth:/auth" ],
+        status: "pending"
+      )
+    end
+
+    # Save / overwrite the registry record
+    registry = @kamal_config.kamal_registry || @kamal_config.build_kamal_registry
+    registry.assign_attributes(
+      registry_server: registry_address,
+      username: reg_user,
+      password: reg_pass,
+      self_hosted: true
+    )
+    registry.save!
+
+    # Configure Docker on all assigned servers to allow the insecure registry
+    @kamal_config.kamal_servers.includes(:server).each do |ks|
+      SshConnectionService.new(ks.server).configure_docker_insecure_registry(registry_address)
+    rescue StandardError => e
+      Rails.logger.warn "[provision_self_hosted_registry] Could not configure insecure registry on #{ks.server.name}: #{e.message}"
+    end
+
+    log_activity("self_hosted_registry_provisioned",
+                 details: "Provisioned self-hosted registry at #{registry_address} for #{@deployment.display_name}")
+
+    toast_success(
+      "Self-hosted registry provisioned at #{registry_address}. Boot the 'registry' accessory to start it.",
+      title: "Registry Ready"
+    )
+    redirect_to kamal_accessories_deployment_path(@deployment)
   end
 
   # ─── Kamal env push (DAT-12) ────────────────────────────────────────────────

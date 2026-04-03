@@ -159,6 +159,10 @@ class DeploymentPolicy < ApplicationPolicy
     user.present? && (record.user == user || user.admin?)
   end
 
+  def provision_self_hosted_registry?
+    user.present? && (record.user == user || user.admin?)
+  end
+
   def kamal_accessories?
     user.present? && (record.user == user || user.admin?)
   end

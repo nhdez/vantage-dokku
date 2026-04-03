@@ -25,7 +25,7 @@ class KamalConfigGenerator
   # NEVER log or display the return value of this method.
   def secrets_file
     lines = []
-    lines << "KAMAL_REGISTRY_PASSWORD=#{@registry&.password}"
+    lines << "KAMAL_REGISTRY_PASSWORD=#{@registry&.password}" unless @registry&.self_hosted?
     secret_env_vars.each { |ev| lines << "#{ev.key}=#{ev.value}" }
     accessory_secret_keys.each { |key| lines << "#{key}=" }
     lines.join("\n") + "\n"
@@ -35,7 +35,7 @@ class KamalConfigGenerator
   # Safe to render in UI.
   def secrets_template
     lines = []
-    lines << "KAMAL_REGISTRY_PASSWORD=[REDACTED]"
+    lines << "KAMAL_REGISTRY_PASSWORD=[REDACTED]" unless @registry&.self_hosted?
     secret_env_vars.each { |ev| lines << "#{ev.key}=[REDACTED]" }
     accessory_secret_keys.each { |key| lines << "#{key}=[REDACTED]" }
     lines.join("\n") + "\n"
@@ -141,11 +141,15 @@ class KamalConfigGenerator
   end
 
   def registry_section
-    {
-      "server"   => @registry.registry_server,
-      "username" => @registry.username,
-      "password" => [ "KAMAL_REGISTRY_PASSWORD" ]
-    }
+    if @registry.self_hosted?
+      { "server" => @registry.registry_server }
+    else
+      {
+        "server"   => @registry.registry_server,
+        "username" => @registry.username,
+        "password" => [ "KAMAL_REGISTRY_PASSWORD" ]
+      }
+    end
   end
 
   def env_section

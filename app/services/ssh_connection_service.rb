@@ -2917,4 +2917,63 @@ class SshConnectionService
 
     result
   end
+
+  # Configure Docker daemon to trust an insecure (HTTP) registry.
+  # Required when using a self-hosted registry without TLS.
+  def configure_docker_insecure_registry(registry_address)
+    result = { success: false, error: nil, output: "" }
+
+    script = <<~BASH
+      set -e
+      DAEMON_FILE="/etc/docker/daemon.json"
+
+      # Read existing config or start fresh
+      if [ -f "$DAEMON_FILE" ]; then
+        CURRENT=$(cat "$DAEMON_FILE")
+      else
+        CURRENT="{}"
+      fi
+
+      # Add registry to insecure-registries using python3 (available on Ubuntu)
+      python3 -c "
+import json, sys
+config = json.loads('''$CURRENT''')
+regs = config.get('insecure-registries', [])
+if '#{registry_address}' not in regs:
+    regs.append('#{registry_address}')
+config['insecure-registries'] = regs
+print(json.dumps(config, indent=2))
+" > /tmp/daemon_new.json
+
+      sudo mv /tmp/daemon_new.json "$DAEMON_FILE"
+      sudo systemctl restart docker || sudo service docker restart
+      echo "Docker daemon configured for insecure registry: #{registry_address}"
+    BASH
+
+    begin
+      Timeout.timeout(UPDATE_TIMEOUT) do
+        Net::SSH.start(
+          @connection_details[:host],
+          @connection_details[:username],
+          ssh_options
+        ) do |ssh|
+          result[:output] = execute_command(ssh, script)
+          result[:success] = true
+          @server.update!(last_connected_at: Time.current)
+        end
+      end
+    rescue Net::SSH::AuthenticationFailed => e
+      result[:error] = "Authentication failed. Please check your SSH key or password."
+    rescue Net::SSH::ConnectionTimeout, Timeout::Error => e
+      result[:error] = "Connection timeout. Server may be unreachable."
+    rescue Errno::ECONNREFUSED => e
+      result[:error] = "Connection refused. Check if SSH service is running on port #{@connection_details[:port]}."
+    rescue Errno::EHOSTUNREACH => e
+      result[:error] = "Host unreachable. Check the IP address and network connectivity."
+    rescue StandardError => e
+      result[:error] = "Operation failed: #{e.message}"
+    end
+
+    result
+  end
 end

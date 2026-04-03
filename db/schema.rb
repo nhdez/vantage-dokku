@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_11_18_181209) do
+ActiveRecord::Schema[8.0].define(version: 2026_04_03_000006) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -175,6 +175,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_11_18_181209) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "source", default: "user", null: false
+    t.boolean "secret", default: false, null: false
     t.index ["deployment_id", "key"], name: "index_environment_variables_on_deployment_id_and_key", unique: true
     t.index ["deployment_id"], name: "index_environment_variables_on_deployment_id"
     t.index ["source"], name: "index_environment_variables_on_source"
@@ -195,6 +196,69 @@ ActiveRecord::Schema[8.0].define(version: 2025_11_18_181209) do
     t.datetime "updated_at", null: false
     t.index ["server_id", "position"], name: "index_firewall_rules_on_server_id_and_position"
     t.index ["server_id"], name: "index_firewall_rules_on_server_id"
+  end
+
+  create_table "kamal_accessories", force: :cascade do |t|
+    t.bigint "kamal_configuration_id", null: false
+    t.string "name", null: false
+    t.string "image", null: false
+    t.string "host"
+    t.integer "port"
+    t.jsonb "env_vars", default: {}
+    t.jsonb "volumes", default: []
+    t.string "status", default: "pending"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["kamal_configuration_id", "name"], name: "index_kamal_accessories_on_kamal_configuration_id_and_name", unique: true
+    t.index ["kamal_configuration_id"], name: "index_kamal_accessories_on_kamal_configuration_id"
+  end
+
+  create_table "kamal_configurations", force: :cascade do |t|
+    t.bigint "deployment_id", null: false
+    t.string "service_name"
+    t.string "image"
+    t.string "builder_arch", default: "local"
+    t.string "builder_remote"
+    t.string "asset_path"
+    t.string "healthcheck_path", default: "/up"
+    t.integer "healthcheck_port"
+    t.string "proxy_host"
+    t.boolean "proxy_ssl", default: true
+    t.integer "proxy_app_port", default: 3000
+    t.integer "proxy_response_timeout", default: 30
+    t.boolean "proxy_buffering", default: false
+    t.string "proxy_max_body_size"
+    t.boolean "proxy_forward_headers", default: true
+    t.boolean "configured", default: false
+    t.text "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["deployment_id"], name: "index_kamal_configurations_on_deployment_id", unique: true
+  end
+
+  create_table "kamal_registries", force: :cascade do |t|
+    t.bigint "kamal_configuration_id", null: false
+    t.string "registry_server", default: "ghcr.io"
+    t.string "username"
+    t.string "password"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["kamal_configuration_id"], name: "index_kamal_registries_on_kamal_configuration_id", unique: true
+  end
+
+  create_table "kamal_servers", force: :cascade do |t|
+    t.bigint "kamal_configuration_id", null: false
+    t.bigint "server_id", null: false
+    t.string "role", default: "web"
+    t.boolean "primary", default: false
+    t.string "cmd"
+    t.integer "stop_wait_time"
+    t.jsonb "docker_options", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["kamal_configuration_id", "server_id", "role"], name: "index_kamal_servers_on_config_server_role", unique: true
+    t.index ["kamal_configuration_id"], name: "index_kamal_servers_on_kamal_configuration_id"
+    t.index ["server_id"], name: "index_kamal_servers_on_server_id"
   end
 
   create_table "linked_accounts", force: :cascade do |t|
@@ -268,21 +332,13 @@ ActiveRecord::Schema[8.0].define(version: 2025_11_18_181209) do
     t.string "dokku_version"
     t.boolean "ufw_enabled", default: false
     t.string "ufw_status"
+    t.string "docker_version"
+    t.datetime "docker_checked_at"
     t.index ["connection_status"], name: "index_servers_on_connection_status"
     t.index ["last_connected_at"], name: "index_servers_on_last_connected_at"
     t.index ["user_id", "name"], name: "index_servers_on_user_id_and_name"
     t.index ["user_id"], name: "index_servers_on_user_id"
     t.index ["uuid"], name: "index_servers_on_uuid", unique: true
-  end
-
-  create_table "solid_cable_messages", force: :cascade do |t|
-    t.binary "channel", null: false
-    t.binary "payload", null: false
-    t.datetime "created_at", null: false
-    t.bigint "channel_hash", null: false
-    t.index ["channel"], name: "index_solid_cable_messages_on_channel"
-    t.index ["channel_hash"], name: "index_solid_cable_messages_on_channel_hash"
-    t.index ["created_at"], name: "index_solid_cable_messages_on_created_at"
   end
 
   create_table "solid_queue_blocked_executions", force: :cascade do |t|
@@ -515,6 +571,11 @@ ActiveRecord::Schema[8.0].define(version: 2025_11_18_181209) do
   add_foreign_key "domains", "deployments"
   add_foreign_key "environment_variables", "deployments"
   add_foreign_key "firewall_rules", "servers"
+  add_foreign_key "kamal_accessories", "kamal_configurations"
+  add_foreign_key "kamal_configurations", "deployments"
+  add_foreign_key "kamal_registries", "kamal_configurations"
+  add_foreign_key "kamal_servers", "kamal_configurations"
+  add_foreign_key "kamal_servers", "servers"
   add_foreign_key "linked_accounts", "users"
   add_foreign_key "port_mappings", "deployments"
   add_foreign_key "servers", "users"
