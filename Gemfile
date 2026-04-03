@@ -64,6 +64,9 @@ gem "net-ssh", require: false
 gem "ed25519"
 gem "bcrypt_pbkdf"
 
+# Kamal deployment management
+gem "kamal", require: false
+
 group :development do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
