@@ -24,6 +24,8 @@ class Server < ApplicationRecord
   validates :password, length: { minimum: 1 }, allow_blank: true
   validates :connection_status, inclusion: { in: %w[unknown connected failed] }
 
+  scope :connected, -> { where(connection_status: "connected") }
+
   before_validation :generate_uuid, on: :create
 
   def to_param

@@ -15,6 +15,8 @@ class EnvironmentVariable < ApplicationRecord
   scope :ordered, -> { order(:key) }
   scope :user_managed, -> { where(source: "user") }
   scope :system_managed, -> { where(source: "system") }
+  scope :secret_vars, -> { where(secret: true) }
+  scope :clear_vars, -> { where(secret: false) }
 
   def system_managed?
     source == "system"

@@ -1,0 +1,330 @@
+<% content_for :title, "Kamal Configuration — #{@deployment.name}" %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-ship me-2 text-info"></i>
+            Kamal Configuration
+          </h1>
+          <p class="text-muted mb-0"><%= @deployment.name %></p>
+        </div>
+        <div class="d-flex gap-2">
+          <%= link_to kamal_registry_deployment_path(@deployment), class: "btn btn-outline-info btn-sm" do %>
+            <i class="fas fa-key me-1"></i>Registry
+          <% end %>
+          <%= link_to @deployment, class: "btn btn-outline-secondary" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to App
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pre-flight checklist -->
+  <% generator = KamalConfigGenerator.new(@kamal_config) %>
+  <% missing = generator.missing_fields %>
+  <% if missing.any? %>
+    <div class="alert alert-warning">
+      <i class="fas fa-exclamation-triangle me-2"></i>
+      <strong>Configuration incomplete:</strong>
+      <ul class="mb-0 mt-1">
+        <% missing.each do |m| %><li><%= m %></li><% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <%= form_with model: @kamal_config,
+        url: update_kamal_configuration_deployment_path(@deployment),
+        method: :patch, local: true do |form| %>
+
+    <div class="row">
+      <div class="col-lg-8">
+
+        <!-- Section 1: App Identity -->
+        <div class="card shadow mb-4">
+          <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+              <i class="fas fa-tag me-2"></i>App Identity
+            </h6>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <%= form.label :service_name, "Service Name", class: "form-label" %>
+                <%= form.text_field :service_name,
+                      class: "form-control #{'is-invalid' if @kamal_config.errors[:service_name].any?}",
+                      placeholder: "my-app" %>
+                <div class="form-text">Used as the Kamal service identifier. Lowercase, hyphens OK.</div>
+                <% if @kamal_config.errors[:service_name].any? %>
+                  <div class="invalid-feedback"><%= @kamal_config.errors[:service_name].first %></div>
+                <% end %>
+              </div>
+              <div class="col-md-6 mb-3">
+                <%= form.label :image, "Docker Image", class: "form-label" %>
+                <%= form.text_field :image,
+                      class: "form-control #{'is-invalid' if @kamal_config.errors[:image].any?}",
+                      placeholder: "ghcr.io/myorg/my-app" %>
+                <div class="form-text">Full image path without a tag. Kamal appends the Git SHA.</div>
+                <% if @kamal_config.errors[:image].any? %>
+                  <div class="invalid-feedback"><%= @kamal_config.errors[:image].first %></div>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Builder -->
+        <div class="card shadow mb-4">
+          <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+              <i class="fas fa-hammer me-2"></i>Builder
+            </h6>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <%= form.label :builder_arch, "Architecture", class: "form-label" %>
+                <%= form.select :builder_arch,
+                      KamalConfiguration::BUILDER_ARCHS.map { |a| [a.humanize, a] },
+                      {},
+                      { class: "form-select", id: "builder_arch_select" } %>
+                <div class="form-text">Match the CPU architecture of your target servers.</div>
+              </div>
+              <div class="col-md-6 mb-3" id="builder-remote-field"
+                   class="<%= 'collapse' unless @kamal_config.builder_arch == 'multiarch' %>">
+                <%= form.label :builder_remote, "Remote Builder SSH", class: "form-label" %>
+                <%= form.text_field :builder_remote,
+                      class: "form-control",
+                      placeholder: "user@builder-host" %>
+                <div class="form-text">Required for multiarch builds.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Health Check & Proxy -->
+        <div class="card shadow mb-4">
+          <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+              <i class="fas fa-heartbeat me-2"></i>Health Check & Proxy
+            </h6>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <%= form.label :healthcheck_path, "Health Check Path", class: "form-label" %>
+                <%= form.text_field :healthcheck_path,
+                      class: "form-control",
+                      placeholder: "/up" %>
+                <div class="form-text">Endpoint kamal-proxy polls to confirm the container is healthy.</div>
+              </div>
+              <div class="col-md-6 mb-3">
+                <%= form.label :proxy_host, "Primary Domain", class: "form-label" %>
+                <%= form.text_field :proxy_host,
+                      class: "form-control",
+                      placeholder: "myapp.example.com" %>
+                <div class="form-text">Domain kamal-proxy will serve. Required for SSL.</div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                <%= form.label :proxy_app_port, "App Port", class: "form-label" %>
+                <%= form.number_field :proxy_app_port, class: "form-control", min: 1, max: 65535 %>
+                <div class="form-text">Port your Rails app listens on inside the container.</div>
+              </div>
+              <div class="col-md-4 mb-3">
+                <%= form.label :proxy_response_timeout, "Response Timeout (s)", class: "form-label" %>
+                <%= form.number_field :proxy_response_timeout, class: "form-control", min: 1 %>
+              </div>
+              <div class="col-md-4 mb-3 d-flex align-items-center pt-4">
+                <div class="form-check form-switch">
+                  <%= form.check_box :proxy_ssl, class: "form-check-input", role: "switch" %>
+                  <%= form.label :proxy_ssl, "Enable SSL (Let's Encrypt)", class: "form-check-label" %>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-0">
+                <%= form.label :asset_path, "Asset Path (optional)", class: "form-label" %>
+                <%= form.text_field :asset_path,
+                      class: "form-control",
+                      placeholder: "/rails/public/assets" %>
+                <div class="form-text">Leave blank unless you use asset stripping.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 4: Server Assignments -->
+        <div class="card shadow mb-4">
+          <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+              <i class="fas fa-server me-2"></i>Server Assignments
+            </h6>
+          </div>
+          <div class="card-body">
+            <% if @available_servers.empty? %>
+              <div class="alert alert-warning mb-0">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                No connected servers found. <a href="<%= servers_path %>">Add and connect a server</a> first.
+              </div>
+            <% else %>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Server</th>
+                      <th>Assign</th>
+                      <th>Role</th>
+                      <th>Primary</th>
+                      <th>Docker</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% @available_servers.each do |server| %>
+                      <% assigned = @assigned_servers.find { |ks| ks.server_id == server.id } %>
+                      <tr>
+                        <td>
+                          <strong><%= server.name %></strong>
+                          <br><small class="text-muted"><%= server.ip %></small>
+                        </td>
+                        <td>
+                          <input type="checkbox" class="form-check-input server-assign-toggle"
+                                 data-server-id="<%= server.id %>"
+                                 <%= "checked" if assigned %>
+                                 onchange="toggleServerRow(this)">
+                        </td>
+                        <td>
+                          <select name="kamal_server_assignments[<%= server.id %>][role]"
+                                  class="form-select form-select-sm"
+                                  style="min-width:90px"
+                                  <%= "disabled" unless assigned %>>
+                            <% KamalServer::ROLES.each do |role| %>
+                              <option value="<%= role %>" <%= "selected" if assigned&.role == role %>><%= role.capitalize %></option>
+                            <% end %>
+                          </select>
+                          <input type="hidden" name="kamal_server_assignments[<%= server.id %>][_skip]"
+                                 value="1" class="skip-flag" <%= "disabled" if assigned %>>
+                        </td>
+                        <td>
+                          <input type="checkbox"
+                                 name="kamal_server_assignments[<%= server.id %>][primary]"
+                                 class="form-check-input"
+                                 value="1"
+                                 <%= "checked" if assigned&.primary %>
+                                 <%= "disabled" unless assigned %>>
+                        </td>
+                        <td>
+                          <% if server.docker_installed? %>
+                            <span class="badge bg-success"><i class="fas fa-check me-1"></i><%= server.formatted_docker_version %></span>
+                          <% elsif server.docker_checked? %>
+                            <span class="badge bg-danger">Not installed</span>
+                          <% else %>
+                            <span class="badge bg-secondary">Unknown</span>
+                            <button type="button" class="btn btn-link btn-sm p-0 ms-1"
+                                    onclick="checkPrerequisites('<%= server.uuid %>')">Check</button>
+                          <% end %>
+                        </td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+              <div class="form-text mt-2">
+                At least one server must be assigned the <strong>web</strong> role.
+                Mark one web server as <strong>Primary</strong>.
+              </div>
+            <% end %>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Sidebar -->
+      <div class="col-lg-4">
+        <!-- Status card -->
+        <div class="card shadow mb-4">
+          <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+              <i class="fas fa-info-circle me-2"></i>Configuration Status
+            </h6>
+          </div>
+          <div class="card-body">
+            <span class="badge <%= @kamal_config.status_class %> mb-3"><%= @kamal_config.status_text %></span>
+            <ul class="list-unstyled small mb-0">
+              <li><%= @kamal_config.service_name.present? ? "✅" : "⬜" %> Service name</li>
+              <li><%= @kamal_config.image.present? ? "✅" : "⬜" %> Docker image</li>
+              <li><%= @kamal_config.has_registry? ? "✅" : "⬜" %>
+                <%= link_to "Registry credentials", kamal_registry_deployment_path(@deployment) %></li>
+              <li><%= @kamal_config.has_web_server? ? "✅" : "⬜" %> Web server assigned</li>
+              <li><%= @kamal_config.proxy_host.present? ? "✅" : "⬜" %> Primary domain</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Quick links -->
+        <div class="card shadow mb-4">
+          <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+              <i class="fas fa-link me-2"></i>Next Steps
+            </h6>
+          </div>
+          <div class="card-body d-grid gap-2">
+            <%= link_to kamal_registry_deployment_path(@deployment), class: "btn btn-outline-info btn-sm" do %>
+              <i class="fas fa-key me-2"></i>Configure Registry
+            <% end %>
+            <%= link_to manage_environment_deployment_path(@deployment), class: "btn btn-outline-secondary btn-sm" do %>
+              <i class="fas fa-cog me-2"></i>Environment Variables
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2 mb-4">
+      <%= form.submit "Save Configuration", class: "btn btn-primary" %>
+      <%= link_to "Cancel", @deployment, class: "btn btn-secondary" %>
+    </div>
+
+  <% end %>
+</div>
+
+<script>
+  function toggleServerRow(checkbox) {
+    const serverId = checkbox.dataset.serverId;
+    const row = checkbox.closest("tr");
+    const roleSelect = row.querySelector("select");
+    const primaryCheck = row.querySelector("input[type=checkbox][name*=primary]");
+    const skipFlag = row.querySelector(".skip-flag");
+
+    const enabled = checkbox.checked;
+    roleSelect.disabled = !enabled;
+    primaryCheck.disabled = !enabled;
+    if (skipFlag) skipFlag.disabled = enabled;
+  }
+
+  function checkPrerequisites(serverUuid) {
+    fetch(`/servers/${serverUuid}/check_kamal_prerequisites`, {
+      method: "POST",
+      headers: { "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content }
+    }).then(() => location.reload());
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const archSelect = document.getElementById("builder_arch_select");
+    const remoteField = document.getElementById("builder-remote-field");
+
+    function toggleRemote() {
+      remoteField.style.display = archSelect.value === "multiarch" ? "" : "none";
+    }
+
+    if (archSelect) {
+      archSelect.addEventListener("change", toggleRemote);
+      toggleRemote();
+    }
+  });
+</script>

@@ -40,6 +40,13 @@ Rails.application.routes.draw do
       post :stop_log_streaming
       get :scans
       post :trigger_scan
+      # Kamal configuration (Phase 3)
+      get  :kamal_configuration
+      patch :update_kamal_configuration
+      get :kamal_registry
+      patch :update_kamal_registry
+      post :test_kamal_registry
+      post :kamal_push_env
     end
     resources :vulnerability_scans, only: [ :show ], param: :id do
       member do
