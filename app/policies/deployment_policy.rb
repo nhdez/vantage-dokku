@@ -139,6 +139,90 @@ class DeploymentPolicy < ApplicationPolicy
     user.present? && (record.user == user || user.admin?)
   end
 
+  def kamal_configuration?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def update_kamal_configuration?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def kamal_registry?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def update_kamal_registry?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def test_kamal_registry?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def kamal_accessories?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def add_kamal_accessory?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def remove_kamal_accessory?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def boot_kamal_accessory?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def reboot_kamal_accessory?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def kamal_setup?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def check_kamal_prerequisites?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def kamal_push_env?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def kamal_config_preview?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def download_kamal_config?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def kamal_rollback?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def kamal_restart?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def kamal_stop?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def kamal_start?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def kamal_proxy_reboot?
+    user.present? && (record.user == user || user.admin?)
+  end
+
+  def kamal_app_details?
+    user.present? && (record.user == user || user.admin?)
+  end
+
   class Scope < Scope
     def resolve
       if user.admin?

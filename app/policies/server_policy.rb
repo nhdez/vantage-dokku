@@ -103,6 +103,10 @@ class ServerPolicy < ApplicationPolicy
     user.present? && (record.user == user || user.admin?)
   end
 
+  def check_kamal_prerequisites?
+    user.present? && (record.user == user || user.admin?)
+  end
+
   class Scope < Scope
     def resolve
       if user.admin?

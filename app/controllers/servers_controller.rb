@@ -3,8 +3,8 @@ require "timeout"
 class ServersController < ApplicationController
   include ActivityTrackable
 
-  before_action :set_server, only: [ :show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs, :firewall_rules, :sync_firewall_rules, :enable_ufw, :disable_ufw, :add_firewall_rule, :remove_firewall_rule, :toggle_firewall_rule, :apply_firewall_rules, :vulnerability_scanner, :check_scanner_status, :install_go, :install_osv_scanner, :update_scan_config, :scan_all_deployments ]
-  before_action :authorize_server, only: [ :show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs, :firewall_rules, :sync_firewall_rules, :enable_ufw, :disable_ufw, :add_firewall_rule, :remove_firewall_rule, :toggle_firewall_rule, :apply_firewall_rules, :vulnerability_scanner, :check_scanner_status, :install_go, :install_osv_scanner, :update_scan_config, :scan_all_deployments ]
+  before_action :set_server, only: [ :show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs, :firewall_rules, :sync_firewall_rules, :enable_ufw, :disable_ufw, :add_firewall_rule, :remove_firewall_rule, :toggle_firewall_rule, :apply_firewall_rules, :vulnerability_scanner, :check_scanner_status, :install_go, :install_osv_scanner, :update_scan_config, :scan_all_deployments, :check_kamal_prerequisites ]
+  before_action :authorize_server, only: [ :show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs, :firewall_rules, :sync_firewall_rules, :enable_ufw, :disable_ufw, :add_firewall_rule, :remove_firewall_rule, :toggle_firewall_rule, :apply_firewall_rules, :vulnerability_scanner, :check_scanner_status, :install_go, :install_osv_scanner, :update_scan_config, :scan_all_deployments, :check_kamal_prerequisites ]
 
   def index
     @pagy, @servers = pagy(current_user.servers.order(:name), limit: 10)
@@ -755,6 +755,19 @@ class ServersController < ApplicationController
           toast_error(e.message, title: "Scan Error")
           redirect_to vulnerability_scanner_server_path(@server)
         end
+      end
+    end
+  end
+
+  def check_kamal_prerequisites
+    CheckKamalPrerequisitesJob.perform_later(@server)
+    log_activity("kamal_prerequisites_check_triggered", details: "Triggered Kamal prerequisites check for server: #{@server.display_name}")
+
+    respond_to do |format|
+      format.json { render json: { success: true, message: "Prerequisites check started" } }
+      format.html do
+        toast_info("Checking Docker prerequisites...", title: "Check Started")
+        redirect_to @server
       end
     end
   end
