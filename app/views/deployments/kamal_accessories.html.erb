@@ -1,0 +1,170 @@
+<% content_for :title, "Accessories — #{@deployment.name}" %>
+
+<div class="container-fluid">
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-boxes me-2 text-info"></i>Accessories
+          </h1>
+          <p class="text-muted mb-0"><%= @deployment.name %> — databases, Redis, and other services</p>
+        </div>
+        <div>
+          <%= link_to @deployment, class: "btn btn-outline-secondary" do %>
+            <i class="fas fa-arrow-left me-2"></i>Back to App
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-lg-8">
+
+      <!-- Existing accessories -->
+      <% if @accessories.any? %>
+        <% @accessories.each do |acc| %>
+          <div class="card shadow mb-3">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+              <h6 class="m-0 font-weight-bold">
+                <i class="fas fa-box me-2 text-info"></i><code><%= acc.name %></code>
+                &nbsp;<span class="badge <%= acc.status_class %> ms-2"><%= acc.status_text %></span>
+              </h6>
+              <div class="d-flex gap-2">
+                <%= button_to "Boot", boot_kamal_accessory_deployment_path(@deployment),
+                      params: { accessory_name: acc.name }, method: :post,
+                      class: "btn btn-success btn-sm",
+                      data: { confirm: "Boot accessory '#{acc.name}'?" } %>
+                <%= button_to "Reboot", reboot_kamal_accessory_deployment_path(@deployment),
+                      params: { accessory_name: acc.name }, method: :post,
+                      class: "btn btn-warning btn-sm",
+                      data: { confirm: "Reboot accessory '#{acc.name}'?" } %>
+                <%= button_to "Remove", remove_kamal_accessory_deployment_path(@deployment),
+                      params: { accessory_id: acc.id }, method: :delete,
+                      class: "btn btn-danger btn-sm",
+                      data: { confirm: "Remove accessory '#{acc.name}'? The container will be deleted." } %>
+              </div>
+            </div>
+            <div class="card-body py-2">
+              <div class="row small">
+                <div class="col-md-4"><strong>Image:</strong> <code><%= acc.image %></code></div>
+                <div class="col-md-3"><strong>Host:</strong> <%= acc.host.presence || "—" %></div>
+                <div class="col-md-2"><strong>Port:</strong> <%= acc.port.presence || "—" %></div>
+                <% if acc.env_vars.any? %>
+                  <div class="col-md-3 text-muted">
+                    <strong>Env:</strong> <%= acc.env_vars.keys.join(", ") %>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      <% else %>
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>
+          No accessories configured yet. Add a database or Redis below.
+        </div>
+      <% end %>
+
+      <!-- Add accessory form -->
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-plus me-2"></i>Add Accessory
+          </h6>
+        </div>
+        <div class="card-body">
+          <!-- Preset selector -->
+          <div class="mb-4">
+            <label class="form-label">Quick Presets</label>
+            <div class="d-flex flex-wrap gap-2">
+              <% KamalAccessory::PRESETS.each do |type, preset| %>
+                <button type="button" class="btn btn-outline-secondary btn-sm preset-btn"
+                        data-preset-type="<%= type %>"
+                        data-image="<%= preset[:image] %>"
+                        data-port="<%= preset[:port] %>"
+                        data-env-keys="<%= preset[:env_keys].join(',') %>"
+                        onclick="applyPreset(this)">
+                  <%= type.capitalize %>
+                </button>
+              <% end %>
+            </div>
+          </div>
+
+          <%= form_with url: add_kamal_accessory_deployment_path(@deployment),
+                method: :post, local: true do |f| %>
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                <%= label_tag :name, "Name", class: "form-label" %>
+                <%= text_field_tag "kamal_accessory[name]", nil,
+                      class: "form-control", placeholder: "postgres", id: "acc_name" %>
+                <div class="form-text">Lowercase, hyphens OK.</div>
+              </div>
+              <div class="col-md-5 mb-3">
+                <%= label_tag :image, "Docker Image", class: "form-label" %>
+                <%= text_field_tag "kamal_accessory[image]", nil,
+                      class: "form-control", placeholder: "postgres:16", id: "acc_image" %>
+              </div>
+              <div class="col-md-3 mb-3">
+                <%= label_tag :port, "Port", class: "form-label" %>
+                <%= number_field_tag "kamal_accessory[port]", nil,
+                      class: "form-control", min: 1, max: 65535, id: "acc_port" %>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <%= label_tag :host, "Host (server IP)", class: "form-label" %>
+                <%= select_tag "kamal_accessory[host]",
+                      options_for_select(@available_servers.map { |s| [s.display_name, s.ip] }),
+                      { include_blank: "Select server...", class: "form-select" } %>
+              </div>
+            </div>
+            <div class="mb-3" id="env-keys-preview"></div>
+            <div class="d-flex gap-2">
+              <%= submit_tag "Add Accessory", class: "btn btn-primary" %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-info-circle me-2"></i>About Accessories
+          </h6>
+        </div>
+        <div class="card-body small">
+          <p>Kamal accessories are Docker containers running alongside your app — typically databases and caches.</p>
+          <ul class="mb-0">
+            <li>Accessories run on specific servers you assign</li>
+            <li>Secret env vars (passwords) are auto-added to your deployment's secrets</li>
+            <li>Use <strong>Boot</strong> to start after initial deploy</li>
+            <li>Use <strong>Reboot</strong> to restart a running accessory</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function applyPreset(btn) {
+    document.getElementById("acc_name").value = btn.dataset.presetType;
+    document.getElementById("acc_image").value = btn.dataset.image;
+    document.getElementById("acc_port").value = btn.dataset.port;
+
+    const keys = btn.dataset.envKeys ? btn.dataset.envKeys.split(",").filter(Boolean) : [];
+    const preview = document.getElementById("env-keys-preview");
+    if (keys.length > 0) {
+      preview.innerHTML = '<div class="alert alert-info py-2 small"><i class="fas fa-info-circle me-1"></i>' +
+        'The following env vars will need to be added as <strong>secrets</strong> in Environment Variables: <code>' +
+        keys.join(", ") + '</code></div>';
+    } else {
+      preview.innerHTML = "";
+    }
+  }
+</script>

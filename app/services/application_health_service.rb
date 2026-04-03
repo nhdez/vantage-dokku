@@ -15,7 +15,7 @@ class ApplicationHealthService
               .where(servers: { connection_status: "connected" })
               .includes(:server, :domains)
               .find_each do |deployment|
-      next unless deployment.dokku_url.present?
+      next unless deployment.app_url.present?
       check_deployment(deployment)
     end
   end
@@ -25,9 +25,9 @@ class ApplicationHealthService
   end
 
   def check_health
-    return unless @deployment.dokku_url.present?
+    return unless @deployment.app_url.present?
 
-    url = @deployment.dokku_url
+    url = @deployment.app_url
 
     Rails.logger.info "Checking health for #{@deployment.name} at #{url}"
 

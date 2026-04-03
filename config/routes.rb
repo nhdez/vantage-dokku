@@ -40,13 +40,30 @@ Rails.application.routes.draw do
       post :stop_log_streaming
       get :scans
       post :trigger_scan
-      # Kamal configuration (Phase 3)
+      # Kamal — Phase 3 (config, registry, env)
       get  :kamal_configuration
       patch :update_kamal_configuration
       get :kamal_registry
       patch :update_kamal_registry
       post :test_kamal_registry
       post :kamal_push_env
+      # Kamal — Phase 4 (deploy operations & accessories)
+      post :kamal_rollback
+      post :kamal_restart
+      post :kamal_stop
+      post :kamal_start
+      get  :kamal_app_details
+      get  :kamal_accessories
+      post :add_kamal_accessory
+      delete :remove_kamal_accessory
+      post :boot_kamal_accessory
+      post :reboot_kamal_accessory
+      # Kamal — Phase 5 (setup & proxy)
+      post :kamal_setup
+      post :kamal_proxy_reboot
+      # Kamal — Phase 6 (preview)
+      get  :kamal_config_preview
+      get  :download_kamal_config
     end
     resources :vulnerability_scans, only: [ :show ], param: :id do
       member do

@@ -21,7 +21,7 @@ class ApplicationHealthCheckJob < ApplicationJob
                 .where(servers: { connection_status: "connected" })
                 .includes(:server, :domains)
                 .find_each do |deployment|
-        next unless deployment.dokku_url.present?
+        next unless deployment.app_url.present?
         begin
           result = ApplicationHealthService.check_deployment(deployment)
           send_notification_if_needed(deployment, result)
