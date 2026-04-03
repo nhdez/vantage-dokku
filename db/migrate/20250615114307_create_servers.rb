@@ -13,6 +13,6 @@ class CreateServers < ActiveRecord::Migration[8.0]
       t.timestamps
     end
     add_index :servers, :uuid, unique: true
-    add_index :servers, [:user_id, :name]
+    add_index :servers, [ :user_id, :name ]
   end
 end

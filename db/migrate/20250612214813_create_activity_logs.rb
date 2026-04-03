@@ -13,8 +13,8 @@ class CreateActivityLogs < ActiveRecord::Migration[8.0]
 
       t.timestamps
     end
-    
-    add_index :activity_logs, [:user_id, :occurred_at]
+
+    add_index :activity_logs, [ :user_id, :occurred_at ]
     add_index :activity_logs, :action
     add_index :activity_logs, :occurred_at
   end

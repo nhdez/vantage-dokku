@@ -4,7 +4,7 @@ Rails.application.routes.draw do
   get "manifest" => "pwa#manifest", as: :pwa_manifest
 
   # Mount ActionCable
-  mount ActionCable.server => '/cable'
+  mount ActionCable.server => "/cable"
   resources :linked_accounts do
     member do
       post :test_connection
@@ -41,7 +41,7 @@ Rails.application.routes.draw do
       get :scans
       post :trigger_scan
     end
-    resources :vulnerability_scans, only: [:show], param: :id do
+    resources :vulnerability_scans, only: [ :show ], param: :id do
       member do
         get :fetch_osv_details
       end
@@ -86,7 +86,7 @@ Rails.application.routes.draw do
   get "toast_demo/show_multiple"
   namespace :admin do
     root "dashboard#index"
-    resources :activity_logs, only: [:index, :show]
+    resources :activity_logs, only: [ :index, :show ]
     get "general_settings", to: "dashboard#general_settings"
     patch "general_settings", to: "dashboard#update_general_settings"
 
@@ -95,7 +95,7 @@ Rails.application.routes.draw do
     post "test_email", to: "dashboard#test_email"
     get "oauth_settings", to: "dashboard#oauth_settings"
     patch "oauth_settings", to: "dashboard#update_oauth_settings"
-    resources :users, only: [:index, :show, :edit, :update] do
+    resources :users, only: [ :index, :show, :edit, :update ] do
       member do
         patch :assign_role
         delete :remove_role
@@ -103,22 +103,22 @@ Rails.application.routes.draw do
     end
   end
   devise_for :users, controllers: {
-    sessions: 'users/sessions',
-    registrations: 'users/registrations',
-    passwords: 'users/passwords',
-    omniauth_callbacks: 'users/omniauth_callbacks'
+    sessions: "users/sessions",
+    registrations: "users/registrations",
+    passwords: "users/passwords",
+    omniauth_callbacks: "users/omniauth_callbacks"
   }
 
   # Authenticated user routes (must come first)
   authenticated :user do
     root "dashboard#index", as: :authenticated_root
   end
-  
+
   # Public routes - redirect to login
-  root to: redirect('/users/sign_in')
-  
-  get 'maintenance', to: 'home#maintenance'
-  
+  root to: redirect("/users/sign_in")
+
+  get "maintenance", to: "home#maintenance"
+
   # Dashboard and app routes
   get "dashboard", to: "dashboard#index"
   post "dashboard/trigger_health_checks", to: "dashboard#trigger_health_checks"

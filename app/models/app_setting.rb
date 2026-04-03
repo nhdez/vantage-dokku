@@ -1,52 +1,52 @@
 class AppSetting < ApplicationRecord
   validates :key, presence: true, uniqueness: true
   validates :setting_type, inclusion: { in: %w[string boolean integer] }
-  
+
   scope :by_key, ->(key) { find_by(key: key) }
-  
+
   # Class method to get a setting value with optional default
   def self.get(key, default = nil)
     setting = find_by(key: key)
     return default unless setting
-    
+
     case setting.setting_type
-    when 'boolean'
-      setting.value == 'true'
-    when 'integer'
+    when "boolean"
+      setting.value == "true"
+    when "integer"
       setting.value.to_i
     else
       setting.value
     end
   end
-  
+
   # Class method to set a setting value
-  def self.set(key, value, description: nil, setting_type: 'string')
+  def self.set(key, value, description: nil, setting_type: "string")
     setting = find_or_initialize_by(key: key)
     setting.value = value.to_s
     setting.description = description if description
     setting.setting_type = setting_type
     setting.save!
   end
-  
+
   # Get the typed value
   def typed_value
     case setting_type
-    when 'boolean'
-      value == 'true'
-    when 'integer'
+    when "boolean"
+      value == "true"
+    when "integer"
       value.to_i
     else
       value
     end
   end
-  
+
   # Convenience method to get the Dokku install version
   def self.dokku_install_version
-    get('dokku_install_version', '0.35.9')
+    get("dokku_install_version", "0.35.9")
   end
 
   # Convenience method to get the Go Language version
   def self.go_lang_version
-    get('go_lang_version', 'go1.23.5')
+    get("go_lang_version", "go1.23.5")
   end
 end

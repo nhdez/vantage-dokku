@@ -36,14 +36,14 @@ class DestroyDeploymentJob < ApplicationJob
       # Log the successful deletion
       ActivityLog.create!(
         user: @user,
-        action: 'deployment_deleted',
+        action: "deployment_deleted",
         details: "Deleted deployment '#{deployment_name}' (Dokku app: #{dokku_app_name}) from server '#{server_name}'",
         occurred_at: Time.current
       )
 
       # Broadcast success via ActionCable for real-time notification
       ActionCable.server.broadcast("deployment_deletion_#{@user.id}", {
-        type: 'success',
+        type: "success",
         deployment_id: deployment_id,
         message: "Deployment '#{deployment_name}' and its Dokku app have been successfully deleted from the server.",
         timestamp: Time.current.iso8601
@@ -58,14 +58,14 @@ class DestroyDeploymentJob < ApplicationJob
       # Log the failure
       ActivityLog.create!(
         user: @user,
-        action: 'deployment_deletion_failed',
+        action: "deployment_deletion_failed",
         details: "Failed to delete deployment '#{@deployment.name}': #{e.message}",
         occurred_at: Time.current
       )
 
       # Broadcast error via ActionCable
       ActionCable.server.broadcast("deployment_deletion_#{@user.id}", {
-        type: 'error',
+        type: "error",
         deployment_id: deployment_id,
         message: "Failed to delete deployment: #{e.message}",
         timestamp: Time.current.iso8601

@@ -6,7 +6,7 @@ class FirewallRule < ApplicationRecord
   validates :protocol, inclusion: { in: %w[tcp udp any], message: "must be tcp, udp, or any" }, allow_blank: true
   validates :port, format: { with: /\A\d+(:\d+)?(\/\w+)?\z/, message: "must be a valid port or port range (e.g., 80, 8000:9000)" }, allow_blank: true
 
-  scope :ordered, -> { order(Arel.sql('position IS NULL, position ASC, created_at ASC')) }
+  scope :ordered, -> { order(Arel.sql("position IS NULL, position ASC, created_at ASC")) }
   scope :enabled, -> { where(enabled: true) }
 
   before_create :set_position
@@ -17,13 +17,13 @@ class FirewallRule < ApplicationRecord
 
   # Common predefined rules
   COMMON_RULES = {
-    'SSH' => { port: '22', protocol: 'tcp', action: 'allow', direction: 'in', comment: 'Allow SSH access' },
-    'HTTP' => { port: '80', protocol: 'tcp', action: 'allow', direction: 'in', comment: 'Allow HTTP traffic' },
-    'HTTPS' => { port: '443', protocol: 'tcp', action: 'allow', direction: 'in', comment: 'Allow HTTPS traffic' },
-    'PostgreSQL' => { port: '5432', protocol: 'tcp', action: 'allow', direction: 'in', comment: 'Allow PostgreSQL' },
-    'MySQL' => { port: '3306', protocol: 'tcp', action: 'allow', direction: 'in', comment: 'Allow MySQL/MariaDB' },
-    'Redis' => { port: '6379', protocol: 'tcp', action: 'allow', direction: 'in', comment: 'Allow Redis' },
-    'MongoDB' => { port: '27017', protocol: 'tcp', action: 'allow', direction: 'in', comment: 'Allow MongoDB' }
+    "SSH" => { port: "22", protocol: "tcp", action: "allow", direction: "in", comment: "Allow SSH access" },
+    "HTTP" => { port: "80", protocol: "tcp", action: "allow", direction: "in", comment: "Allow HTTP traffic" },
+    "HTTPS" => { port: "443", protocol: "tcp", action: "allow", direction: "in", comment: "Allow HTTPS traffic" },
+    "PostgreSQL" => { port: "5432", protocol: "tcp", action: "allow", direction: "in", comment: "Allow PostgreSQL" },
+    "MySQL" => { port: "3306", protocol: "tcp", action: "allow", direction: "in", comment: "Allow MySQL/MariaDB" },
+    "Redis" => { port: "6379", protocol: "tcp", action: "allow", direction: "in", comment: "Allow Redis" },
+    "MongoDB" => { port: "27017", protocol: "tcp", action: "allow", direction: "in", comment: "Allow MongoDB" }
   }.freeze
 
   def display_name
@@ -34,18 +34,18 @@ class FirewallRule < ApplicationRecord
     parts << port if port.present?
     parts << "from #{from_ip}" if from_ip.present?
     parts << "to #{to_ip}" if to_ip.present?
-    parts.join(' ')
+    parts.join(" ")
   end
 
   def to_ufw_command
     cmd = "ufw #{action}"
     cmd += " #{direction}" if direction.present?
-    cmd += " proto #{protocol}" if protocol.present? && protocol != 'any'
+    cmd += " proto #{protocol}" if protocol.present? && protocol != "any"
 
-    if direction == 'in'
+    if direction == "in"
       cmd += " from #{from_ip || 'any'}"
       cmd += " to #{to_ip || 'any'}"
-    elsif direction == 'out'
+    elsif direction == "out"
       cmd += " from #{from_ip || 'any'}"
       cmd += " to #{to_ip || 'any'}"
     end

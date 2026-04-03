@@ -9,7 +9,7 @@ class CreatePortMappings < ActiveRecord::Migration[8.0]
       t.timestamps
     end
 
-    add_index :port_mappings, [:deployment_id, :scheme, :host_port, :container_port],
+    add_index :port_mappings, [ :deployment_id, :scheme, :host_port, :container_port ],
               unique: true,
               name: 'index_port_mappings_on_deployment_and_mapping'
   end

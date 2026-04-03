@@ -1,36 +1,36 @@
-require 'timeout'
+require "timeout"
 
 class ServersController < ApplicationController
   include ActivityTrackable
-  
-  before_action :set_server, only: [:show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs, :firewall_rules, :sync_firewall_rules, :enable_ufw, :disable_ufw, :add_firewall_rule, :remove_firewall_rule, :toggle_firewall_rule, :apply_firewall_rules, :vulnerability_scanner, :check_scanner_status, :install_go, :install_osv_scanner, :update_scan_config, :scan_all_deployments]
-  before_action :authorize_server, only: [:show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs, :firewall_rules, :sync_firewall_rules, :enable_ufw, :disable_ufw, :add_firewall_rule, :remove_firewall_rule, :toggle_firewall_rule, :apply_firewall_rules, :vulnerability_scanner, :check_scanner_status, :install_go, :install_osv_scanner, :update_scan_config, :scan_all_deployments]
-  
+
+  before_action :set_server, only: [ :show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs, :firewall_rules, :sync_firewall_rules, :enable_ufw, :disable_ufw, :add_firewall_rule, :remove_firewall_rule, :toggle_firewall_rule, :apply_firewall_rules, :vulnerability_scanner, :check_scanner_status, :install_go, :install_osv_scanner, :update_scan_config, :scan_all_deployments ]
+  before_action :authorize_server, only: [ :show, :edit, :update, :destroy, :test_connection, :update_server, :install_dokku, :restart_server, :logs, :firewall_rules, :sync_firewall_rules, :enable_ufw, :disable_ufw, :add_firewall_rule, :remove_firewall_rule, :toggle_firewall_rule, :apply_firewall_rules, :vulnerability_scanner, :check_scanner_status, :install_go, :install_osv_scanner, :update_scan_config, :scan_all_deployments ]
+
   def index
     @pagy, @servers = pagy(current_user.servers.order(:name), limit: 10)
-    log_activity('server_list_viewed', details: "Viewed servers list (#{@servers.count} servers)")
+    log_activity("server_list_viewed", details: "Viewed servers list (#{@servers.count} servers)")
   end
 
   def show
     @deployments = @server.deployments.includes(:domains, :application_healths).order(:name)
-    
+
     # Check server connectivity status without blocking the page load
     @server_status = check_server_status_safely
-    
-    log_activity('server_viewed', details: "Viewed server: #{@server.display_name}")
+
+    log_activity("server_viewed", details: "Viewed server: #{@server.display_name}")
   end
 
   def new
-    @server = current_user.servers.build(username: 'root', port: 22)
+    @server = current_user.servers.build(username: "root", port: 22)
     authorize @server
   end
 
   def create
     @server = current_user.servers.build(server_params)
     authorize @server
-    
+
     if @server.save
-      log_activity('server_created', details: "Created server: #{@server.display_name}")
+      log_activity("server_created", details: "Created server: #{@server.display_name}")
       toast_success("Server '#{@server.name}' created successfully!", title: "Server Created")
       redirect_to @server
     else
@@ -45,7 +45,7 @@ class ServersController < ApplicationController
 
   def update
     if @server.update(server_params)
-      log_activity('server_updated', details: "Updated server: #{@server.display_name}")
+      log_activity("server_updated", details: "Updated server: #{@server.display_name}")
       toast_success("Server '#{@server.name}' updated successfully!", title: "Server Updated")
       redirect_to @server
     else
@@ -57,7 +57,7 @@ class ServersController < ApplicationController
   def destroy
     server_name = @server.name
     @server.destroy
-    log_activity('server_deleted', details: "Deleted server: #{server_name}")
+    log_activity("server_deleted", details: "Deleted server: #{server_name}")
     toast_success("Server '#{server_name}' deleted successfully!", title: "Server Deleted")
     redirect_to servers_path
   end
@@ -66,9 +66,9 @@ class ServersController < ApplicationController
     begin
       # Start the connection test in the background
       TestConnectionJob.perform_later(@server.id, current_user.id)
-      
-      log_activity('server_connection_test_started', details: "Started connection test for server: #{@server.display_name}")
-      
+
+      log_activity("server_connection_test_started", details: "Started connection test for server: #{@server.display_name}")
+
       render json: {
         success: true,
         message: "Connection test started in background. You'll be notified when complete.",
@@ -87,9 +87,9 @@ class ServersController < ApplicationController
     begin
       # Start the server update in the background
       UpdateServerJob.perform_later(@server.id, current_user.id)
-      
-      log_activity('server_update_started', details: "Started server update for: #{@server.display_name}")
-      
+
+      log_activity("server_update_started", details: "Started server update for: #{@server.display_name}")
+
       render json: {
         success: true,
         message: "Server update started in background. This may take several minutes. You'll be notified when complete.",
@@ -108,9 +108,9 @@ class ServersController < ApplicationController
     begin
       # Start the Dokku installation in the background
       InstallDokkuJob.perform_later(@server.id, current_user.id)
-      
-      log_activity('dokku_installation_started', details: "Started Dokku installation for: #{@server.display_name}")
-      
+
+      log_activity("dokku_installation_started", details: "Started Dokku installation for: #{@server.display_name}")
+
       render json: {
         success: true,
         message: "Dokku installation started in background. This may take 5-10 minutes. You'll be notified when complete.",
@@ -129,16 +129,16 @@ class ServersController < ApplicationController
     begin
       service = SshConnectionService.new(@server)
       result = service.restart_server
-      
+
       if result[:success]
-        log_activity('server_restarted', details: "Successfully initiated restart on server: #{@server.display_name}")
+        log_activity("server_restarted", details: "Successfully initiated restart on server: #{@server.display_name}")
         render json: {
           success: true,
           message: "Server restart initiated successfully! The server will be unavailable for a few minutes.",
           output: result[:output]
         }
       else
-        log_activity('server_restart_failed', details: "Failed to restart server: #{@server.display_name} - #{result[:error]}")
+        log_activity("server_restart_failed", details: "Failed to restart server: #{@server.display_name} - #{result[:error]}")
         render json: {
           success: false,
           message: result[:error],
@@ -158,19 +158,19 @@ class ServersController < ApplicationController
     # Get activity logs related to this server
     # Search for server name and deployment names in the details field
     deployment_names = @server.deployments.pluck(:name)
-    
+
     # Build a query to find logs that mention this server or its deployments
-    search_terms = [@server.name, @server.display_name] + deployment_names
+    search_terms = [ @server.name, @server.display_name ] + deployment_names
     search_conditions = search_terms.map { |term| "details ILIKE ?" }
     search_values = search_terms.map { |term| "%#{term}%" }
-    
+
     @activity_logs = ActivityLog.includes(:user)
-                               .where(search_conditions.join(' OR '), *search_values)
+                               .where(search_conditions.join(" OR "), *search_values)
                                .order(occurred_at: :desc)
-    
+
     @pagy, @activity_logs = pagy(@activity_logs, limit: 20)
-    
-    log_activity('server_logs_viewed', details: "Viewed activity logs for server: #{@server.display_name}")
+
+    log_activity("server_logs_viewed", details: "Viewed activity logs for server: #{@server.display_name}")
   end
 
   def firewall_rules
@@ -183,7 +183,7 @@ class ServersController < ApplicationController
     # Reload after potential sync
     @firewall_rules = @server.firewall_rules.ordered
 
-    log_activity('firewall_rules_viewed', details: "Viewed firewall rules for server: #{@server.display_name}")
+    log_activity("firewall_rules_viewed", details: "Viewed firewall rules for server: #{@server.display_name}")
   end
 
   def sync_firewall_rules
@@ -252,7 +252,7 @@ class ServersController < ApplicationController
       if result[:success]
         @server.update!(ufw_enabled: true)
 
-        log_activity('ufw_enabled', details: "Enabled UFW with Docker compatibility on server: #{@server.display_name}")
+        log_activity("ufw_enabled", details: "Enabled UFW with Docker compatibility on server: #{@server.display_name}")
 
         # Build success message with warnings if any
         message = "UFW enabled successfully with Docker compatibility. Essential rules (SSH, HTTP, HTTPS) have been added."
@@ -297,7 +297,7 @@ class ServersController < ApplicationController
       if result[:success]
         @server.update!(ufw_enabled: false)
 
-        log_activity('ufw_disabled', details: "Disabled UFW on server: #{@server.display_name}")
+        log_activity("ufw_disabled", details: "Disabled UFW on server: #{@server.display_name}")
 
         respond_to do |format|
           format.json { render json: { success: true, message: "UFW disabled successfully" } }
@@ -341,7 +341,7 @@ class ServersController < ApplicationController
           # Save to database
           rule.save!
 
-          log_activity('firewall_rule_added',
+          log_activity("firewall_rule_added",
                       details: "Added firewall rule #{rule.display_name} to server: #{@server.display_name}")
 
           respond_to do |format|
@@ -368,9 +368,9 @@ class ServersController < ApplicationController
         end
       else
         respond_to do |format|
-          format.json { render json: { success: false, message: rule.errors.full_messages.join(', ') }, status: :unprocessable_entity }
+          format.json { render json: { success: false, message: rule.errors.full_messages.join(", ") }, status: :unprocessable_entity }
           format.html do
-            toast_error(rule.errors.full_messages.join(', '), title: "Validation Failed")
+            toast_error(rule.errors.full_messages.join(", "), title: "Validation Failed")
             redirect_to firewall_rules_server_path(@server)
           end
         end
@@ -412,7 +412,7 @@ class ServersController < ApplicationController
             # Delete from database
             rule.destroy!
 
-            log_activity('firewall_rule_removed',
+            log_activity("firewall_rule_removed",
                         details: "Removed firewall rule #{rule.display_name} from server: #{@server.display_name}")
 
             respond_to do |format|
@@ -470,7 +470,7 @@ class ServersController < ApplicationController
       rule = @server.firewall_rules.find(params[:rule_id])
       rule.update!(enabled: !rule.enabled)
 
-      log_activity('firewall_rule_toggled',
+      log_activity("firewall_rule_toggled",
                   details: "Toggled firewall rule #{rule.display_name} to #{rule.enabled? ? 'enabled' : 'disabled'} on server: #{@server.display_name}")
 
       respond_to do |format|
@@ -519,7 +519,7 @@ class ServersController < ApplicationController
         end
       end
 
-      log_activity('firewall_rules_applied',
+      log_activity("firewall_rules_applied",
                   details: "Applied all firewall rules to server: #{@server.display_name}")
 
       respond_to do |format|
@@ -586,7 +586,7 @@ class ServersController < ApplicationController
           result = service.install_go(version, @server.uuid)
 
           if result[:success]
-            log_activity('go_installed', details: "Installed Go #{version} on server: #{@server.display_name}")
+            log_activity("go_installed", details: "Installed Go #{version} on server: #{@server.display_name}")
           end
         end
       end
@@ -607,7 +607,7 @@ class ServersController < ApplicationController
           result = service.install_osv_scanner(@server.uuid)
 
           if result[:success]
-            log_activity('osv_scanner_installed', details: "Installed OSV Scanner on server: #{@server.display_name}")
+            log_activity("osv_scanner_installed", details: "Installed OSV Scanner on server: #{@server.display_name}")
           end
         end
       end
@@ -622,7 +622,7 @@ class ServersController < ApplicationController
   def update_scan_config
     begin
       scan_schedule = params[:scan_schedule]
-      enabled = params[:enabled] == 'true' || params[:enabled] == true
+      enabled = params[:enabled] == "true" || params[:enabled] == true
 
       unless VulnerabilityScanConfig::SCAN_SCHEDULES.key?(scan_schedule)
         respond_to do |format|
@@ -640,10 +640,10 @@ class ServersController < ApplicationController
       config.enabled = enabled
 
       # Schedule next scan if enabled and not manual
-      config.schedule_next_scan if enabled && scan_schedule != 'manual'
+      config.schedule_next_scan if enabled && scan_schedule != "manual"
 
       if config.save
-        log_activity('scan_config_updated',
+        log_activity("scan_config_updated",
                     details: "Updated vulnerability scan config for server: #{@server.display_name} - Schedule: #{scan_schedule}, Enabled: #{enabled}")
 
         respond_to do |format|
@@ -665,9 +665,9 @@ class ServersController < ApplicationController
         end
       else
         respond_to do |format|
-          format.json { render json: { success: false, message: config.errors.full_messages.join(', ') }, status: :unprocessable_entity }
+          format.json { render json: { success: false, message: config.errors.full_messages.join(", ") }, status: :unprocessable_entity }
           format.html do
-            toast_error(config.errors.full_messages.join(', '), title: "Update Failed")
+            toast_error(config.errors.full_messages.join(", "), title: "Update Failed")
             redirect_to vulnerability_scanner_server_path(@server)
           end
         end
@@ -719,13 +719,13 @@ class ServersController < ApplicationController
       deployments.each do |deployment|
         Thread.new do
           ActiveRecord::Base.connection_pool.with_connection do
-            result = service.perform_vulnerability_scan(deployment, 'manual')
+            result = service.perform_vulnerability_scan(deployment, "manual")
             scans_started += 1 if result[:success]
           end
         end
       end
 
-      log_activity('scan_all_deployments_started',
+      log_activity("scan_all_deployments_started",
                   details: "Started vulnerability scans for all deployments on server: #{@server.display_name}")
 
       # Update last scan time
@@ -767,7 +767,7 @@ class ServersController < ApplicationController
     toast_error("Server not found.", title: "Not Found")
     redirect_to servers_path
   end
-  
+
   def authorize_server
     authorize @server
   end
@@ -779,13 +779,13 @@ class ServersController < ApplicationController
   def check_server_status_safely
     status = @server.connection_status
     message = case status
-              when 'connected'
+    when "connected"
                 "Server is connected. Last checked: #{@server.last_connected_ago}."
-              when 'failed'
+    when "failed"
                 "Connection failed. Last attempt: #{@server.last_connected_ago}."
-              else # 'unknown'
+    else # 'unknown'
                 "Server status is unknown. Test the connection to update."
-              end
+    end
 
     {
       online: @server.connected?,
@@ -821,7 +821,7 @@ class ServersController < ApplicationController
       next unless port_match
 
       port = port_match[1]
-      protocol = port_match[2] || 'any'
+      protocol = port_match[2] || "any"
 
       @server.firewall_rules.find_or_create_by!(
         port: port,
@@ -829,7 +829,7 @@ class ServersController < ApplicationController
         action: ufw_rule[:action],
         direction: ufw_rule[:direction]
       ) do |rule|
-        rule.from_ip = ufw_rule[:from] unless ufw_rule[:from] == 'Anywhere'
+        rule.from_ip = ufw_rule[:from] unless ufw_rule[:from] == "Anywhere"
         rule.comment = ufw_rule[:comment]
         rule.enabled = true
       end

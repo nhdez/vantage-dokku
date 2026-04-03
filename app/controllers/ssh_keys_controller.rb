@@ -1,16 +1,16 @@
 class SshKeysController < ApplicationController
   include ActivityTrackable
-  
-  before_action :set_ssh_key, only: [:show, :edit, :update, :destroy]
-  before_action :authorize_ssh_key, only: [:show, :edit, :update, :destroy]
-  
+
+  before_action :set_ssh_key, only: [ :show, :edit, :update, :destroy ]
+  before_action :authorize_ssh_key, only: [ :show, :edit, :update, :destroy ]
+
   def index
     @pagy, @ssh_keys = pagy(current_user.ssh_keys.order(:name), limit: 15)
-    log_activity('ssh_keys_list_viewed', details: "Viewed SSH keys list (#{@ssh_keys.count} keys)")
+    log_activity("ssh_keys_list_viewed", details: "Viewed SSH keys list (#{@ssh_keys.count} keys)")
   end
 
   def show
-    log_activity('ssh_key_viewed', details: "Viewed SSH key: #{@ssh_key.display_name}")
+    log_activity("ssh_key_viewed", details: "Viewed SSH key: #{@ssh_key.display_name}")
   end
 
   def new
@@ -21,9 +21,9 @@ class SshKeysController < ApplicationController
   def create
     @ssh_key = current_user.ssh_keys.build(ssh_key_params)
     authorize @ssh_key
-    
+
     if @ssh_key.save
-      log_activity('ssh_key_created', details: "Created SSH key: #{@ssh_key.display_name}")
+      log_activity("ssh_key_created", details: "Created SSH key: #{@ssh_key.display_name}")
       toast_success("SSH key '#{@ssh_key.name}' created successfully!", title: "SSH Key Created")
       redirect_to @ssh_key
     else
@@ -38,7 +38,7 @@ class SshKeysController < ApplicationController
 
   def update
     if @ssh_key.update(ssh_key_params)
-      log_activity('ssh_key_updated', details: "Updated SSH key: #{@ssh_key.display_name}")
+      log_activity("ssh_key_updated", details: "Updated SSH key: #{@ssh_key.display_name}")
       toast_success("SSH key '#{@ssh_key.name}' updated successfully!", title: "SSH Key Updated")
       redirect_to @ssh_key
     else
@@ -50,7 +50,7 @@ class SshKeysController < ApplicationController
   def destroy
     key_name = @ssh_key.name
     @ssh_key.destroy
-    log_activity('ssh_key_deleted', details: "Deleted SSH key: #{key_name}")
+    log_activity("ssh_key_deleted", details: "Deleted SSH key: #{key_name}")
     toast_success("SSH key '#{key_name}' deleted successfully!", title: "SSH Key Deleted")
     redirect_to ssh_keys_path
   end
@@ -63,7 +63,7 @@ class SshKeysController < ApplicationController
     toast_error("SSH key not found.", title: "Not Found")
     redirect_to ssh_keys_path
   end
-  
+
   def authorize_ssh_key
     authorize @ssh_key
   end

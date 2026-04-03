@@ -22,7 +22,7 @@ class DeleteDomainJob < ApplicationJob
         # Log the successful deletion
         ActivityLog.create!(
           user: @user,
-          action: 'domain_deleted',
+          action: "domain_deleted",
           details: "Deleted domain '#{domain_name}' from deployment '#{@deployment.name}'",
           occurred_at: Time.current
         )
@@ -50,7 +50,7 @@ class DeleteDomainJob < ApplicationJob
 
         ActivityLog.create!(
           user: @user,
-          action: 'domain_deleted',
+          action: "domain_deleted",
           details: "Deleted domain '#{domain_name}' from database (server removal failed: #{result[:error]})",
           occurred_at: Time.current
         )
@@ -62,7 +62,7 @@ class DeleteDomainJob < ApplicationJob
 
       ActivityLog.create!(
         user: @user,
-        action: 'domain_deletion_failed',
+        action: "domain_deletion_failed",
         details: "Failed to delete domain '#{@domain.name}': #{e.message}",
         occurred_at: Time.current
       )

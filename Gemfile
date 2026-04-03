@@ -28,7 +28,7 @@ gem "pundit"
 gem "rolify"
 
 # Pagination
-gem "pagy"
+gem "pagy", "~> 9.4"
 
 # Search & Filtering
 gem "ransack"
@@ -76,11 +76,11 @@ group :development do
 
   # Use console on exceptions pages [https://github.com/rails/web-console]
   gem "web-console"
-  
+
   # Better error pages with more debugging info
   gem "better_errors"
   gem "binding_of_caller"
-  
+
   # Preview emails in browser during development
   gem "letter_opener"
 

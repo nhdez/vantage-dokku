@@ -4,11 +4,11 @@ class InstallDokkuJob < ApplicationJob
   def perform(server_id, user_id)
     @server = Server.find(server_id)
     @user = User.find(user_id)
-    
+
     begin
       service = SshConnectionService.new(@server)
       result = service.install_dokku_with_key_setup
-      
+
       if result[:success]
         ActionCable.server.broadcast("install_dokku_#{@server.uuid}", {
           success: true,
@@ -27,10 +27,10 @@ class InstallDokkuJob < ApplicationJob
           output: result[:output] || ""
         })
       end
-      
+
     rescue StandardError => e
       Rails.logger.error "Background Dokku installation failed: #{e.message}"
-      
+
       ActionCable.server.broadcast("install_dokku_#{@server.uuid}", {
         success: false,
         message: "An unexpected error occurred: #{e.message}",

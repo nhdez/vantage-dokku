@@ -3,11 +3,11 @@ class GitHubService
     @linked_account = linked_account
     @client = Octokit::Client.new(access_token: @linked_account.access_token)
   end
-  
+
   def test_connection
     begin
       user_info = @client.user
-      
+
       {
         success: true,
         account_info: {
@@ -40,19 +40,19 @@ class GitHubService
       { success: false, error: "GitHub API error: #{e.message}" }
     end
   end
-  
-  def get_repositories(type: 'all', sort: 'updated', per_page: 30, page: 1)
+
+  def get_repositories(type: "all", sort: "updated", per_page: 30, page: 1)
     begin
       options = {
         type: type,        # 'all', 'owner', 'public', 'private', 'member'
         sort: sort,        # 'created', 'updated', 'pushed', 'full_name'
-        direction: 'desc',
+        direction: "desc",
         per_page: per_page,
         page: page
       }
-      
+
       repos = @client.repositories(nil, options)
-      
+
       {
         success: true,
         repositories: repos.map do |repo|
@@ -89,11 +89,11 @@ class GitHubService
       { success: false, error: "Failed to fetch repositories: #{e.message}" }
     end
   end
-  
+
   def get_repository(owner, repo)
     begin
       repository = @client.repository("#{owner}/#{repo}")
-      
+
       {
         success: true,
         repository: {
@@ -129,11 +129,11 @@ class GitHubService
       { success: false, error: "Failed to fetch repository: #{e.message}" }
     end
   end
-  
+
   def get_branches(owner, repo)
     begin
       branches = @client.branches("#{owner}/#{repo}")
-      
+
       {
         success: true,
         branches: branches.map do |branch|
@@ -155,11 +155,11 @@ class GitHubService
       { success: false, error: "Failed to fetch branches: #{e.message}" }
     end
   end
-  
+
   def get_user_organizations
     begin
       orgs = @client.organizations
-      
+
       {
         success: true,
         organizations: orgs.map do |org|
@@ -181,24 +181,24 @@ class GitHubService
       { success: false, error: "Failed to fetch organizations: #{e.message}" }
     end
   end
-  
+
   def validate_webhook_url(url)
     begin
-      require 'net/http'
-      require 'uri'
-      
+      require "net/http"
+      require "uri"
+
       uri = URI.parse(url)
       http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = (uri.scheme == 'https')
+      http.use_ssl = (uri.scheme == "https")
       http.read_timeout = 10
       http.open_timeout = 10
-      
+
       request = Net::HTTP::Post.new(uri.path)
-      request['Content-Type'] = 'application/json'
+      request["Content-Type"] = "application/json"
       request.body = { test: true }.to_json
-      
+
       response = http.request(request)
-      
+
       # We expect either a successful response or a specific error that indicates the endpoint exists
       if response.code.to_i < 500
         { success: true, message: "Webhook URL is reachable" }
@@ -209,9 +209,9 @@ class GitHubService
       { success: false, error: "Webhook URL is not reachable: #{e.message}" }
     end
   end
-  
+
   private
-  
+
   def handle_rate_limit
     # GitHub API has rate limits, we can handle them here if needed
     if @client.rate_limit.remaining < 10
