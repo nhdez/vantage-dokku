@@ -5,28 +5,28 @@ class UpdateDatabaseConfigurationJob < ApplicationJob
     @deployment = Deployment.find(deployment_id)
     @user = User.find(user_id)
     @database_params = database_params
-    
+
     Rails.logger.info "[UpdateDatabaseConfigurationJob] Starting database configuration for deployment #{@deployment.uuid}"
-    
+
     begin
       # Broadcast that configuration is starting
       broadcast_update("Starting database configuration...")
-      
+
       @database_configuration = @deployment.database_configuration || @deployment.build_database_configuration
-      
+
       # Set the parameters
       @database_configuration.assign_attributes(
-        database_type: @database_params['database_type'],
-        redis_enabled: @database_params['redis_enabled'] == '1'
+        database_type: @database_params["database_type"],
+        redis_enabled: @database_params["redis_enabled"] == "1"
       )
-      
+
       if @database_configuration.save
         broadcast_update("Database configuration saved. Configuring on server...")
-        
+
         # Configure database on server
         service = SshConnectionService.new(@deployment.server)
         result = service.configure_database(@deployment.dokku_app_name, @database_configuration)
-        
+
         if result[:success]
           @database_configuration.update!(
             configured: true,
@@ -53,7 +53,7 @@ class UpdateDatabaseConfigurationJob < ApplicationJob
             configuration_output: result[:output],
             error_message: result[:error]
           )
-          
+
           broadcast_error("Failed to configure database: #{result[:error]}")
           Rails.logger.error "[UpdateDatabaseConfigurationJob] Database configuration failed: #{result[:error]}"
         end
@@ -62,7 +62,7 @@ class UpdateDatabaseConfigurationJob < ApplicationJob
         broadcast_error(error_message)
         Rails.logger.error "[UpdateDatabaseConfigurationJob] #{error_message}"
       end
-      
+
     rescue StandardError => e
       Rails.logger.error "[UpdateDatabaseConfigurationJob] Database configuration failed: #{e.message}"
       broadcast_error("An unexpected error occurred: #{e.message}")
@@ -73,7 +73,7 @@ class UpdateDatabaseConfigurationJob < ApplicationJob
 
   def broadcast_update(message)
     ActionCable.server.broadcast("database_configuration_#{@deployment.uuid}", {
-      type: 'update',
+      type: "update",
       message: message,
       timestamp: Time.current.iso8601
     })
@@ -81,7 +81,7 @@ class UpdateDatabaseConfigurationJob < ApplicationJob
 
   def broadcast_success(message)
     ActionCable.server.broadcast("database_configuration_#{@deployment.uuid}", {
-      type: 'success',
+      type: "success",
       message: message,
       timestamp: Time.current.iso8601
     })
@@ -89,7 +89,7 @@ class UpdateDatabaseConfigurationJob < ApplicationJob
 
   def broadcast_error(message)
     ActionCable.server.broadcast("database_configuration_#{@deployment.uuid}", {
-      type: 'error',
+      type: "error",
       message: message,
       timestamp: Time.current.iso8601
     })

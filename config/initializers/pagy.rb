@@ -5,20 +5,20 @@
 # Pagy::DEFAULT[:size]   = 7    # default page navigation size
 
 # Set items per page
-Pagy::DEFAULT[:items] = 25
+Pagy::DEFAULT[:limit] = 25
 
 # Enable Bootstrap extra for styled pagination
-require 'pagy/extras/bootstrap'
+require "pagy/extras/bootstrap"
 
 # Enable overflow extra to handle pages beyond the pagination limit
-require 'pagy/extras/overflow'
+require "pagy/extras/overflow"
 Pagy::DEFAULT[:overflow] = :last_page
 
 # Enable metadata extra to get pagination metadata
-require 'pagy/extras/metadata'
+require "pagy/extras/metadata"
 
 # Enable trim extra to remove empty parameters from links
-require 'pagy/extras/trim'
+require "pagy/extras/trim"
 
 # Enable array extra to paginate arrays instead of ActiveRecord collections
-require 'pagy/extras/array'
+require "pagy/extras/array"

@@ -1,24 +1,24 @@
 class DeploymentsController < ApplicationController
   include ActivityTrackable
-  
-  before_action :set_deployment, only: [:show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :delete_domain, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :port_mappings, :sync_port_mappings, :add_port_mapping, :remove_port_mapping, :clear_port_mappings, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command, :server_logs, :start_log_streaming, :stop_log_streaming, :scans, :trigger_scan]
-  before_action :authorize_deployment, only: [:show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :delete_domain, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :port_mappings, :sync_port_mappings, :add_port_mapping, :remove_port_mapping, :clear_port_mappings, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command, :server_logs, :start_log_streaming, :stop_log_streaming, :scans, :trigger_scan]
-  
+
+  before_action :set_deployment, only: [ :show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :delete_domain, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :port_mappings, :sync_port_mappings, :add_port_mapping, :remove_port_mapping, :clear_port_mappings, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command, :server_logs, :start_log_streaming, :stop_log_streaming, :scans, :trigger_scan ]
+  before_action :authorize_deployment, only: [ :show, :edit, :update, :destroy, :git_configuration, :update_git_configuration, :deploy, :logs, :configure_domain, :update_domains, :delete_domain, :attach_ssh_keys, :update_ssh_keys, :configure_databases, :update_database_configuration, :delete_database_configuration, :port_mappings, :sync_port_mappings, :add_port_mapping, :remove_port_mapping, :clear_port_mappings, :create_dokku_app, :manage_environment, :update_environment, :check_ssl_status, :execute_commands, :run_command, :server_logs, :start_log_streaming, :stop_log_streaming, :scans, :trigger_scan ]
+
   def index
     @pagy, @deployments = pagy(current_user.deployments.includes(:server).recent, limit: 15)
-    log_activity('deployments_list_viewed', details: "Viewed deployments list (#{@deployments.count} deployments)")
+    log_activity("deployments_list_viewed", details: "Viewed deployments list (#{@deployments.count} deployments)")
   end
 
   def show
     @latest_vulnerability_scan = @deployment.vulnerability_scans.completed.recent.first
-    log_activity('deployment_viewed', details: "Viewed deployment: #{@deployment.display_name}")
+    log_activity("deployment_viewed", details: "Viewed deployment: #{@deployment.display_name}")
   end
 
   def new
     @deployment = current_user.deployments.build
-    @available_servers = current_user.servers.where.not(dokku_version: [nil, ""])
+    @available_servers = current_user.servers.where.not(dokku_version: [ nil, "" ])
     authorize @deployment
-    
+
     if @available_servers.empty?
       toast_error("You need at least one server with Dokku installed to create a deployment.", title: "No Dokku Servers")
       redirect_to deployments_path
@@ -27,11 +27,11 @@ class DeploymentsController < ApplicationController
 
   def create
     @deployment = current_user.deployments.build(deployment_params)
-    @available_servers = current_user.servers.where.not(dokku_version: [nil, ""])
+    @available_servers = current_user.servers.where.not(dokku_version: [ nil, "" ])
     authorize @deployment
-    
+
     if @deployment.save
-      log_activity('deployment_created', details: "Created deployment: #{@deployment.display_name}")
+      log_activity("deployment_created", details: "Created deployment: #{@deployment.display_name}")
       toast_success("Deployment '#{@deployment.name}' created successfully with Dokku app name '#{@deployment.dokku_app_name}'!", title: "Deployment Created")
       redirect_to @deployment
     else
@@ -41,17 +41,17 @@ class DeploymentsController < ApplicationController
   end
 
   def edit
-    @available_servers = current_user.servers.where.not(dokku_version: [nil, ""])
+    @available_servers = current_user.servers.where.not(dokku_version: [ nil, "" ])
     # Include current server even if it no longer has Dokku (for editing existing deployments)
     @available_servers = @available_servers.or(Server.where(id: @deployment.server_id))
   end
 
   def update
-    @available_servers = current_user.servers.where.not(dokku_version: [nil, ""])
+    @available_servers = current_user.servers.where.not(dokku_version: [ nil, "" ])
     @available_servers = @available_servers.or(Server.where(id: @deployment.server_id))
-    
+
     if @deployment.update(deployment_params)
-      log_activity('deployment_updated', details: "Updated deployment: #{@deployment.display_name}")
+      log_activity("deployment_updated", details: "Updated deployment: #{@deployment.display_name}")
       toast_success("Deployment '#{@deployment.name}' updated successfully!", title: "Deployment Updated")
       redirect_to @deployment
     else
@@ -66,7 +66,7 @@ class DeploymentsController < ApplicationController
     # Queue the deletion job to run in background
     DestroyDeploymentJob.perform_later(@deployment.id, current_user.id)
 
-    log_activity('deployment_deletion_started',
+    log_activity("deployment_deletion_started",
                 details: "Started deletion of deployment: #{deployment_name}")
 
     respond_to do |format|
@@ -113,26 +113,26 @@ class DeploymentsController < ApplicationController
     begin
       service = SshConnectionService.new(@deployment.server)
       result = service.create_dokku_app(@deployment.dokku_app_name)
-      
+
       if result[:success]
-        log_activity('dokku_app_created', details: "Created Dokku app: #{@deployment.dokku_app_name} on server: #{@deployment.server.name}")
+        log_activity("dokku_app_created", details: "Created Dokku app: #{@deployment.dokku_app_name} on server: #{@deployment.server.name}")
         toast_success("Dokku app '#{@deployment.dokku_app_name}' created successfully!", title: "App Created")
         # Update deployment status here in future
       else
-        log_activity('dokku_app_creation_failed', details: "Failed to create Dokku app: #{@deployment.dokku_app_name} - #{result[:error]}")
+        log_activity("dokku_app_creation_failed", details: "Failed to create Dokku app: #{@deployment.dokku_app_name} - #{result[:error]}")
         toast_error("Failed to create Dokku app: #{result[:error]}", title: "Creation Failed")
       end
     rescue StandardError => e
       Rails.logger.error "Dokku app creation failed: #{e.message}"
       toast_error("An unexpected error occurred: #{e.message}", title: "Creation Error")
     end
-    
+
     redirect_to @deployment
   end
 
   def configure_domain
     @domains = @deployment.domains.ordered
-    log_activity('domains_viewed', details: "Viewed domain configuration for deployment: #{@deployment.display_name}")
+    log_activity("domains_viewed", details: "Viewed domain configuration for deployment: #{@deployment.display_name}")
   end
 
   def delete_domain
@@ -159,7 +159,7 @@ class DeploymentsController < ApplicationController
       # Remove domain from Dokku and clean up SSL
       DeleteDomainJob.perform_later(@deployment.id, domain.id, current_user.id)
 
-      log_activity('domain_deletion_started',
+      log_activity("domain_deletion_started",
                   details: "Started deletion of domain #{domain_name} from deployment: #{@deployment.display_name}")
 
       respond_to do |format|
@@ -188,16 +188,16 @@ class DeploymentsController < ApplicationController
   def update_domains
     begin
       domains_params = params[:domains] || {}
-      
+
       # Convert parameters to a serializable hash for the job
       domains_hash = domains_params.to_unsafe_h
-      
+
       # Start the domains update in the background
       UpdateDomainsJob.perform_later(@deployment.id, current_user.id, domains_hash)
-      
-      log_activity('domains_update_started', 
+
+      log_activity("domains_update_started",
                   details: "Started domain update for deployment: #{@deployment.display_name}")
-      
+
       respond_to do |format|
         format.json do
           render json: {
@@ -213,7 +213,7 @@ class DeploymentsController < ApplicationController
       end
     rescue StandardError => e
       Rails.logger.error "Failed to start domain update: #{e.message}"
-      
+
       respond_to do |format|
         format.json do
           render json: {
@@ -232,47 +232,47 @@ class DeploymentsController < ApplicationController
   def attach_ssh_keys
     @available_ssh_keys = current_user.ssh_keys.active.order(:name)
     @attached_ssh_keys = @deployment.ssh_keys
-    log_activity('ssh_keys_attachment_viewed', details: "Viewed SSH key attachment for deployment: #{@deployment.display_name}")
+    log_activity("ssh_keys_attachment_viewed", details: "Viewed SSH key attachment for deployment: #{@deployment.display_name}")
   end
 
   def update_ssh_keys
     begin
       ssh_key_ids = params[:ssh_key_ids] || []
-      
+
       # Get SSH keys to attach and detach
       new_ssh_keys = current_user.ssh_keys.where(id: ssh_key_ids)
       current_ssh_keys = @deployment.ssh_keys
-      
+
       keys_to_attach = new_ssh_keys - current_ssh_keys
       keys_to_detach = current_ssh_keys - new_ssh_keys
-      
+
       # Update the associations
       @deployment.ssh_keys = new_ssh_keys
-      
+
       # Sync keys to Dokku server
       service = SshConnectionService.new(@deployment.server)
       result = service.sync_dokku_ssh_keys(@deployment.ssh_keys.pluck(:public_key))
-      
+
       if result[:success]
         attached_count = keys_to_attach.count
         detached_count = keys_to_detach.count
-        
+
         message_parts = []
         message_parts << "#{attached_count} key#{'s' unless attached_count == 1} attached" if attached_count > 0
         message_parts << "#{detached_count} key#{'s' unless detached_count == 1} detached" if detached_count > 0
         message_parts << "No changes made" if attached_count == 0 && detached_count == 0
-        
-        log_activity('ssh_keys_updated', details: "Updated SSH keys for deployment: #{@deployment.display_name} - #{message_parts.join(', ')}")
+
+        log_activity("ssh_keys_updated", details: "Updated SSH keys for deployment: #{@deployment.display_name} - #{message_parts.join(', ')}")
         toast_success("SSH keys updated successfully! #{message_parts.join(', ').capitalize}.", title: "Keys Updated")
       else
-        log_activity('ssh_keys_sync_failed', details: "Failed to sync SSH keys for deployment: #{@deployment.display_name} - #{result[:error]}")
+        log_activity("ssh_keys_sync_failed", details: "Failed to sync SSH keys for deployment: #{@deployment.display_name} - #{result[:error]}")
         toast_error("Failed to sync SSH keys to server: #{result[:error]}", title: "Sync Failed")
       end
     rescue StandardError => e
       Rails.logger.error "SSH key update failed: #{e.message}"
       toast_error("An unexpected error occurred: #{e.message}", title: "Update Error")
     end
-    
+
     redirect_to attach_ssh_keys_deployment_path(@deployment)
   end
 
@@ -288,22 +288,22 @@ class DeploymentsController < ApplicationController
     # Check for environment variable conflicts
     @has_conflicts = @database_configuration.has_environment_variable_conflict?.any?
 
-    log_activity('database_configuration_viewed', details: "Viewed database configuration for deployment: #{@deployment.display_name}")
+    log_activity("database_configuration_viewed", details: "Viewed database configuration for deployment: #{@deployment.display_name}")
   end
 
   def update_database_configuration
     begin
       database_params = params[:database_configuration] || {}
-      
+
       # Convert parameters to a serializable hash for the job
       database_hash = database_params.to_unsafe_h
-      
+
       # Start the database configuration in the background
       UpdateDatabaseConfigurationJob.perform_later(@deployment.id, current_user.id, database_hash)
-      
-      log_activity('database_configuration_started', 
+
+      log_activity("database_configuration_started",
                   details: "Started database configuration for deployment: #{@deployment.display_name}")
-      
+
       respond_to do |format|
         format.json do
           render json: {
@@ -319,7 +319,7 @@ class DeploymentsController < ApplicationController
       end
     rescue StandardError => e
       Rails.logger.error "Failed to start database configuration: #{e.message}"
-      
+
       respond_to do |format|
         format.json do
           render json: {
@@ -368,7 +368,7 @@ class DeploymentsController < ApplicationController
       # Queue the deletion job to run in background
       DeleteDatabaseConfigurationJob.perform_later(@deployment.id, current_user.id)
 
-      log_activity('database_deletion_started',
+      log_activity("database_deletion_started",
                   details: "Started deletion of database configuration for deployment: #{@deployment.display_name}")
 
       respond_to do |format|
@@ -412,7 +412,7 @@ class DeploymentsController < ApplicationController
     # Reload after sync
     @port_mappings = @deployment.port_mappings.ordered
 
-    log_activity('port_mappings_viewed', details: "Viewed port mappings for deployment: #{@deployment.display_name}")
+    log_activity("port_mappings_viewed", details: "Viewed port mappings for deployment: #{@deployment.display_name}")
   end
 
   def sync_port_mappings
@@ -483,7 +483,7 @@ class DeploymentsController < ApplicationController
           container_port: container_port
         )
 
-        log_activity('port_mapping_added',
+        log_activity("port_mapping_added",
                     details: "Added port mapping #{scheme}:#{host_port}:#{container_port} to deployment: #{@deployment.display_name}")
 
         respond_to do |format|
@@ -539,7 +539,7 @@ class DeploymentsController < ApplicationController
         # Remove from database
         port_mapping.destroy!
 
-        log_activity('port_mapping_removed',
+        log_activity("port_mapping_removed",
                     details: "Removed port mapping #{port_mapping.display_name} from deployment: #{@deployment.display_name}")
 
         respond_to do |format|
@@ -587,7 +587,7 @@ class DeploymentsController < ApplicationController
         # Clear from database
         @deployment.port_mappings.destroy_all
 
-        log_activity('port_mappings_cleared',
+        log_activity("port_mappings_cleared",
                     details: "Cleared all port mappings for deployment: #{@deployment.display_name}")
 
         respond_to do |format|
@@ -627,22 +627,22 @@ class DeploymentsController < ApplicationController
 
   def manage_environment
     @environment_variables = @deployment.environment_variables.ordered
-    log_activity('environment_variables_viewed', details: "Viewed environment variables for deployment: #{@deployment.display_name}")
+    log_activity("environment_variables_viewed", details: "Viewed environment variables for deployment: #{@deployment.display_name}")
   end
 
   def update_environment
     begin
       env_vars_params = params[:environment_variables] || {}
-      
+
       # Convert parameters to a serializable hash for the job
       env_vars_hash = env_vars_params.to_unsafe_h
-      
+
       # Start the environment variables update in the background
       UpdateEnvironmentJob.perform_later(@deployment.id, current_user.id, env_vars_hash)
-      
-      log_activity('environment_variables_update_started', 
+
+      log_activity("environment_variables_update_started",
                   details: "Started environment variables update for deployment: #{@deployment.display_name}")
-      
+
       respond_to do |format|
         format.json do
           render json: {
@@ -658,7 +658,7 @@ class DeploymentsController < ApplicationController
       end
     rescue StandardError => e
       Rails.logger.error "Failed to start environment variables update: #{e.message}"
-      
+
       respond_to do |format|
         format.json do
           render json: {
@@ -677,47 +677,47 @@ class DeploymentsController < ApplicationController
   def check_ssl_status
     Rails.logger.info "=== SSL STATUS CHECK METHOD CALLED ==="
     Rails.logger.info "SSL status check requested for domain: #{params[:domain]} on deployment: #{@deployment.uuid}"
-    
+
     begin
       domain_name = params[:domain]
-      
+
       if domain_name.blank?
         Rails.logger.error "SSL check failed: Domain name is required"
         respond_to do |format|
-          format.json { 
-            render json: { success: false, error: "Domain name is required" }, 
-                   status: :bad_request, content_type: 'application/json'
+          format.json {
+            render json: { success: false, error: "Domain name is required" },
+                   status: :bad_request, content_type: "application/json"
           }
         end
         return
       end
-      
+
       # Find the domain
       domain = @deployment.domains.find_by(name: domain_name)
-      
+
       unless domain
         Rails.logger.error "SSL check failed: Domain '#{domain_name}' not found"
         respond_to do |format|
-          format.json { 
-            render json: { success: false, error: "Domain not found" }, 
-                   status: :not_found, content_type: 'application/json'
+          format.json {
+            render json: { success: false, error: "Domain not found" },
+                   status: :not_found, content_type: "application/json"
           }
         end
         return
       end
-      
+
       Rails.logger.info "Running SSL verification for domain: #{domain_name}"
-      
+
       # Clear any cached SSL verification and run fresh check
       domain.clear_ssl_verification_cache
       ssl_result = domain.verify_ssl_status
-      
+
       Rails.logger.info "SSL verification completed for #{domain_name}: #{domain.real_ssl_status_text}"
-      
+
       # Log the SSL check activity
-      log_activity('ssl_status_checked', 
+      log_activity("ssl_status_checked",
                   details: "Checked SSL status for domain: #{domain_name} - Status: #{domain.real_ssl_status_text}")
-      
+
       # Return the result in the format expected by the JavaScript
       response_data = {
         success: true,
@@ -734,32 +734,32 @@ class DeploymentsController < ApplicationController
           checked_at: domain.last_ssl_check_time&.iso8601
         }
       }
-      
+
       Rails.logger.info "Returning SSL status response: #{response_data.to_json}"
-      
+
       respond_to do |format|
-        format.json { render json: response_data, content_type: 'application/json' }
+        format.json { render json: response_data, content_type: "application/json" }
       end
-      
+
     rescue StandardError => e
       Rails.logger.error "SSL status check failed for domain #{params[:domain]}: #{e.message}"
       Rails.logger.error e.backtrace.join("\n")
-      
+
       respond_to do |format|
-        format.json { 
+        format.json {
           render json: {
             success: false,
             error: "SSL check failed: #{e.message}"
-          }, status: :internal_server_error, content_type: 'application/json'
+          }, status: :internal_server_error, content_type: "application/json"
         }
       end
     end
   end
 
   def git_configuration
-    @github_linked_account = current_user.linked_accounts.find_by(provider: 'github')
+    @github_linked_account = current_user.linked_accounts.find_by(provider: "github")
     @github_repositories = []
-    
+
     if @github_linked_account&.connected?
       begin
         github_service = GitHubService.new(@github_linked_account)
@@ -770,48 +770,48 @@ class DeploymentsController < ApplicationController
         flash[:warning] = "Unable to fetch GitHub repositories. Please check your connection."
       end
     end
-    
-    log_activity('git_configuration_viewed', details: "Viewed Git configuration for deployment: #{@deployment.display_name}")
+
+    log_activity("git_configuration_viewed", details: "Viewed Git configuration for deployment: #{@deployment.display_name}")
   end
 
   def update_git_configuration
     deployment_method = params[:deployment_method]
-    
+
     case deployment_method
-    when 'manual'
+    when "manual"
       @deployment.update!(
-        deployment_method: 'manual',
+        deployment_method: "manual",
         repository_url: nil,
         repository_branch: nil
       )
       toast_success("Git configuration updated to manual deployment.", title: "Configuration Updated")
-      
-    when 'github_repo'
+
+    when "github_repo"
       repository_url = params[:github_repository_url]
-      branch = params[:repository_branch].presence || 'main'
-      
+      branch = params[:repository_branch].presence || "main"
+
       @deployment.update!(
-        deployment_method: 'github_repo',
+        deployment_method: "github_repo",
         repository_url: repository_url,
         repository_branch: branch
       )
       toast_success("GitHub repository configured successfully.", title: "Configuration Updated")
-      
-    when 'public_repo'
+
+    when "public_repo"
       repository_url = params[:public_repository_url]
-      branch = params[:repository_branch].presence || 'main'
-      
+      branch = params[:repository_branch].presence || "main"
+
       @deployment.update!(
-        deployment_method: 'public_repo',
+        deployment_method: "public_repo",
         repository_url: repository_url,
         repository_branch: branch
       )
       toast_success("Public repository configured successfully.", title: "Configuration Updated")
     end
-    
-    log_activity('git_configuration_updated', 
+
+    log_activity("git_configuration_updated",
                 details: "Updated Git configuration for deployment: #{@deployment.display_name} - Method: #{deployment_method}")
-    
+
     redirect_to @deployment
   rescue => e
     toast_error("Failed to update Git configuration: #{e.message}", title: "Configuration Failed")
@@ -832,23 +832,23 @@ class DeploymentsController < ApplicationController
     end
 
     # Start deployment in background
-    @deployment.update!(deployment_status: 'deploying')
+    @deployment.update!(deployment_status: "deploying")
     DeploymentJob.perform_later(@deployment)
-    
-    log_activity('deployment_started', details: "Started deployment for: #{@deployment.display_name}")
+
+    log_activity("deployment_started", details: "Started deployment for: #{@deployment.display_name}")
     toast_success("Deployment started! You can monitor progress in the logs.", title: "Deployment Started")
     redirect_to logs_deployment_path(@deployment)
   end
 
   def logs
     # This will show deployment logs in real-time
-    log_activity('deployment_logs_viewed', details: "Viewed deployment logs for: #{@deployment.display_name}")
-    
+    log_activity("deployment_logs_viewed", details: "Viewed deployment logs for: #{@deployment.display_name}")
+
     respond_to do |format|
       format.html
       format.json do
         latest_attempt = @deployment.latest_deployment_attempt
-        
+
         render json: {
           logs: latest_attempt&.logs || "No logs available",
           status: @deployment.deployment_status || "pending",
@@ -868,19 +868,19 @@ class DeploymentsController < ApplicationController
             duration_text: latest_attempt.duration_text,
             error_message: latest_attempt.error_message
           } : nil
-        }, status: 200, content_type: 'application/json'
+        }, status: 200, content_type: "application/json"
       end
     end
   end
 
   def execute_commands
     # Show the execute commands interface
-    log_activity('execute_commands_viewed', details: "Viewed execute commands interface for deployment: #{@deployment.display_name}")
+    log_activity("execute_commands_viewed", details: "Viewed execute commands interface for deployment: #{@deployment.display_name}")
   end
 
   def run_command
     command = params[:command]&.strip
-    raw_command = params[:raw_command] == '1'
+    raw_command = params[:raw_command] == "1"
 
     if command.blank?
       respond_to do |format|
@@ -901,7 +901,7 @@ class DeploymentsController < ApplicationController
     # Start command execution in background
     ExecuteCommandJob.perform_later(@deployment, current_user, command, raw_command)
 
-    log_activity('command_executed', details: "Executed command '#{command}' on deployment: #{@deployment.display_name}")
+    log_activity("command_executed", details: "Executed command '#{command}' on deployment: #{@deployment.display_name}")
 
     respond_to do |format|
       format.json do
@@ -919,7 +919,7 @@ class DeploymentsController < ApplicationController
     end
   rescue StandardError => e
     Rails.logger.error "Failed to execute command: #{e.message}"
-    
+
     respond_to do |format|
       format.json do
         render json: {
@@ -936,15 +936,15 @@ class DeploymentsController < ApplicationController
 
   def server_logs
     # Show the server logs interface
-    log_activity('server_logs_viewed', details: "Viewed server logs interface for deployment: #{@deployment.display_name}")
+    log_activity("server_logs_viewed", details: "Viewed server logs interface for deployment: #{@deployment.display_name}")
   end
 
   def start_log_streaming
     # Start streaming server logs in background
     ServerLogsStreamingJob.perform_later(@deployment, current_user)
-    
-    log_activity('server_logs_streaming_started', details: "Started server logs streaming for deployment: #{@deployment.display_name}")
-    
+
+    log_activity("server_logs_streaming_started", details: "Started server logs streaming for deployment: #{@deployment.display_name}")
+
     respond_to do |format|
       format.json do
         render json: {
@@ -960,7 +960,7 @@ class DeploymentsController < ApplicationController
     end
   rescue StandardError => e
     Rails.logger.error "Failed to start server logs streaming: #{e.message}"
-    
+
     respond_to do |format|
       format.json do
         render json: {
@@ -979,11 +979,11 @@ class DeploymentsController < ApplicationController
     # Stop streaming server logs
     # We'll broadcast a stop signal to the streaming job
     ActionCable.server.broadcast("server_logs_#{@deployment.uuid}", {
-      type: 'stop_streaming',
-      message: 'Log streaming stopped by user'
+      type: "stop_streaming",
+      message: "Log streaming stopped by user"
     })
 
-    log_activity('server_logs_streaming_stopped', details: "Stopped server logs streaming for deployment: #{@deployment.display_name}")
+    log_activity("server_logs_streaming_stopped", details: "Stopped server logs streaming for deployment: #{@deployment.display_name}")
 
     respond_to do |format|
       format.json do
@@ -1004,7 +1004,7 @@ class DeploymentsController < ApplicationController
     @pagy, @vulnerability_scans = pagy(@vulnerability_scans, limit: 20)
     @latest_scan = @vulnerability_scans.first
 
-    log_activity('vulnerability_scans_viewed', details: "Viewed vulnerability scans for deployment: #{@deployment.display_name}")
+    log_activity("vulnerability_scans_viewed", details: "Viewed vulnerability scans for deployment: #{@deployment.display_name}")
   end
 
   def trigger_scan
@@ -1025,7 +1025,7 @@ class DeploymentsController < ApplicationController
       end
 
       # Check if a scan is already running
-      if @deployment.vulnerability_scans.where(status: 'running').exists?
+      if @deployment.vulnerability_scans.where(status: "running").exists?
         respond_to do |format|
           format.json { render json: { success: false, message: "A scan is already running for this deployment" }, status: :unprocessable_entity }
           format.html do
@@ -1039,11 +1039,11 @@ class DeploymentsController < ApplicationController
       # Start scan in background
       Thread.new do
         ActiveRecord::Base.connection_pool.with_connection do
-          service.perform_vulnerability_scan(@deployment, 'manual')
+          service.perform_vulnerability_scan(@deployment, "manual")
         end
       end
 
-      log_activity('vulnerability_scan_triggered',
+      log_activity("vulnerability_scan_triggered",
                   details: "Triggered manual vulnerability scan for deployment: #{@deployment.display_name}")
 
       respond_to do |format|
@@ -1080,7 +1080,7 @@ class DeploymentsController < ApplicationController
     toast_error("Deployment not found.", title: "Not Found")
     redirect_to deployments_path
   end
-  
+
   def authorize_deployment
     authorize @deployment
   end
@@ -1135,11 +1135,11 @@ class DeploymentsController < ApplicationController
         @deployment.environment_variables.create!(
           key: db_env_var_name,
           value: database_url_from_dokku,
-          source: 'system'  # Mark as system-managed
+          source: "system"  # Mark as system-managed
         )
         Rails.logger.info "[DeploymentsController] Created #{db_env_var_name} in EnvironmentVariables for deployment #{@deployment.uuid}"
       elsif existing_var.value != database_url_from_dokku
-        existing_var.update!(value: database_url_from_dokku, source: 'system')
+        existing_var.update!(value: database_url_from_dokku, source: "system")
         Rails.logger.info "[DeploymentsController] Updated #{db_env_var_name} in EnvironmentVariables for deployment #{@deployment.uuid}"
       end
     end
@@ -1161,11 +1161,11 @@ class DeploymentsController < ApplicationController
         @deployment.environment_variables.create!(
           key: redis_env_var_name,
           value: redis_url_from_dokku,
-          source: 'system'  # Mark as system-managed
+          source: "system"  # Mark as system-managed
         )
         Rails.logger.info "[DeploymentsController] Created #{redis_env_var_name} in EnvironmentVariables for deployment #{@deployment.uuid}"
       elsif existing_redis_var.value != redis_url_from_dokku
-        existing_redis_var.update!(value: redis_url_from_dokku, source: 'system')
+        existing_redis_var.update!(value: redis_url_from_dokku, source: "system")
         Rails.logger.info "[DeploymentsController] Updated #{redis_env_var_name} in EnvironmentVariables for deployment #{@deployment.uuid}"
       end
     end
@@ -1214,5 +1214,4 @@ class DeploymentsController < ApplicationController
       end
     end
   end
-
 end

@@ -27,19 +27,19 @@ class ActivityLog < ApplicationRecord
 
   # Common activity types
   ACTIONS = {
-    login: 'login',
-    logout: 'logout',
-    profile_update: 'profile_update',
-    password_change: 'password_change',
-    role_assigned: 'role_assigned',
-    role_removed: 'role_removed',
-    settings_update: 'settings_update',
-    smtp_settings_update: 'smtp_settings_update',
-    user_created: 'user_created',
-    user_updated: 'user_updated',
-    admin_access: 'admin_access',
-    two_factor_enabled: 'two_factor_enabled',
-    two_factor_disabled: 'two_factor_disabled'
+    login: "login",
+    logout: "logout",
+    profile_update: "profile_update",
+    password_change: "password_change",
+    role_assigned: "role_assigned",
+    role_removed: "role_removed",
+    settings_update: "settings_update",
+    smtp_settings_update: "smtp_settings_update",
+    user_created: "user_created",
+    user_updated: "user_updated",
+    admin_access: "admin_access",
+    two_factor_enabled: "two_factor_enabled",
+    two_factor_disabled: "two_factor_disabled"
   }.freeze
 
   def action_display
@@ -48,42 +48,42 @@ class ActivityLog < ApplicationRecord
 
   def details_summary
     case action
-    when 'login'
-      'User signed in'
-    when 'logout'
-      'User signed out'
-    when 'profile_update'
-      'Updated profile information'
-    when 'password_change'
-      'Changed password'
-    when 'role_assigned'
-      details || 'Role assigned'
-    when 'role_removed'
-      details || 'Role removed'
-    when 'settings_update'
-      'Updated application settings'
-    when 'smtp_settings_update'
-      'Updated SMTP configuration'
+    when "login"
+      "User signed in"
+    when "logout"
+      "User signed out"
+    when "profile_update"
+      "Updated profile information"
+    when "password_change"
+      "Changed password"
+    when "role_assigned"
+      details || "Role assigned"
+    when "role_removed"
+      details || "Role removed"
+    when "settings_update"
+      "Updated application settings"
+    when "smtp_settings_update"
+      "Updated SMTP configuration"
     else
       details || action_display
     end
   end
 
   def browser_info
-    return 'Unknown' unless user_agent.present?
-    
+    return "Unknown" unless user_agent.present?
+
     # Simple browser detection
     case user_agent
     when /Chrome/
-      'Chrome'
+      "Chrome"
     when /Firefox/
-      'Firefox'
+      "Firefox"
     when /Safari/
-      'Safari'
+      "Safari"
     when /Edge/
-      'Edge'
+      "Edge"
     else
-      'Other'
+      "Other"
     end
   end
 end

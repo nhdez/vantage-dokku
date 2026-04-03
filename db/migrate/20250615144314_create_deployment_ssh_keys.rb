@@ -6,7 +6,7 @@ class CreateDeploymentSshKeys < ActiveRecord::Migration[8.0]
 
       t.timestamps
     end
-    
-    add_index :deployment_ssh_keys, [:deployment_id, :ssh_key_id], unique: true
+
+    add_index :deployment_ssh_keys, [ :deployment_id, :ssh_key_id ], unique: true
   end
 end

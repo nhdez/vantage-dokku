@@ -2,7 +2,7 @@ class CreateSolidQueueTables < ActiveRecord::Migration[8.0]
   def change
     # Skip if tables already exist (for development)
     return if table_exists?(:solid_queue_jobs)
-    
+
     # SolidQueue tables - copy content from db/queue_schema.rb
     create_table "solid_queue_blocked_executions", force: :cascade do |t|
       t.bigint "job_id", null: false

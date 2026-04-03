@@ -8,7 +8,7 @@ class CreateEnvironmentVariables < ActiveRecord::Migration[8.0]
 
       t.timestamps
     end
-    
-    add_index :environment_variables, [:deployment_id, :key], unique: true
+
+    add_index :environment_variables, [ :deployment_id, :key ], unique: true
   end
 end

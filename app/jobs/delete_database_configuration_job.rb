@@ -27,14 +27,14 @@ class DeleteDatabaseConfigurationJob < ApplicationJob
         # Log the activity
         ActivityLog.create!(
           user: @user,
-          action: 'database_deleted',
+          action: "database_deleted",
           details: "Deleted #{display_name} database configuration for deployment: #{@deployment.display_name}",
           occurred_at: Time.current
         )
 
         # Broadcast success via ActionCable (if you want real-time notification)
         ActionCable.server.broadcast("database_deletion_#{@deployment.uuid}", {
-          type: 'success',
+          type: "success",
           message: "Database configuration deleted successfully! #{display_name} database (#{db_name})" +
                    (redis_name ? " and Redis instance (#{redis_name})" : "") +
                    " have been detached and deleted.",
@@ -46,14 +46,14 @@ class DeleteDatabaseConfigurationJob < ApplicationJob
         # Log the failure
         ActivityLog.create!(
           user: @user,
-          action: 'database_deletion_failed',
+          action: "database_deletion_failed",
           details: "Failed to delete database configuration for deployment: #{@deployment.display_name} - #{result[:error]}",
           occurred_at: Time.current
         )
 
         # Broadcast error via ActionCable
         ActionCable.server.broadcast("database_deletion_#{@deployment.uuid}", {
-          type: 'error',
+          type: "error",
           message: "Failed to delete database: #{result[:error]}",
           timestamp: Time.current.iso8601
         })
@@ -66,7 +66,7 @@ class DeleteDatabaseConfigurationJob < ApplicationJob
 
       # Broadcast error
       ActionCable.server.broadcast("database_deletion_#{@deployment.uuid}", {
-        type: 'error',
+        type: "error",
         message: "An unexpected error occurred: #{e.message}",
         timestamp: Time.current.iso8601
       })

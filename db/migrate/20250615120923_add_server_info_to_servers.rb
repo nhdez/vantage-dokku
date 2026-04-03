@@ -7,7 +7,7 @@ class AddServerInfoToServers < ActiveRecord::Migration[8.0]
     add_column :servers, :disk_total, :string
     add_column :servers, :last_connected_at, :datetime
     add_column :servers, :connection_status, :string, default: 'unknown'
-    
+
     add_index :servers, :connection_status
     add_index :servers, :last_connected_at
   end
