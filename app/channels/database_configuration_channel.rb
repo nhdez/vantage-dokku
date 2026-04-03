@@ -1,11 +1,11 @@
 class DatabaseConfigurationChannel < ApplicationCable::Channel
   def subscribed
     deployment_uuid = params[:deployment_uuid]
-    
+
     if deployment_uuid.present?
       # Verify the user has access to this deployment
       deployment = current_user.deployments.find_by(uuid: deployment_uuid)
-      
+
       if deployment
         stream_from "database_configuration_#{deployment_uuid}"
         Rails.logger.info "[DatabaseConfigurationChannel] User #{current_user.id} subscribed to database configuration updates for deployment #{deployment_uuid}"

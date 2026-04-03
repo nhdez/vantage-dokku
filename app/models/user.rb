@@ -4,23 +4,23 @@ class User < ApplicationRecord
   # :lockable, :timeoutable, :trackable and :omniauthable
   devise :database_authenticatable, :registerable, :confirmable,
          :recoverable, :rememberable, :validatable, :omniauthable,
-         omniauth_providers: [:google_oauth2]
+         omniauth_providers: [ :google_oauth2 ]
 
   # Profile picture attachment
   has_one_attached :profile_picture
-  
+
   # Activity tracking
   has_many :activity_logs, dependent: :destroy
-  
+
   # Server management
   has_many :servers, dependent: :destroy
-  
+
   # SSH key management
   has_many :ssh_keys, dependent: :destroy
-  
+
   # Deployment management
   has_many :deployments, dependent: :destroy
-  
+
   # Linked accounts management
   has_many :linked_accounts, dependent: :destroy
 
@@ -32,7 +32,7 @@ class User < ApplicationRecord
   protected
 
   def confirmation_required?
-    AppSetting.get('require_email_confirmation', false)
+    AppSetting.get("require_email_confirmation", false)
   end
 
   private
@@ -41,11 +41,11 @@ class User < ApplicationRecord
     return unless profile_picture.attached?
 
     unless profile_picture.content_type.in?(%w[image/jpeg image/jpg image/png image/gif])
-      errors.add(:profile_picture, 'must be a valid image format')
+      errors.add(:profile_picture, "must be a valid image format")
     end
 
     if profile_picture.byte_size > 5.megabytes
-      errors.add(:profile_picture, 'should be less than 5MB')
+      errors.add(:profile_picture, "should be less than 5MB")
     end
   end
 
@@ -53,7 +53,7 @@ class User < ApplicationRecord
 
   # Methods
   def full_name
-    [first_name, last_name].compact.join(' ').presence || email.split('@').first.titleize
+    [ first_name, last_name ].compact.join(" ").presence || email.split("@").first.titleize
   end
 
   def initials
@@ -74,54 +74,54 @@ class User < ApplicationRecord
 
   # Theme methods
   def prefers_dark_mode?
-    theme == 'dark'
+    theme == "dark"
   end
 
   def prefers_light_mode?
-    theme == 'light'
+    theme == "light"
   end
 
   def uses_auto_theme?
-    theme == 'auto'
+    theme == "auto"
   end
 
   def effective_theme
-    theme || 'auto'
+    theme || "auto"
   end
-  
+
   # OAuth methods
   def self.from_google(u)
     create_with(
-      uid: u[:uid], 
-      provider: 'google_oauth2',
+      uid: u[:uid],
+      provider: "google_oauth2",
       password: Devise.friendly_token[0, 20],
       first_name: u[:first_name],
       last_name: u[:last_name],
       google_avatar_url: u[:image]
     ).find_or_create_by!(email: u[:email])
   end
-  
+
   def google_user?
-    provider == 'google_oauth2'
+    provider == "google_oauth2"
   end
-  
+
   def has_google_avatar?
     google_avatar_url.present?
   end
-  
+
   # Linked accounts helper methods
   def github_account
     linked_accounts.github.active.first
   end
-  
+
   def has_github_account?
     github_account.present?
   end
-  
+
   def linked_account_for(provider)
     linked_accounts.for_provider(provider).active.first
   end
-  
+
   def has_linked_account?(provider)
     linked_account_for(provider).present?
   end

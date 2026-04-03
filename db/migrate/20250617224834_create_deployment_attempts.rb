@@ -11,8 +11,8 @@ class CreateDeploymentAttempts < ActiveRecord::Migration[8.0]
 
       t.timestamps
     end
-    
-    add_index :deployment_attempts, [:deployment_id, :attempt_number], unique: true
+
+    add_index :deployment_attempts, [ :deployment_id, :attempt_number ], unique: true
     add_index :deployment_attempts, :status
   end
 end

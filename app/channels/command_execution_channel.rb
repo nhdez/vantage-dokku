@@ -1,11 +1,11 @@
 class CommandExecutionChannel < ApplicationCable::Channel
   def subscribed
     deployment_uuid = params[:deployment_uuid]
-    
+
     if deployment_uuid.present?
       # Verify the user has access to this deployment
       deployment = current_user.deployments.find_by(uuid: deployment_uuid)
-      
+
       if deployment
         stream_from "command_execution_#{deployment_uuid}"
         Rails.logger.info "[CommandExecutionChannel] User #{current_user.id} subscribed to command execution for deployment #{deployment_uuid}"

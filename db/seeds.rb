@@ -3,7 +3,7 @@
 # The data can then be loaded with the bin/rails db:seed command (or created alongside the database with db:setup).
 
 # Create default roles
-["admin", "mod", "registered"].each do |role_name|
+[ "admin", "mod", "registered" ].each do |role_name|
   Role.find_or_create_by!(name: role_name)
 end
 

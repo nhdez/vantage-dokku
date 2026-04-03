@@ -73,7 +73,7 @@ module Toastable
 
   def toast_validation_errors(model)
     if model.errors.any?
-      errors = model.errors.full_messages.join(', ')
+      errors = model.errors.full_messages.join(", ")
       toast_error("Please fix the following errors: #{errors}", title: "Validation Failed")
     end
   end

@@ -20,59 +20,59 @@ module ActivityTrackable
   end
 
   def log_login(user)
-    log_activity(ActivityLog::ACTIONS[:login], 
-                details: "Signed in from #{request.remote_ip}", 
+    log_activity(ActivityLog::ACTIONS[:login],
+                details: "Signed in from #{request.remote_ip}",
                 user: user)
   end
 
   def log_logout(user)
-    log_activity(ActivityLog::ACTIONS[:logout], 
-                details: "Signed out", 
+    log_activity(ActivityLog::ACTIONS[:logout],
+                details: "Signed out",
                 user: user)
   end
 
   def log_profile_update(user, changes = {})
-    changed_fields = changes.keys.join(', ') if changes.any?
-    log_activity(ActivityLog::ACTIONS[:profile_update], 
-                details: "Updated: #{changed_fields}", 
+    changed_fields = changes.keys.join(", ") if changes.any?
+    log_activity(ActivityLog::ACTIONS[:profile_update],
+                details: "Updated: #{changed_fields}",
                 user: user)
   end
 
   def log_password_change(user)
-    log_activity(ActivityLog::ACTIONS[:password_change], 
-                details: "Password changed", 
+    log_activity(ActivityLog::ACTIONS[:password_change],
+                details: "Password changed",
                 user: user)
   end
 
   def log_role_assignment(user, role_name, target_user)
-    log_activity(ActivityLog::ACTIONS[:role_assigned], 
-                details: "Assigned '#{role_name}' role to #{target_user.full_name}", 
+    log_activity(ActivityLog::ACTIONS[:role_assigned],
+                details: "Assigned '#{role_name}' role to #{target_user.full_name}",
                 user: user)
   end
 
   def log_role_removal(user, role_name, target_user)
-    log_activity(ActivityLog::ACTIONS[:role_removed], 
-                details: "Removed '#{role_name}' role from #{target_user.full_name}", 
+    log_activity(ActivityLog::ACTIONS[:role_removed],
+                details: "Removed '#{role_name}' role from #{target_user.full_name}",
                 user: user)
   end
 
   def log_settings_update(user, setting_keys = [])
     details = setting_keys.any? ? "Updated: #{setting_keys.join(', ')}" : "Updated application settings"
-    log_activity(ActivityLog::ACTIONS[:settings_update], 
-                details: details, 
+    log_activity(ActivityLog::ACTIONS[:settings_update],
+                details: details,
                 user: user)
   end
 
   def log_smtp_settings_update(user)
-    log_activity(ActivityLog::ACTIONS[:smtp_settings_update], 
-                details: "Updated SMTP configuration", 
+    log_activity(ActivityLog::ACTIONS[:smtp_settings_update],
+                details: "Updated SMTP configuration",
                 user: user)
   end
 
   def log_admin_access(user, area = nil)
     details = area ? "Accessed admin #{area}" : "Accessed admin area"
-    log_activity(ActivityLog::ACTIONS[:admin_access], 
-                details: details, 
+    log_activity(ActivityLog::ACTIONS[:admin_access],
+                details: details,
                 user: user)
   end
 

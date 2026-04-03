@@ -1,22 +1,22 @@
-require 'socket'
+require "socket"
 
 class ApplicationController < ActionController::Base
   # Only allow modern browsers supporting webp images, web push, badges, import maps, CSS nesting, and CSS :has.
   allow_browser versions: :modern
-  
+
   include Pundit::Authorization
   include Pagy::Backend
   include Toastable
-  
+
   # Require authentication for most actions
   before_action :authenticate_user!
-  
+
   # Enforce maintenance mode
   before_action :check_maintenance_mode
-  
+
   # Configure Devise permitted parameters
   before_action :configure_permitted_parameters, if: :devise_controller?
-  
+
   # Handle Pundit authorization errors
   rescue_from Pundit::NotAuthorizedError, with: :user_not_authorized
 
@@ -24,9 +24,9 @@ class ApplicationController < ActionController::Base
   private
 
   def check_maintenance_mode
-    if AppSetting.get('maintenance_mode', false)
+    if AppSetting.get("maintenance_mode", false)
       # Allow access to the maintenance page and session management
-      return if controller_name == 'home' && action_name == 'maintenance'
+      return if controller_name == "home" && action_name == "maintenance"
       return if devise_controller?
 
       # Redirect non-admins to the maintenance page
@@ -42,7 +42,7 @@ class ApplicationController < ActionController::Base
   end
 
   def configure_permitted_parameters
-    devise_parameter_sanitizer.permit(:sign_up, keys: [:first_name, :last_name, :profile_picture])
-    devise_parameter_sanitizer.permit(:account_update, keys: [:first_name, :last_name, :profile_picture, :theme])
+    devise_parameter_sanitizer.permit(:sign_up, keys: [ :first_name, :last_name, :profile_picture ])
+    devise_parameter_sanitizer.permit(:account_update, keys: [ :first_name, :last_name, :profile_picture, :theme ])
   end
 end

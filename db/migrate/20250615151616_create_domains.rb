@@ -10,8 +10,8 @@ class CreateDomains < ActiveRecord::Migration[8.0]
 
       t.timestamps
     end
-    
-    add_index :domains, [:deployment_id, :name], unique: true
-    add_index :domains, [:deployment_id, :default_domain]
+
+    add_index :domains, [ :deployment_id, :name ], unique: true
+    add_index :domains, [ :deployment_id, :default_domain ]
   end
 end

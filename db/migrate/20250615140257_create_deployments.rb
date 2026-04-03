@@ -9,9 +9,9 @@ class CreateDeployments < ActiveRecord::Migration[8.0]
 
       t.timestamps
     end
-    
-    add_index :deployments, [:user_id, :name], unique: true
+
+    add_index :deployments, [ :user_id, :name ], unique: true
     add_index :deployments, :dokku_app_name, unique: true
-    add_index :deployments, [:server_id, :dokku_app_name], unique: true
+    add_index :deployments, [ :server_id, :dokku_app_name ], unique: true
   end
 end

@@ -9,7 +9,7 @@ class OsvScannerParser
     Rails.logger.debug "[OsvScannerParser] Raw output: #{@raw_output}"
 
     result = {
-      success: !@raw_output.include?('Error'),
+      success: !@raw_output.include?("Error"),
       total_packages: extract_total_packages,
       vulnerabilities_found: extract_vulnerability_count,
       severity_counts: extract_severity_counts,
@@ -27,7 +27,7 @@ class OsvScannerParser
 
   def extract_total_packages
     # Look for line like: "Scanned /path/Gemfile.lock file and found 169 packages"
-    package_lines = @lines.select { |line| line.include?('found') && line.include?('packages') }
+    package_lines = @lines.select { |line| line.include?("found") && line.include?("packages") }
     package_lines.sum do |line|
       match = line.match(/found (\d+) packages/)
       match ? match[1].to_i : 0
@@ -37,7 +37,7 @@ class OsvScannerParser
   def extract_vulnerability_count
     # Look for line like: "Total 4 packages affected by 9 known vulnerabilities"
     # or "Total 1 package affected by 5 known vulnerabilities" (singular)
-    summary_line = @lines.find { |line| line.include?('affected by') && line.include?('known vulnerabilities') }
+    summary_line = @lines.find { |line| line.include?("affected by") && line.include?("known vulnerabilities") }
     return 0 unless summary_line
 
     match = summary_line.match(/by (\d+) known vulnerabilities/)
@@ -48,14 +48,14 @@ class OsvScannerParser
     # Look for line like: "(0 Critical, 4 High, 3 Medium, 2 Low, 0 Unknown)"
     counts = { critical: 0, high: 0, medium: 0, low: 0, unknown: 0 }
 
-    summary_line = @lines.find { |line| line.include?('Critical') && line.include?('High') }
+    summary_line = @lines.find { |line| line.include?("Critical") && line.include?("High") }
     return counts unless summary_line
 
-    counts[:critical] = extract_count(summary_line, 'Critical')
-    counts[:high] = extract_count(summary_line, 'High')
-    counts[:medium] = extract_count(summary_line, 'Medium')
-    counts[:low] = extract_count(summary_line, 'Low')
-    counts[:unknown] = extract_count(summary_line, 'Unknown')
+    counts[:critical] = extract_count(summary_line, "Critical")
+    counts[:high] = extract_count(summary_line, "High")
+    counts[:medium] = extract_count(summary_line, "Medium")
+    counts[:low] = extract_count(summary_line, "Low")
+    counts[:unknown] = extract_count(summary_line, "Unknown")
 
     counts
   end
@@ -67,13 +67,13 @@ class OsvScannerParser
 
   def extract_summary
     # Everything before the table (if present) or the whole output if no vulnerabilities
-    if @raw_output.include?('No issues found')
-      'No vulnerabilities found'
-    elsif @raw_output.include?('known vulnerabilities')
-      summary_line = @lines.find { |line| line.include?('affected by') && line.include?('known vulnerabilities') }
-      summary_line || 'Scan completed'
+    if @raw_output.include?("No issues found")
+      "No vulnerabilities found"
+    elsif @raw_output.include?("known vulnerabilities")
+      summary_line = @lines.find { |line| line.include?("affected by") && line.include?("known vulnerabilities") }
+      summary_line || "Scan completed"
     else
-      'Scan completed'
+      "Scan completed"
     end
   end
 
@@ -81,7 +81,7 @@ class OsvScannerParser
     vulns = []
 
     # Find the table section
-    table_start = @lines.index { |line| line.include?('OSV URL') && line.include?('CVSS') }
+    table_start = @lines.index { |line| line.include?("OSV URL") && line.include?("CVSS") }
 
     if table_start.nil?
       Rails.logger.warn "[OsvScannerParser] Could not find table header with 'OSV URL' and 'CVSS'"
@@ -98,13 +98,13 @@ class OsvScannerParser
       Rails.logger.debug "[OsvScannerParser] Processing line #{data_start + index}: #{line}"
 
       # Stop at table end - handle both box drawing and regular characters
-      if line.start_with?('╰') || line.start_with?('+---') || line.strip.empty?
+      if line.start_with?("╰") || line.start_with?("+---") || line.strip.empty?
         Rails.logger.info "[OsvScannerParser] Reached table end at line #{data_start + index}"
         break
       end
 
       # Skip separator lines - handle both box drawing and regular characters
-      if line.start_with?('├') || line.start_with?('+---')
+      if line.start_with?("├") || line.start_with?("+---")
         Rails.logger.debug "[OsvScannerParser] Skipping separator line"
         next
       end
@@ -126,7 +126,7 @@ class OsvScannerParser
   def parse_vulnerability_line(line)
     # Split by either │ (box drawing) or | (regular pipe) and clean up
     # OSV scanner output format changed to use regular pipes
-    separator = line.include?('│') ? '│' : '|'
+    separator = line.include?("│") ? "│" : "|"
     parts = line.split(separator).map(&:strip).reject(&:empty?)
 
     Rails.logger.debug "[OsvScannerParser] Split line using '#{separator}' into #{parts.length} parts: #{parts.inspect}"
@@ -168,10 +168,10 @@ class OsvScannerParser
   end
 
   def severity_from_cvss(score)
-    return 'Unknown' if score.zero?
-    return 'Critical' if score >= 9.0
-    return 'High' if score >= 7.0
-    return 'Medium' if score >= 4.0
-    'Low'
+    return "Unknown" if score.zero?
+    return "Critical" if score >= 9.0
+    return "High" if score >= 7.0
+    return "Medium" if score >= 4.0
+    "Low"
   end
 end

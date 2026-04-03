@@ -10,8 +10,8 @@ class CreateApplicationHealths < ActiveRecord::Migration[8.0]
 
       t.timestamps
     end
-    
-    add_index :application_healths, [:deployment_id, :checked_at]
+
+    add_index :application_healths, [ :deployment_id, :checked_at ]
     add_index :application_healths, :checked_at
   end
 end

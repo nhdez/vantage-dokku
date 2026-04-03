@@ -4,21 +4,21 @@ class HealthMailer < ApplicationMailer
     @health_result = health_result
     @user = deployment.user
     @server = deployment.server
-    
+
     @status_message = case health_result[:status]
-    when 'unhealthy'
+    when "unhealthy"
       "is experiencing issues"
-    when 'timeout'
+    when "timeout"
       "is not responding"
-    when 'error'
+    when "error"
       "encountered an error"
     else
       "is having problems"
     end
-    
+
     @dashboard_url = dashboard_url
     @deployment_url = deployment_url(deployment)
-    
+
     mail(
       to: @user.email,
       subject: "🚨 Application Alert: #{@deployment.name} #{@status_message}"

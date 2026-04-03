@@ -15,6 +15,6 @@ class CreateFirewallRules < ActiveRecord::Migration[8.0]
       t.timestamps
     end
 
-    add_index :firewall_rules, [:server_id, :position]
+    add_index :firewall_rules, [ :server_id, :position ]
   end
 end

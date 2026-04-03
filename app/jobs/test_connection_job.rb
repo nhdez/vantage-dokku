@@ -4,11 +4,11 @@ class TestConnectionJob < ApplicationJob
   def perform(server_id, user_id)
     @server = Server.find(server_id)
     @user = User.find(user_id)
-    
+
     begin
       service = SshConnectionService.new(@server)
       result = service.test_connection_and_gather_info
-      
+
       if result[:success]
         # Server info was already updated by the service
         ActionCable.server.broadcast("test_connection_#{@server.uuid}", {
@@ -35,15 +35,15 @@ class TestConnectionJob < ApplicationJob
           connection_status: @server.reload.connection_status
         })
       end
-      
+
     rescue StandardError => e
       Rails.logger.error "Background connection test failed: #{e.message}"
-      @server.update!(connection_status: 'failed')
-      
+      @server.update!(connection_status: "failed")
+
       ActionCable.server.broadcast("test_connection_#{@server.uuid}", {
         success: false,
         message: "An unexpected error occurred: #{e.message}",
-        connection_status: 'failed'
+        connection_status: "failed"
       })
     end
   end

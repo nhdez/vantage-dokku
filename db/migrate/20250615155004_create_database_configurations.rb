@@ -14,7 +14,7 @@ class CreateDatabaseConfigurations < ActiveRecord::Migration[8.0]
 
       t.timestamps
     end
-    
+
     add_index :database_configurations, :database_name, unique: true
   end
 end
