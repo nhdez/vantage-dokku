@@ -28,7 +28,7 @@ gem "pundit"
 gem "rolify"
 
 # Pagination
-gem "pagy", "~> 9.4"
+gem "pagy", "~> 43.5"
 
 # Search & Filtering
 gem "ransack"
