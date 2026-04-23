@@ -24,7 +24,7 @@ function initializeMDB() {
           try {
             element._mdbDropdown = new mdb.Dropdown(element)
           } catch (e) {
-            console.log('Dropdown init error:', e)
+            // silently ignore MDB init errors
           }
         }
       })
@@ -36,7 +36,7 @@ function initializeMDB() {
           try {
             element._mdbCollapse = new mdb.Collapse(element)
           } catch (e) {
-            console.log('Collapse init error:', e)
+            // silently ignore MDB init errors
           }
         }
       })

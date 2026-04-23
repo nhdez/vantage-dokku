@@ -90,7 +90,7 @@ export default class extends Controller {
         },
         body: JSON.stringify({ user: { theme: theme } })
       }).catch(error => {
-        console.log('Theme preference not saved:', error)
+        // non-critical — theme is already applied locally via localStorage
       })
     }
   }

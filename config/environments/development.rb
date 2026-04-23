@@ -71,7 +71,7 @@ Rails.application.configure do
   # config.generators.apply_rubocop_autocorrect_after_generate!
 
   # Better Errors configuration
-  config.web_console.whitelisted_ips = "0.0.0.0/0" if defined?(BetterErrors)
+  config.web_console.whitelisted_ips = "127.0.0.1" if defined?(BetterErrors)
   BetterErrors.application_root = __dir__ if defined?(BetterErrors)
 
   # Active Record Encryption configuration for development

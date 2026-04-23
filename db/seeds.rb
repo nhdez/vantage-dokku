@@ -16,15 +16,22 @@ load(Rails.root.join('db', 'seeds', 'app_settings.rb'))
 OauthSetting.setup_defaults!
 puts "Created default OAuth settings"
 
-# Create a default admin user if none exists
-if User.where(email: "admin@example.com").empty?
-  admin_user = User.create!(
-    email: "admin@example.com",
-    password: "password123",
-    password_confirmation: "password123",
-    first_name: "System",
-    last_name: "Administrator"
-  )
-  admin_user.add_role(:admin)
-  puts "Created admin user: admin@example.com (password: password123)"
+# Create a default admin user in development only, driven by ENV vars.
+# Set ADMIN_EMAIL and ADMIN_PASSWORD before running db:seed.
+# Never run db:seed in production — manage admin accounts through the UI.
+if Rails.env.development?
+  admin_email    = ENV.fetch("ADMIN_EMAIL", "admin@example.com")
+  admin_password = ENV.fetch("ADMIN_PASSWORD") { raise "Set ADMIN_PASSWORD env var before seeding" }
+
+  unless User.exists?(email: admin_email)
+    admin_user = User.create!(
+      email: admin_email,
+      password: admin_password,
+      password_confirmation: admin_password,
+      first_name: "System",
+      last_name: "Administrator"
+    )
+    admin_user.add_role(:admin)
+    puts "Created admin user: #{admin_email}"
+  end
 end
