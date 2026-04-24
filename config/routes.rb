@@ -70,25 +70,30 @@ Rails.application.routes.draw do
   resources :ssh_keys
   resources :servers, param: :uuid do
     member do
+      # ServersController — CRUD, connection, updates, logs
       post :test_connection
       post :update_server
       post :install_dokku
       post :restart_server
-      get :logs
-      get :firewall_rules
-      post :sync_firewall_rules
-      post :enable_ufw
-      post :disable_ufw
-      post :add_firewall_rule
-      delete :remove_firewall_rule
-      patch :toggle_firewall_rule
-      post :apply_firewall_rules
-      get :vulnerability_scanner
-      post :check_scanner_status
-      post :install_go
-      post :install_osv_scanner
-      post :update_scan_config
-      get :scan_all_deployments
+      get  :logs
+
+      # Servers::FirewallController
+      get    :firewall_rules,       to: "servers/firewall#firewall_rules"
+      post   :sync_firewall_rules,  to: "servers/firewall#sync_firewall_rules"
+      post   :enable_ufw,           to: "servers/firewall#enable_ufw"
+      post   :disable_ufw,          to: "servers/firewall#disable_ufw"
+      post   :add_firewall_rule,    to: "servers/firewall#add_firewall_rule"
+      delete :remove_firewall_rule, to: "servers/firewall#remove_firewall_rule"
+      patch  :toggle_firewall_rule, to: "servers/firewall#toggle_firewall_rule"
+      post   :apply_firewall_rules, to: "servers/firewall#apply_firewall_rules"
+
+      # Servers::VulnerabilityController
+      get  :vulnerability_scanner, to: "servers/vulnerability#vulnerability_scanner"
+      post :check_scanner_status,  to: "servers/vulnerability#check_scanner_status"
+      post :install_go,            to: "servers/vulnerability#install_go"
+      post :install_osv_scanner,   to: "servers/vulnerability#install_osv_scanner"
+      post :update_scan_config,    to: "servers/vulnerability#update_scan_config"
+      get  :scan_all_deployments,  to: "servers/vulnerability#scan_all_deployments"
     end
   end
   patch "themes/update", to: "themes#update", as: :update_theme
