@@ -12,34 +12,51 @@ Rails.application.routes.draw do
   end
   resources :deployments, param: :uuid do
     member do
-      get :git_configuration
+      # DeploymentsController — CRUD, deploy, git, logs
+      get  :git_configuration
       post :update_git_configuration
       post :deploy
-      get :logs
-      get :configure_domain
-      post :update_domains
-      delete :delete_domain
-      get :attach_ssh_keys
-      post :update_ssh_keys
-      get :manage_environment
-      post :update_environment
-      get :configure_databases
-      post :update_database_configuration
-      delete :delete_database_configuration
-      get :port_mappings
-      post :sync_port_mappings
-      post :add_port_mapping
-      delete :remove_port_mapping
-      post :clear_port_mappings
+      get  :logs
       post :create_dokku_app
-      post :check_ssl_status
-      get :execute_commands
-      post :run_command
-      get :server_logs
-      post :start_log_streaming
-      post :stop_log_streaming
-      get :scans
-      post :trigger_scan
+
+      # Deployments::DomainsController
+      get    :configure_domain,   to: "deployments/domains#configure_domain"
+      post   :update_domains,     to: "deployments/domains#update_domains"
+      delete :delete_domain,      to: "deployments/domains#delete_domain"
+      post   :check_ssl_status,   to: "deployments/domains#check_ssl_status"
+
+      # Deployments::SshKeysController
+      get  :attach_ssh_keys, to: "deployments/ssh_keys#attach_ssh_keys"
+      post :update_ssh_keys, to: "deployments/ssh_keys#update_ssh_keys"
+
+      # Deployments::EnvironmentController
+      get  :manage_environment,  to: "deployments/environment#manage_environment"
+      post :update_environment,  to: "deployments/environment#update_environment"
+
+      # Deployments::DatabasesController
+      get    :configure_databases,              to: "deployments/databases#configure_databases"
+      post   :update_database_configuration,    to: "deployments/databases#update_database_configuration"
+      delete :delete_database_configuration,    to: "deployments/databases#delete_database_configuration"
+
+      # Deployments::PortsController
+      get    :port_mappings,     to: "deployments/ports#port_mappings"
+      post   :sync_port_mappings, to: "deployments/ports#sync_port_mappings"
+      post   :add_port_mapping,  to: "deployments/ports#add_port_mapping"
+      delete :remove_port_mapping, to: "deployments/ports#remove_port_mapping"
+      post   :clear_port_mappings, to: "deployments/ports#clear_port_mappings"
+
+      # Deployments::CommandsController
+      get  :execute_commands, to: "deployments/commands#execute_commands"
+      post :run_command,      to: "deployments/commands#run_command"
+
+      # Deployments::ServerLogsController
+      get  :server_logs,          to: "deployments/server_logs#server_logs"
+      post :start_log_streaming,  to: "deployments/server_logs#start_log_streaming"
+      post :stop_log_streaming,   to: "deployments/server_logs#stop_log_streaming"
+
+      # Deployments::ScansController
+      get  :scans,        to: "deployments/scans#scans"
+      post :trigger_scan, to: "deployments/scans#trigger_scan"
     end
     resources :vulnerability_scans, only: [ :show ], param: :id do
       member do
