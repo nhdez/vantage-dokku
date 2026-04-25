@@ -54,3 +54,4 @@
 # Ignore landing folder and all its contents
 /landing/
 .idea/
+/config/credentials/development.key
