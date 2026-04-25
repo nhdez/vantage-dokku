@@ -17,7 +17,9 @@ class SshConnectionService
 
   # Server management
   def install_dokku_with_key_setup          = server_svc.install_dokku_with_key_setup
-  def update_server_packages                = server_svc.update_server_packages
+  def update_server_packages(&block)
+    server_svc.update_server_packages(&block)
+  end
   def restart_server                        = server_svc.restart_server
   def test_connection_and_gather_info       = server_svc.test_connection_and_gather_info
 

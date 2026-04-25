@@ -2,41 +2,35 @@ class UpdateServerJob < ApplicationJob
   queue_as :default
 
   def perform(server_id, user_id)
-    @server = Server.find(server_id)
-    @user = User.find(user_id)
+    server = Server.find(server_id)
+    uuid = server.uuid
 
-    begin
-      service = SshConnectionService.new(@server)
-      result = service.update_server_packages
+    broadcast(uuid, type: "started", message: "Starting system update on #{server.name}...")
 
-      if result[:success]
-        # Check if reboot is required
-        reboot_required = result[:output]&.include?("REBOOT_REQUIRED") || false
-
-        ActionCable.server.broadcast("update_server_#{@server.uuid}", {
-          success: true,
-          message: reboot_required ?
-            "Server updated successfully! A reboot is required to complete some updates." :
-            "Server updated successfully! All packages are up to date.",
-          output: result[:output],
-          reboot_required: reboot_required
-        })
-      else
-        ActionCable.server.broadcast("update_server_#{@server.uuid}", {
-          success: false,
-          message: result[:error],
-          output: result[:output] || ""
-        })
-      end
-
-    rescue StandardError => e
-      Rails.logger.error "Background server update failed: #{e.message}"
-
-      ActionCable.server.broadcast("update_server_#{@server.uuid}", {
-        success: false,
-        message: "An unexpected error occurred: #{e.message}",
-        output: ""
-      })
+    service = SshConnectionService.new(server)
+    result = service.update_server_packages do |line|
+      broadcast(uuid, type: "output", message: line) if line.present?
     end
+
+    reboot_required = result[:output]&.include?("REBOOT_REQUIRED") || false
+    message = if result[:success]
+      reboot_required ?
+        "Server updated successfully! A reboot is required to complete some updates." :
+        "Server updated successfully! All packages are up to date."
+    else
+      result[:error]
+    end
+
+    broadcast(uuid, type: "completed", success: result[:success], message: message, reboot_required: reboot_required)
+
+  rescue StandardError => e
+    Rails.logger.error "Background server update failed: #{e.message}"
+    broadcast(uuid, type: "completed", success: false, message: "An unexpected error occurred: #{e.message}")
+  end
+
+  private
+
+  def broadcast(uuid, payload)
+    ActionCable.server.broadcast("update_server_#{uuid}", payload)
   end
 end

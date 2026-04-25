@@ -848,21 +848,31 @@ function viewDashboard() {
   alert('Dokku dashboard integration will be implemented in the next phase.');
 }
 
-let updateServerChannel = null;
+function resetUpdateServerBtn() {
+  const btn = document.getElementById('update-server-btn');
+  if (!btn) return;
+  btn.disabled = false;
+  btn.replaceChildren();
+  const icon = document.createElement('i');
+  icon.className = 'fas fa-sync-alt me-2';
+  btn.appendChild(icon);
+  btn.appendChild(document.createTextNode('Update Server'));
+}
 
 function updateServer(url) {
   const btn = document.getElementById('update-server-btn');
-  const originalText = btn.innerHTML;
-  
-  // Confirm action
+
   if (!confirm('This will run "sudo apt update && sudo apt upgrade -y" on the server. This may take several minutes. Continue?')) {
     return;
   }
-  
-  // Show loading state
+
   btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Updating Server...';
-  
+  btn.replaceChildren();
+  const spinner = document.createElement('i');
+  spinner.className = 'fas fa-spinner fa-spin me-2';
+  btn.appendChild(spinner);
+  btn.appendChild(document.createTextNode('Updating Server...'));
+
   fetch(url, {
     method: 'POST',
     headers: {
@@ -870,113 +880,26 @@ function updateServer(url) {
       'Content-Type': 'application/json',
     }
   })
-  .then(response => response.json())
+  .then(r => r.json())
   .then(data => {
     if (data.success) {
-      showToast('info', data.message, 'Server Update');
-      
-      // Subscribe to ActionCable channel for real-time updates
-      subscribeToUpdateServer(data.server_uuid, btn, originalText);
+      window.dispatchEvent(new CustomEvent('live-console:start', {
+        detail: {
+          id: 'update-server-' + data.server_uuid,
+          label: 'Updating Server (<%= j @server.name %>)...',
+          channelName: 'UpdateServerChannel',
+          channelParams: { server_uuid: data.server_uuid },
+          onComplete: resetUpdateServerBtn
+        }
+      }));
     } else {
-      // Reset button on immediate failure
-      btn.disabled = false;
-      btn.innerHTML = originalText;
+      resetUpdateServerBtn();
       showToast('error', data.message, 'Update Failed');
     }
   })
-  .catch(error => {
-    console.error('Error:', error);
-    btn.disabled = false;
-    btn.innerHTML = originalText;
+  .catch(() => {
+    resetUpdateServerBtn();
     showToast('error', 'An unexpected error occurred while updating the server.', 'Update Error');
-  });
-}
-
-function subscribeToUpdateServer(serverUuid, btn, originalText) {
-  // Disconnect any existing channel
-  if (updateServerChannel) {
-    updateServerChannel.unsubscribe();
-  }
-  
-  // Subscribe to the update server channel
-  updateServerChannel = window.actionCableConsumer.subscriptions.create(
-    { 
-      channel: "UpdateServerChannel",
-      server_uuid: serverUuid
-    },
-    {
-      received: function(data) {
-        // Reset button
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-        
-        if (data.success) {
-          if (data.reboot_required) {
-            showToast('warning', data.message, 'Update Complete - Reboot Required');
-          } else {
-            showToast('success', data.message, 'Update Successful');
-          }
-          
-          // Show update output in a modal
-          if (data.output) {
-            showUpdateOutput(data.output);
-          }
-        } else {
-          showToast('error', data.message, 'Update Failed');
-          
-          // Show error output if available
-          if (data.output) {
-            showUpdateOutput(data.output);
-          }
-        }
-        
-        // Unsubscribe after receiving the result
-        this.unsubscribe();
-        updateServerChannel = null;
-      }
-    }
-  );
-}
-
-function showUpdateOutput(output) {
-  // Create a modal to show the update output
-  const modalHtml = `
-    <div class="modal fade" id="updateOutputModal" tabindex="-1" aria-labelledby="updateOutputModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="updateOutputModalLabel">
-              <i class="fas fa-terminal me-2"></i>Server Update Output
-            </h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <pre class="bg-dark text-white p-3 rounded" style="max-height: 400px; overflow-y: auto; font-size: 0.875rem;">${output}</pre>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-mdb-dismiss="modal">Close</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  // Remove existing modal if any
-  const existingModal = document.getElementById('updateOutputModal');
-  if (existingModal) {
-    existingModal.remove();
-  }
-  
-  // Add modal to page
-  document.body.insertAdjacentHTML('beforeend', modalHtml);
-  
-  // Show modal
-  const modal = new mdb.Modal(document.getElementById('updateOutputModal'));
-  modal.show();
-  
-  // Clean up modal after it's hidden
-  document.getElementById('updateOutputModal').addEventListener('hidden.mdb.modal', function() {
-    this.remove();
   });
 }
 

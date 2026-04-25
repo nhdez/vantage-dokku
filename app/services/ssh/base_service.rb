@@ -66,6 +66,32 @@ module Ssh
       nil
     end
 
+    def execute_streaming_command(ssh, command, timeout: UPDATE_TIMEOUT, &on_data)
+      output = ""
+      Timeout.timeout(timeout) do
+        ssh.exec!(command) do |_channel, _stream, data|
+          clean = sanitize_stream(data)
+          output += clean
+          if on_data
+            clean.each_line do |line|
+              stripped = line.chomp
+              on_data.call(stripped) unless stripped.empty?
+            end
+          end
+        end
+      end
+      output
+    rescue Timeout::Error
+      Rails.logger.error "Streaming command timeout: #{command}"
+      output
+    end
+
+    def sanitize_stream(data)
+      clean = data.to_s.force_encoding("UTF-8")
+      return clean if clean.valid_encoding?
+      data.to_s.encode("UTF-8", "UTF-8", invalid: :replace, undef: :replace, replace: "?")
+    end
+
     def shell_escape(value)
       return '""' if value.nil? || value.empty?
 

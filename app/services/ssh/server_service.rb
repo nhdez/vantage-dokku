@@ -39,7 +39,7 @@ module Ssh
       result
     end
 
-    def update_server_packages
+    def update_server_packages(&on_data)
       result = {
         success: false,
         error: nil,
@@ -54,7 +54,7 @@ module Ssh
             @connection_details[:username],
             ssh_options
           ) do |ssh|
-            result[:output] = perform_system_update(ssh)
+            result[:output] = perform_system_update(ssh, &on_data)
             result[:success] = true
 
             @server.update!(last_connected_at: Time.current)
@@ -287,37 +287,41 @@ module Ssh
       end
     end
 
-    def perform_system_update(ssh)
+    def perform_system_update(ssh, &on_data)
       update_output = ""
+      emit = ->(msg) { on_data.call(msg) if on_data }
 
       begin
         Rails.logger.info "Running apt update on #{@server.name}"
+        emit.call("=== Running apt update ===")
         update_output += "=== Running apt update ===\n"
 
-        apt_update_result = execute_long_command(ssh, "sudo apt update 2>&1", 120)
-        update_output += apt_update_result if apt_update_result
-        update_output += "\n"
+        apt_update_result = on_data ?
+          execute_streaming_command(ssh, "sudo apt update 2>&1", timeout: 120, &on_data) :
+          execute_long_command(ssh, "sudo apt update 2>&1", 120)
+        update_output += apt_update_result.to_s + "\n"
 
         Rails.logger.info "Running apt upgrade on #{@server.name}"
+        emit.call("=== Running apt upgrade ===")
         update_output += "=== Running apt upgrade ===\n"
 
-        apt_upgrade_result = execute_long_command(ssh, "sudo DEBIAN_FRONTEND=noninteractive apt upgrade -y 2>&1", 480)
-        update_output += apt_upgrade_result if apt_upgrade_result
-        update_output += "\n"
+        apt_upgrade_result = on_data ?
+          execute_streaming_command(ssh, "sudo DEBIAN_FRONTEND=noninteractive apt upgrade -y 2>&1", timeout: 480, &on_data) :
+          execute_long_command(ssh, "sudo DEBIAN_FRONTEND=noninteractive apt upgrade -y 2>&1", 480)
+        update_output += apt_upgrade_result.to_s + "\n"
 
         reboot_check = execute_command(ssh, "[ -f /var/run/reboot-required ] && echo 'REBOOT_REQUIRED' || echo 'NO_REBOOT'")
         if reboot_check&.include?("REBOOT_REQUIRED")
-          update_output += "=== NOTICE ===\n"
-          update_output += "A system reboot is required to complete some updates.\n"
-          update_output += "Please reboot the server when convenient.\n"
+          update_output += "=== NOTICE ===\nA system reboot is required to complete some updates.\n"
+          emit.call("=== REBOOT REQUIRED ===")
         end
 
         Rails.logger.info "System update completed successfully on #{@server.name}"
 
       rescue StandardError => e
         Rails.logger.error "System update failed on #{@server.name}: #{e.message}"
-        update_output += "\n=== ERROR ===\n"
-        update_output += "Update process encountered an error: #{e.message}\n"
+        update_output += "\n=== ERROR ===\n#{e.message}\n"
+        emit.call("ERROR: #{e.message}")
         raise e
       end
 

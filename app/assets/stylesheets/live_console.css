@@ -1,0 +1,100 @@
+.live-console-wrapper {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1055;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.live-console-output {
+  background: #0d1117;
+  border-top: 1px solid #30363d;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 0.75rem 1rem;
+}
+
+.live-console-output pre {
+  margin: 0;
+  font-family: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: #e6edf3;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.live-console-bar {
+  background: #161b22;
+  border-top: 1px solid #30363d;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 0.75rem;
+  gap: 0.5rem;
+}
+
+.live-console-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.live-console-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.live-console-tab {
+  background: #21262d;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  color: #8b949e;
+  font-size: 0.75rem;
+  padding: 0.18rem 0.65rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.live-console-tab:hover,
+.live-console-tab.active {
+  background: #30363d;
+  color: #e6edf3;
+  border-color: #6e7681;
+}
+
+.live-console-toggle-btn {
+  background: transparent;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  color: #8b949e;
+  padding: 0.18rem 0.5rem;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  flex-shrink: 0;
+}
+
+.live-console-toggle-btn:hover {
+  background: #21262d;
+  color: #e6edf3;
+}
+
+/* Spinning dot for running operations */
+@keyframes live-console-spin {
+  to { transform: rotate(360deg); }
+}
+
+.live-console-spinner {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid #8b949e;
+  border-top-color: #58a6ff;
+  border-radius: 50%;
+  animation: live-console-spin 0.7s linear infinite;
+  vertical-align: middle;
+}

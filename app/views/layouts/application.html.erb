@@ -42,6 +42,7 @@
 
     <%# Includes all stylesheet files in app/assets/stylesheets %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "live_console", "data-turbo-track": "reload" %>
     
     <!-- Mobile Menu Styles -->
     <style>
@@ -273,6 +274,26 @@
       <%= render 'shared/breadcrumbs' if user_signed_in? && !(devise_controller? && !(controller_name == 'registrations' && action_name == 'edit')) %>
       <%= yield %>
     </main>
+
+    <!-- Live Console Widget -->
+    <% if user_signed_in? %>
+      <div id="live-console"
+           data-turbo-permanent
+           data-controller="live-console"
+           class="live-console-wrapper d-none">
+        <div data-live-console-target="console" class="live-console-output d-none">
+          <pre data-live-console-target="output"></pre>
+        </div>
+        <div class="live-console-bar">
+          <div data-live-console-target="tabs" class="live-console-tabs"></div>
+          <button data-action="click->live-console#toggle"
+                  data-live-console-target="toggleBtn"
+                  class="live-console-toggle-btn">
+            <i class="fas fa-chevron-up"></i>
+          </button>
+        </div>
+      </div>
+    <% end %>
 
     <!-- Toast Container -->
     <%= toast_container %>
