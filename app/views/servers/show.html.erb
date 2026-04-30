@@ -498,14 +498,12 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-mdb-dismiss="modal">Cancel</button>
-        <%= form_with url: server_path(@server), method: :delete, data: { turbo: false } do %>
-          <button type="submit"
-                  id="delete-server-confirm-btn"
-                  class="btn btn-danger"
-                  disabled>
-            <i class="fas fa-trash me-2"></i>Permanently Delete Server
-          </button>
-        <% end %>
+        <button type="button"
+                id="delete-server-confirm-btn"
+                class="btn btn-danger"
+                disabled>
+          <i class="fas fa-trash me-2"></i>Permanently Delete Server
+        </button>
       </div>
     </div>
   </div>
@@ -522,6 +520,23 @@
 
   input.addEventListener('input', function() {
     confirmBtn.disabled = input.value !== expected;
+  });
+
+  confirmBtn.addEventListener('click', function() {
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Deleting...';
+    fetch('<%= server_path(@server) %>', {
+      method: 'DELETE',
+      headers: {
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content,
+        'Content-Type': 'application/json'
+      }
+    }).then(() => {
+      window.location.href = '<%= servers_path %>';
+    }).catch(() => {
+      confirmBtn.disabled = false;
+      confirmBtn.innerHTML = '<i class="fas fa-trash me-2"></i>Permanently Delete Server';
+    });
   });
 
   modal.addEventListener('hide.mdb.modal', function() {
