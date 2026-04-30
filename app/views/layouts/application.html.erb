@@ -169,7 +169,7 @@
 
   </head>
 
-  <body data-theme="<%= current_user_theme %>" data-controller="theme" data-theme-current-value="<%= current_user_theme %>" data-theme-endpoint-value="<%= user_signed_in? ? update_theme_path : '' %>">
+  <body data-theme="<%= current_user_theme %>" data-controller="theme confirm" data-theme-current-value="<%= current_user_theme %>" data-theme-endpoint-value="<%= user_signed_in? ? update_theme_path : '' %>">
     <!-- Navigation (hidden on auth pages except edit) -->
     <% unless devise_controller? && !(controller_name == 'registrations' && action_name == 'edit') %>
     <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(rgba(0, 0, 0, 0.69), rgba(0, 0, 0, 0.69)), url('/img/raychan-jrNY1BZhnJg-unsplash.jpg') center/cover no-repeat; position: relative;">

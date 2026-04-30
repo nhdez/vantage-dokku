@@ -859,12 +859,15 @@ function resetUpdateServerBtn() {
   btn.appendChild(document.createTextNode('Update Server'));
 }
 
-function updateServer(url) {
+async function updateServer(url) {
   const btn = document.getElementById('update-server-btn');
 
-  if (!confirm('This will run "sudo apt update && sudo apt upgrade -y" on the server. This may take several minutes. Continue?')) {
-    return;
-  }
+  const ok = await window.appConfirm({
+    title: 'Update Server Packages',
+    body: 'This will run "sudo apt update && sudo apt upgrade -y" on the server. The operation may take several minutes.',
+    confirmLabel: 'Update',
+  });
+  if (!ok) return;
 
   btn.disabled = true;
   btn.replaceChildren();
@@ -905,14 +908,16 @@ function updateServer(url) {
 
 let installDokkuChannel = null;
 
-function installDokku(url) {
+async function installDokku(url) {
   const btn = document.getElementById('install-dokku-btn');
   const originalText = btn.innerHTML;
   
-  // Confirm action
-  if (!confirm('This will install Dokku on the server and set up SSH keys. This process may take 5-10 minutes. Continue?')) {
-    return;
-  }
+  const ok = await window.appConfirm({
+    title: 'Install Dokku',
+    body: 'This will install Dokku on the server and configure SSH keys. The process may take 5–10 minutes.',
+    confirmLabel: 'Install Dokku',
+  });
+  if (!ok) return;
   
   // Show loading state
   btn.disabled = true;
@@ -978,10 +983,13 @@ function subscribeToInstallDokku(serverUuid, btn, originalText) {
           btn.style.display = 'none';
           
           // Show success message and option to reload
-          setTimeout(() => {
-            if (confirm('Dokku installation completed! Would you like to refresh the page to see the updated interface?')) {
-              window.location.reload();
-            }
+          setTimeout(async () => {
+            const reload = await window.appConfirm({
+              title: 'Dokku Installed',
+              body: 'Installation completed successfully. Reload the page to see the updated interface.',
+              confirmLabel: 'Reload Page',
+            });
+            if (reload) window.location.reload();
           }, 2000);
         } else {
           showToast('error', data.message, 'Installation Failed');
@@ -1046,14 +1054,17 @@ function showInstallationOutput(output) {
   });
 }
 
-function restartServer(url) {
+async function restartServer(url) {
   const btn = document.getElementById('restart-server-btn');
   const originalText = btn.innerHTML;
   
-  // Confirm action with strong warning
-  if (!confirm('⚠️ WARNING: This will immediately restart the server using "sudo shutdown -r now".\n\nThe server will be unavailable for several minutes during the restart.\n\nAre you sure you want to proceed?')) {
-    return;
-  }
+  const ok = await window.appConfirm({
+    title: 'Restart Server',
+    body: 'This will immediately run “sudo shutdown -r now”. The server will be unavailable for several minutes. Are you sure?',
+    confirmLabel: 'Restart Server',
+    danger: true,
+  });
+  if (!ok) return;
   
   // Show loading state
   btn.disabled = true;
