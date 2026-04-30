@@ -335,14 +335,10 @@
             <%= link_to edit_server_path(@server), class: "btn btn-outline-primary" do %>
               <i class="fas fa-edit me-2"></i>Edit Configuration
             <% end %>
-            <%= link_to server_path(@server), method: :delete, 
-                class: "btn btn-outline-danger",
-                data: { 
-                  confirm: "Are you sure you want to delete '#{@server.name}'? This action cannot be undone.",
-                  turbo_method: :delete
-                } do %>
+            <button type="button" class="btn btn-outline-danger"
+                    data-mdb-toggle="modal" data-mdb-target="#delete-server-modal">
               <i class="fas fa-trash me-2"></i>Delete Server
-            <% end %>
+            </button>
           </div>
         </div>
       </div>
@@ -478,7 +474,61 @@
   </div>
 </div>
 
+<!-- Delete Server Modal -->
+<div id="delete-server-modal" class="modal fade" tabindex="-1" aria-labelledby="delete-server-modal-label" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-danger">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="delete-server-modal-label">
+          <i class="fas fa-exclamation-triangle me-2"></i>Delete Server
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-mdb-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-danger py-2 mb-3">
+          <strong>This action is permanent and cannot be undone.</strong>
+          All deployments, configurations, and history associated with this server will be removed from Vantage.
+        </div>
+        <p class="mb-1">Please type <strong><%= @server.name %></strong> to confirm:</p>
+        <input type="text"
+               id="delete-server-name-input"
+               class="form-control"
+               placeholder="<%= @server.name %>"
+               autocomplete="off" />
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-mdb-dismiss="modal">Cancel</button>
+        <%= button_to server_path(@server), method: :delete,
+              id: "delete-server-confirm-btn",
+              class: "btn btn-danger",
+              disabled: true,
+              form: { data: { turbo: "false" } } do %>
+          <i class="fas fa-trash me-2"></i>Permanently Delete Server
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
+// Delete server — enable confirm button only when name matches exactly
+(function() {
+  const modal = document.getElementById('delete-server-modal');
+  if (!modal) return;
+  const input = document.getElementById('delete-server-name-input');
+  const confirmBtn = document.getElementById('delete-server-confirm-btn');
+  const expected = <%= @server.name.to_json %>;
+
+  input.addEventListener('input', function() {
+    confirmBtn.disabled = input.value !== expected;
+  });
+
+  modal.addEventListener('hide.mdb.modal', function() {
+    input.value = '';
+    confirmBtn.disabled = true;
+  });
+})();
+
 function copyToClipboard(button) {
   const text = button.getAttribute('data-text');
   navigator.clipboard.writeText(text).then(function() {
