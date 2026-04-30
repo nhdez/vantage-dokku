@@ -335,9 +335,7 @@
             <%= link_to edit_server_path(@server), class: "btn btn-outline-primary" do %>
               <i class="fas fa-edit me-2"></i>Edit Configuration
             <% end %>
-            <button type="button" class="btn btn-outline-danger"
-                    data-mdb-toggle="modal"
-                    data-mdb-target="#delete-server-modal">
+            <button type="button" class="btn btn-outline-danger" onclick="showDeleteModal()">
               <i class="fas fa-trash me-2"></i>Delete Server
             </button>
           </div>
@@ -476,22 +474,14 @@
 </div>
 
 <!-- Delete Server Modal -->
-<div id="delete-server-modal"
-     class="modal fade"
-     tabindex="-1"
-     aria-labelledby="delete-server-modal-label"
-     aria-hidden="true"
-     data-mdb-modal-init
-     data-controller="confirm-delete"
-     data-confirm-delete-expected-name-value="<%= @server.name %>"
-     data-action="hidden.mdb.modal->confirm-delete#reset">
+<div id="delete-server-modal" class="modal fade" tabindex="-1" aria-hidden="true" style="display:none">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content border-danger">
       <div class="modal-header bg-danger text-white">
-        <h5 class="modal-title" id="delete-server-modal-label">
+        <h5 class="modal-title">
           <i class="fas fa-exclamation-triangle me-2"></i>Delete Server
         </h5>
-        <button type="button" class="btn-close btn-close-white" data-mdb-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="btn-close btn-close-white" onclick="hideDeleteModal()" aria-label="Close"></button>
       </div>
       <form action="<%= server_path(@server) %>" method="post" data-turbo="false">
         <input type="hidden" name="_method" value="delete">
@@ -506,17 +496,11 @@
                  id="delete-server-name-input"
                  class="form-control"
                  placeholder="<%= @server.name %>"
-                 autocomplete="off"
-                 data-confirm-delete-target="input"
-                 data-action="input->confirm-delete#validate" />
+                 autocomplete="off" />
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-mdb-dismiss="modal">Cancel</button>
-          <button type="submit" 
-                  id="delete-server-confirm-btn" 
-                  class="btn btn-danger" 
-                  disabled
-                  data-confirm-delete-target="button">
+          <button type="button" class="btn btn-secondary" onclick="hideDeleteModal()">Cancel</button>
+          <button type="submit" id="delete-server-confirm-btn" class="btn btn-danger" disabled>
             <i class="fas fa-trash me-2"></i>Permanently Delete Server
           </button>
         </div>
@@ -526,6 +510,34 @@
 </div>
 
 <script>
+function showDeleteModal() {
+  var modal = document.getElementById('delete-server-modal');
+  var backdrop = document.createElement('div');
+  backdrop.id = 'delete-modal-backdrop';
+  backdrop.className = 'modal-backdrop fade show';
+  backdrop.onclick = hideDeleteModal;
+  document.body.appendChild(backdrop);
+  document.body.classList.add('modal-open');
+  modal.style.display = 'block';
+  setTimeout(function() { modal.classList.add('show'); }, 10);
+}
+
+function hideDeleteModal() {
+  var modal = document.getElementById('delete-server-modal');
+  var backdrop = document.getElementById('delete-modal-backdrop');
+  modal.classList.remove('show');
+  document.body.classList.remove('modal-open');
+  if (backdrop) backdrop.remove();
+  setTimeout(function() { modal.style.display = 'none'; }, 200);
+  document.getElementById('delete-server-name-input').value = '';
+  document.getElementById('delete-server-confirm-btn').disabled = true;
+}
+
+document.getElementById('delete-server-name-input').addEventListener('input', function() {
+  document.getElementById('delete-server-confirm-btn').disabled =
+    this.value !== '<%= j @server.name %>';
+});
+
 function copyToClipboard(button) {
   const text = button.getAttribute('data-text');
   navigator.clipboard.writeText(text).then(function() {
