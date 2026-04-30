@@ -49,7 +49,11 @@ module ApplicationHelper
     base_controller = controller_path_parts.last
     namespace = controller_path_parts.first if controller_path_parts.length > 1
 
-    case base_controller
+    # Treat namespaced sub-controllers (e.g. servers/firewall) as their parent
+    # so existing action_name checks in the case below still apply.
+    effective_controller = namespace == "servers" ? "servers" : base_controller
+
+    case effective_controller
     when "dashboard"
       add_breadcrumb "Dashboard", dashboard_path, icon: "fas fa-tachometer-alt"
     when "deployments"
