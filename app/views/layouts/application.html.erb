@@ -122,8 +122,8 @@
           });
 
           // Initialize modals
-          document.querySelectorAll('[data-mdb-modal-init]').forEach((modal) => {
-            if (mdb.Modal) new mdb.Modal(modal);
+          document.querySelectorAll('[data-mdb-modal-init]').forEach((modalEl) => {
+            if (mdb.Modal) mdb.Modal.getInstance(modalEl) || new mdb.Modal(modalEl);
           });
 
           // Initialize collapse (for mobile menu)
