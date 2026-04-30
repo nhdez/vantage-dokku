@@ -906,7 +906,9 @@ async function updateServer(url) {
   });
 }
 
-let installDokkuChannel = null;
+if (typeof window.installDokkuChannel === 'undefined') {
+  window.installDokkuChannel = null;
+}
 
 async function installDokku(url) {
   const btn = document.getElementById('install-dokku-btn');
