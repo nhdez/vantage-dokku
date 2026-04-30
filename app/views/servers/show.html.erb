@@ -498,12 +498,13 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-mdb-dismiss="modal">Cancel</button>
-        <%= button_to server_path(@server), method: :delete,
-              id: "delete-server-confirm-btn",
-              class: "btn btn-danger",
-              disabled: true,
-              form: { data: { turbo: "false" } } do %>
-          <i class="fas fa-trash me-2"></i>Permanently Delete Server
+        <%= form_with url: server_path(@server), method: :delete, data: { turbo: false } do %>
+          <button type="submit"
+                  id="delete-server-confirm-btn"
+                  class="btn btn-danger"
+                  disabled>
+            <i class="fas fa-trash me-2"></i>Permanently Delete Server
+          </button>
         <% end %>
       </div>
     </div>
