@@ -484,54 +484,43 @@
         </h5>
         <button type="button" class="btn-close btn-close-white" data-mdb-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body">
-        <div class="alert alert-danger py-2 mb-3">
-          <strong>This action is permanent and cannot be undone.</strong>
-          All deployments, configurations, and history associated with this server will be removed from Vantage.
+      <form action="<%= server_path(@server) %>" method="post" data-turbo="false">
+        <input type="hidden" name="_method" value="delete">
+        <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+        <div class="modal-body">
+          <div class="alert alert-danger py-2 mb-3">
+            <strong>This action is permanent and cannot be undone.</strong>
+            All deployments, configurations, and history associated with this server will be removed from Vantage.
+          </div>
+          <p class="mb-1">Please type <strong><%= @server.name %></strong> to confirm:</p>
+          <input type="text"
+                 id="delete-server-name-input"
+                 class="form-control"
+                 placeholder="<%= @server.name %>"
+                 autocomplete="off" />
         </div>
-        <p class="mb-1">Please type <strong><%= @server.name %></strong> to confirm:</p>
-        <input type="text"
-               id="delete-server-name-input"
-               class="form-control"
-               placeholder="<%= @server.name %>"
-               autocomplete="off" />
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-mdb-dismiss="modal">Cancel</button>
-        <%= link_to server_path(@server),
-              id: "delete-server-confirm-btn",
-              class: "btn btn-danger disabled",
-              role: "button",
-              aria: { disabled: true },
-              data: { turbo_method: :delete } do %>
-          <i class="fas fa-trash me-2"></i>Permanently Delete Server
-        <% end %>
-      </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-mdb-dismiss="modal">Cancel</button>
+          <button type="submit" id="delete-server-confirm-btn" class="btn btn-danger" disabled>
+            <i class="fas fa-trash me-2"></i>Permanently Delete Server
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
 
 <script>
-// Delete server — enable confirm button only when name matches exactly
-(function() {
-  const modal = document.getElementById('delete-server-modal');
-  if (!modal) return;
-  const input = document.getElementById('delete-server-name-input');
-  const confirmBtn = document.getElementById('delete-server-confirm-btn');
-  const expected = "<%= j @server.name %>";
+// Delete server — enable submit only when typed name matches exactly
+document.getElementById('delete-server-name-input').addEventListener('input', function() {
+  document.getElementById('delete-server-confirm-btn').disabled =
+    this.value !== '<%= j @server.name %>';
+});
 
-  input.addEventListener('input', function() {
-    const matches = input.value === expected;
-    confirmBtn.classList.toggle('disabled', !matches);
-    confirmBtn.setAttribute('aria-disabled', String(!matches));
-  });
-
-  modal.addEventListener('hide.mdb.modal', function() {
-    input.value = '';
-    confirmBtn.classList.add('disabled');
-    confirmBtn.setAttribute('aria-disabled', 'true');
-  });
-})();
+document.getElementById('delete-server-modal').addEventListener('hidden.mdb.modal', function() {
+  document.getElementById('delete-server-name-input').value = '';
+  document.getElementById('delete-server-confirm-btn').disabled = true;
+});
 
 function copyToClipboard(button) {
   const text = button.getAttribute('data-text');
