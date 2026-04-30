@@ -2,8 +2,9 @@ import { Controller } from "@hotwired/stimulus"
 
 // Generic confirmation modal controller.
 //
-// Usage: call window.appConfirm({ title, body, confirmLabel, danger }) which
-// returns a Promise<boolean>. The modal HTML is injected once and reused.
+// Usage: call window.appConfirm({ title, bodyHtml, confirmLabel, danger }) which
+// returns a Promise<boolean>. bodyHtml is developer-controlled HTML (never user input).
+// The modal element is injected once and reused across calls.
 export default class extends Controller {
   connect() {
     this._ensureModal()
@@ -14,11 +15,13 @@ export default class extends Controller {
     delete window.appConfirm
   }
 
-  show({ title = "Are you sure?", body = "", confirmLabel = "Confirm", danger = false } = {}) {
+  show({ title = "Are you sure?", bodyHtml = "", confirmLabel = "Confirm", danger = false } = {}) {
     return new Promise((resolve) => {
       const modal = document.getElementById("app-confirm-modal")
       modal.querySelector(".app-confirm-title").textContent = title
-      modal.querySelector(".app-confirm-body").textContent = body
+      const bodyEl = modal.querySelector(".app-confirm-body")
+      bodyEl.replaceChildren()
+      bodyEl.insertAdjacentHTML("beforeend", bodyHtml)
 
       const confirmBtn = modal.querySelector(".app-confirm-ok")
       confirmBtn.textContent = confirmLabel

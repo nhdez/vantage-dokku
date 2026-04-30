@@ -864,7 +864,7 @@ async function updateServer(url) {
 
   const ok = await window.appConfirm({
     title: 'Update Server Packages',
-    body: 'This will run "sudo apt update && sudo apt upgrade -y" on the server. The operation may take several minutes.',
+    bodyHtml: 'This will run <code>sudo apt update &amp;&amp; sudo apt upgrade -y</code> on the server. The operation may take several minutes.',
     confirmLabel: 'Update',
   });
   if (!ok) return;
@@ -914,7 +914,7 @@ async function installDokku(url) {
   
   const ok = await window.appConfirm({
     title: 'Install Dokku',
-    body: 'This will install Dokku on the server and configure SSH keys. The process may take 5–10 minutes.',
+    bodyHtml: 'This will install Dokku on the server and configure SSH keys. The process may take 5–10 minutes.',
     confirmLabel: 'Install Dokku',
   });
   if (!ok) return;
@@ -986,7 +986,7 @@ function subscribeToInstallDokku(serverUuid, btn, originalText) {
           setTimeout(async () => {
             const reload = await window.appConfirm({
               title: 'Dokku Installed',
-              body: 'Installation completed successfully. Reload the page to see the updated interface.',
+              bodyHtml: 'Installation completed successfully. Reload the page to see the updated interface.',
               confirmLabel: 'Reload Page',
             });
             if (reload) window.location.reload();
@@ -1060,7 +1060,7 @@ async function restartServer(url) {
   
   const ok = await window.appConfirm({
     title: 'Restart Server',
-    body: 'This will immediately run “sudo shutdown -r now”. The server will be unavailable for several minutes. Are you sure?',
+    bodyHtml: 'This will immediately run <code>sudo shutdown -r now</code>. The server will be unavailable for several minutes. Are you sure?',
     confirmLabel: 'Restart Server',
     danger: true,
   });
