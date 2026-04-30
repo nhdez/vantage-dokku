@@ -517,7 +517,7 @@
   if (!modal) return;
   const input = document.getElementById('delete-server-name-input');
   const confirmBtn = document.getElementById('delete-server-confirm-btn');
-  const expected = <%= @server.name.to_json %>;
+  const expected = "<%= j @server.name %>";
 
   input.addEventListener('input', function() {
     confirmBtn.disabled = input.value !== expected;
