@@ -29,8 +29,8 @@ export default class extends Controller {
     const colorMap = {
       success: 'success',
       error: 'danger',
-      warning: 'warning', 
-      info: 'info',
+      warning: 'warning',
+      info: 'primary',
       notice: 'success'
     }
 
@@ -44,7 +44,7 @@ export default class extends Controller {
 
     const toastType = type === 'alert' ? 'error' : type
     const toastTitle = title || defaultTitles[toastType] || 'Notification'
-    const toastColor = colorMap[toastType] || 'info'
+    const toastColor = colorMap[toastType] || 'primary'
     const toastIcon = iconMap[toastType] || 'fas fa-info-circle'
 
     const toastHTML = `
@@ -116,6 +116,57 @@ export default class extends Controller {
   handleToastEvent(event) {
     const { type, message, title, ...options } = event.detail
     this.showToast(type, message, title)
+  }
+}
+
+// Standalone global showToast — works on any page without a local definition.
+// Mirrors the inline showToast used in view scripts so all toasts look identical.
+// Also feeds the notification bell for success/error/warning events.
+window.showToast = function(type, message, title) {
+  const colorMap = { success: 'success', error: 'danger', warning: 'warning', info: 'primary', notice: 'success' }
+  const iconMap  = { success: 'fas fa-check-circle', error: 'fas fa-exclamation-circle', warning: 'fas fa-exclamation-triangle', info: 'fas fa-info-circle', notice: 'fas fa-check-circle' }
+  const defaultTitles = { success: 'Success', error: 'Error', warning: 'Warning', info: 'Info', notice: 'Success' }
+  const color = colorMap[type] || 'primary'
+  const icon  = iconMap[type]  || 'fas fa-info-circle'
+  const time  = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const id    = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  const resolvedTitle = title || defaultTitles[type] || 'Notification'
+
+  const toastHtml = `
+    <div id="${id}" class="toast fade show" role="alert" aria-live="assertive" aria-atomic="true" data-mdb-autohide="true" data-mdb-delay="5000">
+      <div class="toast-header bg-${color} text-white">
+        <i class="${icon} me-2"></i>
+        <strong class="me-auto">${resolvedTitle}</strong>
+        <small class="text-white-50">${time}</small>
+        <button type="button" class="btn-close btn-close-white ms-2" data-mdb-dismiss="toast" aria-label="Close"></button>
+      </div>
+      <div class="toast-body bg-${color} bg-opacity-10 border-${color} border-start border-4">
+        <div class="d-flex align-items-start">
+          <i class="${icon} text-${color} me-3 mt-1"></i>
+          <div class="flex-grow-1">${message}</div>
+        </div>
+      </div>
+    </div>
+  `
+
+  const container = document.getElementById('toast-container') || document.querySelector('.toast-container') || document.body
+  container.insertAdjacentHTML('afterbegin', toastHtml)
+
+  const el = document.getElementById(id)
+  el.style.transform = 'translateX(100%)'
+  el.style.transition = 'transform 0.3s ease-in-out'
+  setTimeout(() => { el.style.transform = 'translateX(0)' }, 10)
+
+  const toast = new mdb.Toast(el)
+  toast.show()
+  el.addEventListener('hidden.mdb.toast', () => { el.remove() })
+
+  // Feed the notification bell for result-level events (skip ephemeral 'info' progress updates)
+  const notifyTypes = ['success', 'error', 'warning', 'notice']
+  if (notifyTypes.includes(type)) {
+    window.dispatchEvent(new CustomEvent('notify:push', {
+      detail: { type, title: resolvedTitle, message }
+    }))
   }
 }
 

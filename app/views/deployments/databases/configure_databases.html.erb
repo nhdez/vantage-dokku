@@ -25,42 +25,19 @@
     <!-- Database Configuration Form -->
     <div class="col-md-8">
       <% if @has_conflicts %>
-        <!-- Environment Variable Warning (informational, not blocking) -->
-        <div class="card shadow mb-4">
-          <div class="card-header py-3 bg-warning text-dark">
-            <h6 class="m-0 font-weight-bold">
-              <i class="fas fa-exclamation-triangle me-2"></i>External Database Detected
-            </h6>
-          </div>
-          <div class="card-body">
-            <div class="alert alert-warning">
-              <i class="fas fa-exclamation-triangle me-2"></i>
-              <strong>Warning:</strong> You have manually configured environment variables for an external database.
-            </div>
-            
-            <p class="mb-3">
-              The following environment variables are currently set:
-            </p>
-            
-            <ul class="mb-3">
+        <div class="card shadow mb-4 border-start border-4 border-info">
+          <div class="card-body py-3">
+            <p class="mb-1 fw-semibold">
+              <i class="fas fa-info-circle text-info me-2"></i>You already have these variables set manually:
               <% @database_configuration.has_environment_variable_conflict?.each do |var| %>
-                <li><code><%= var %></code></li>
+                <code class="ms-1"><%= var %></code>
               <% end %>
-            </ul>
-            
-            <div class="alert alert-info">
-              <i class="fas fa-info-circle me-2"></i>
-              <strong>Note:</strong> If you configure a managed database below, it will <strong>overwrite</strong> these environment variables with the new database connection details.
-            </div>
-            
-            <p class="mb-0">
-              <strong>Options:</strong>
             </p>
-            <ul class="mb-0">
-              <li><strong>Keep external database:</strong> Do not configure a managed database below</li>
-              <li><strong>Switch to managed database:</strong> Configure below (will replace your external DATABASE_URL)</li>
-              <li><strong>Remove external database:</strong> <%= link_to "Manage Environment Variables", manage_environment_deployment_path(@deployment), class: "text-decoration-none" %> to delete the manual DATABASE_URL</li>
-            </ul>
+            <p class="mb-0 text-muted small">
+              Configuring a managed database here will update those variables to point to the new Dokku-managed instance.
+              To keep your external database instead, just leave this page as-is.
+              You can also <%= link_to "remove the variables manually", manage_environment_deployment_path(@deployment) %> if you no longer need them.
+            </p>
           </div>
         </div>
       <% end %>
@@ -74,17 +51,12 @@
         </div>
         <div class="card-body">
           <%= form_with model: @database_configuration, url: update_database_configuration_deployment_path(@deployment), method: :post, local: false, id: "database-form" do |form| %>
-            <div class="alert alert-info">
-              <i class="fas fa-info-circle me-2"></i>
-              <strong>Managed Databases:</strong> Dokku will automatically install plugins, create databases, and configure connection details.
-              Database credentials will be available as environment variables in your application.
-            </div>
-            
-            <div class="alert alert-warning">
-              <i class="fas fa-clock me-2"></i>
-              <strong>Setup Time:</strong> Database configuration may take 5-10 minutes as plugins are installed and databases are created.
-            </div>
-            
+            <p class="text-muted mb-4">
+              Select a database and Dokku will install the plugin, create the instance, link it to your app,
+              and set <code>DATABASE_URL</code> (and <code>REDIS_URL</code> if selected) as environment variables automatically.
+              Setup runs in the background and typically takes a few minutes.
+            </p>
+
             <!-- Database Type Selection -->
             <div class="mb-4">
               <label class="form-label">
@@ -96,7 +68,7 @@
                   <div class="card border <%= @database_configuration.database_type == 'postgres' ? 'border-primary' : 'border-light' %>">
                     <div class="card-body p-3">
                       <div class="form-check">
-                        <%= form.radio_button :database_type, 'postgres', 
+                        <%= form.radio_button :database_type, 'postgres',
                             class: "form-check-input",
                             id: "database_postgres" %>
                         <%= form.label "database_postgres", class: "form-check-label flex-grow-1" do %>
@@ -113,13 +85,13 @@
                     </div>
                   </div>
                 </div>
-                
+
                 <!-- MySQL Option -->
                 <div class="col-md-6 mb-3">
                   <div class="card border <%= @database_configuration.database_type == 'mysql' ? 'border-primary' : 'border-light' %>">
                     <div class="card-body p-3">
                       <div class="form-check">
-                        <%= form.radio_button :database_type, 'mysql', 
+                        <%= form.radio_button :database_type, 'mysql',
                             class: "form-check-input",
                             id: "database_mysql" %>
                         <%= form.label "database_mysql", class: "form-check-label flex-grow-1" do %>
@@ -137,14 +109,14 @@
                   </div>
                 </div>
               </div>
-              
+
               <div class="row">
                 <!-- MariaDB Option -->
                 <div class="col-md-6 mb-3">
                   <div class="card border <%= @database_configuration.database_type == 'mariadb' ? 'border-primary' : 'border-light' %>">
                     <div class="card-body p-3">
                       <div class="form-check">
-                        <%= form.radio_button :database_type, 'mariadb', 
+                        <%= form.radio_button :database_type, 'mariadb',
                             class: "form-check-input",
                             id: "database_mariadb" %>
                         <%= form.label "database_mariadb", class: "form-check-label flex-grow-1" do %>
@@ -161,13 +133,13 @@
                     </div>
                   </div>
                 </div>
-                
+
                 <!-- MongoDB Option -->
                 <div class="col-md-6 mb-3">
                   <div class="card border <%= @database_configuration.database_type == 'mongo' ? 'border-primary' : 'border-light' %>">
                     <div class="card-body p-3">
                       <div class="form-check">
-                        <%= form.radio_button :database_type, 'mongo', 
+                        <%= form.radio_button :database_type, 'mongo',
                             class: "form-check-input",
                             id: "database_mongo" %>
                         <%= form.label "database_mongo", class: "form-check-label flex-grow-1" do %>
@@ -186,7 +158,7 @@
                 </div>
               </div>
             </div>
-            
+
             <!-- Redis Option -->
             <div class="mb-4">
               <label class="form-label">
@@ -195,7 +167,7 @@
               <div class="card border <%= @database_configuration.redis_enabled? ? 'border-success' : 'border-light' %>">
                 <div class="card-body p-3">
                   <div class="form-check">
-                    <%= form.check_box :redis_enabled, 
+                    <%= form.check_box :redis_enabled,
                         class: "form-check-input",
                         id: "redis_enabled" %>
                     <%= form.label "redis_enabled", class: "form-check-label flex-grow-1" do %>
@@ -211,7 +183,7 @@
                 </div>
               </div>
             </div>
-            
+
             <!-- Database Information Display -->
             <% if @database_configuration.persisted? %>
               <div class="alert alert-success">
@@ -259,7 +231,7 @@
                                  readonly>
                           <button class="btn btn-outline-secondary"
                                   type="button"
-                                  onclick="copyToClipboard('database-url-input', this)"
+                                  onclick="copyFieldToClipboard('database-url-input', this)"
                                   title="Copy to clipboard">
                             <i class="fas fa-copy"></i>
                           </button>
@@ -286,7 +258,7 @@
                                  readonly>
                           <button class="btn btn-outline-secondary"
                                   type="button"
-                                  onclick="copyToClipboard('redis-url-input', this)"
+                                  onclick="copyFieldToClipboard('redis-url-input', this)"
                                   title="Copy to clipboard">
                             <i class="fas fa-copy"></i>
                           </button>
@@ -301,18 +273,16 @@
                 </div>
               <% end %>
             <% end %>
-            
+
             <!-- Submit Button -->
             <div class="row">
               <div class="col-12">
                 <div class="d-flex gap-2 align-items-center">
-                  <%= form.submit "Configure Database", class: "btn btn-primary", id: "database-submit-btn",
-                      data: { 
-                        loading_text: "Configuring database... (this may take 5-10 minutes)",
-                        original_text: "Configure Database"
-                      } %>
+                  <button type="submit" class="btn btn-primary" id="database-submit-btn">
+                    <i class="fas fa-save me-2"></i>Configure Database
+                  </button>
                   <%= link_to "Cancel", @deployment, class: "btn btn-secondary" %>
-                  
+
                   <div class="ms-auto">
                     <small class="text-muted">
                       <i class="fas fa-info-circle me-1"></i>
@@ -350,7 +320,7 @@
                 </span>
               </div>
             </div>
-            
+
             <% if @database_configuration.redis_enabled? %>
               <div class="mb-3">
                 <h6 class="text-muted">Redis Cache</h6>
@@ -364,7 +334,7 @@
                 </div>
               </div>
             <% end %>
-            
+
             <% if @database_configuration.configured? %>
               <div class="alert alert-success">
                 <i class="fas fa-check-circle me-2"></i>
@@ -376,7 +346,7 @@
                 <strong>Error:</strong> <%= @database_configuration.error_message %>
               </div>
             <% end %>
-            
+
             <% if @database_configuration.can_be_deleted? %>
               <div class="mt-3">
                 <%= form_with url: delete_database_configuration_deployment_path(@deployment), method: :delete, local: true, id: "simple-delete-form", class: "d-inline" do |form| %>
@@ -407,7 +377,7 @@
             <h6 class="text-muted">Dokku App Name</h6>
             <code class="text-info"><%= @deployment.dokku_app_name %></code>
           </div>
-          
+
           <div class="mb-3">
             <h6 class="text-muted">Target Server</h6>
             <div class="d-flex align-items-center">
@@ -426,27 +396,12 @@
           </h6>
         </div>
         <div class="card-body">
-          <div class="alert alert-success">
-            <i class="fas fa-check-circle me-2"></i>
-            <strong>Automatic Setup:</strong> Plugins are installed and databases are created automatically.
-          </div>
-          
-          <div class="alert alert-info">
-            <i class="fas fa-info-circle me-2"></i>
-            <strong>Environment Variables:</strong> Connection details are automatically added to your app environment.
-          </div>
-          
-          <div class="alert alert-warning">
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            <strong>Note:</strong> Manual DATABASE_URL or REDIS_URL environment variables take precedence.
-          </div>
-          
-          <h6 class="mt-3">What gets installed:</h6>
-          <ul class="list-unstyled">
-            <li><i class="fas fa-check text-success me-2"></i>PostgreSQL plugin & database</li>
-            <li><i class="fas fa-check text-success me-2"></i>Redis plugin & instance (if selected)</li>
-            <li><i class="fas fa-check text-success me-2"></i>Automatic linking to your app</li>
-            <li><i class="fas fa-check text-success me-2"></i>Environment variables setup</li>
+          <p class="text-muted small mb-3">When you configure a database, Vantage will:</p>
+          <ul class="list-unstyled mb-0">
+            <li class="mb-2"><i class="fas fa-plug text-primary me-2"></i>Install the Dokku plugin on the server</li>
+            <li class="mb-2"><i class="fas fa-database text-primary me-2"></i>Create a dedicated database instance</li>
+            <li class="mb-2"><i class="fas fa-link text-primary me-2"></i>Link it to your app automatically</li>
+            <li class="mb-0"><i class="fas fa-key text-primary me-2"></i>Set <code>DATABASE_URL</code> in your environment</li>
           </ul>
         </div>
       </div>
@@ -454,609 +409,164 @@
   </div>
 </div>
 
-
 <script>
-// Use window scope and check if already exists to avoid redeclaration with Turbo
-if (typeof window.databaseConfigurationChannel === 'undefined') {
-  window.databaseConfigurationChannel = null;
-}
-if (typeof window.databaseDeletionChannel === 'undefined') {
-  window.databaseDeletionChannel = null;
-}
-
 document.addEventListener('DOMContentLoaded', function() {
-  // Subscribe to database deletion updates on page load
-  subscribeToDatabaseDeletion();
-  // Handle form submission with AJAX
-  const form = document.getElementById('database-form');
-  if (form) {
-    form.addEventListener('submit', function(e) {
-      e.preventDefault();
-      
-      const submitBtn = document.getElementById('database-submit-btn');
-      const loadingText = submitBtn.getAttribute('data-loading-text');
-      const originalText = submitBtn.getAttribute('data-original-text');
-      
-      // Update button state
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Starting Configuration...';
-      
-      // Subscribe to database configuration updates
-      subscribeToDatabaseConfiguration();
-      
-      // Show background processing message
-      showBackgroundProcessingMessage();
-      
-      // Submit the form via AJAX
-      fetch(form.action, {
-        method: 'POST',
-        body: new FormData(form),
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          showNotification(data.message, 'success');
-        } else {
-          showNotification(`Error: ${data.message}`, 'error');
-          resetForm();
-        }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        showNotification(`Error: ${error.message}`, 'error');
-        resetForm();
-      });
-    });
+  const form      = document.getElementById('database-form');
+  const submitBtn = document.getElementById('database-submit-btn');
+
+  if (!form || !submitBtn) return;
+
+  const submitBtnClone = submitBtn.cloneNode(true);
+
+  function setBtnContent(btn, markup) {
+    btn.replaceChildren();
+    btn.insertAdjacentHTML('afterbegin', markup);
   }
 
-  function showBackgroundProcessingMessage() {
-    // Remove any existing message
-    const existingMessage = document.getElementById('background-processing-message');
-    if (existingMessage) {
-      existingMessage.remove();
-    }
-
-    const messageDiv = document.createElement('div');
-    messageDiv.id = 'background-processing-message';
-    messageDiv.className = 'alert alert-info mt-3';
-    messageDiv.innerHTML = `
-      <i class="fas fa-cogs fa-spin me-2"></i>
-      <strong>Database Configuration Started</strong>
-      <p class="mb-2">Your database is being configured in the background. This process includes:</p>
-      <ul class="mb-0">
-        <li>Installing database plugins on the server</li>
-        <li>Creating database instances</li>
-        <li>Linking databases to your application</li>
-        <li>Setting up environment variables</li>
-      </ul>
-      <div class="mt-2">
-        <small class="text-muted">
-          <i class="fas fa-info-circle me-1"></i>
-          You can continue using the application while this runs in the background.
-        </small>
-      </div>
-    `;
-    
-    const form = document.getElementById('database-form');
-    form.appendChild(messageDiv);
-  }
-
-  function resetForm() {
-    const submitBtn = document.getElementById('database-submit-btn');
-    const originalText = submitBtn.getAttribute('data-original-text');
-    
+  function resetSubmitBtn() {
     submitBtn.disabled = false;
-    submitBtn.innerHTML = originalText;
-    
-    // Remove background processing message
-    const message = document.getElementById('background-processing-message');
-    if (message) {
-      message.remove();
-    }
-    
-    // Unsubscribe from channel
-    if (window.databaseConfigurationChannel) {
-      window.databaseConfigurationChannel.unsubscribe();
-      window.databaseConfigurationChannel = null;
-    }
+    submitBtn.replaceChildren();
+    submitBtn.append(...submitBtnClone.cloneNode(true).childNodes);
   }
 
-  function showNotification(message, type) {
-    // Create toast notification
-    const toastDiv = document.createElement('div');
-    toastDiv.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
-    toastDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-    toastDiv.innerHTML = `
-      ${message}
-      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    document.body.appendChild(toastDiv);
-    
-    // Auto-remove after 5 seconds
-    setTimeout(() => {
-      if (toastDiv.parentNode) {
-        toastDiv.remove();
-      }
-    }, 5000);
-  }
+  // ---- Form submit ----
 
-  function subscribeToDatabaseConfiguration() {
-    if (window.databaseConfigurationChannel) {
-      window.databaseConfigurationChannel.unsubscribe();
-      window.databaseConfigurationChannel = null;
-    }
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
 
-    const deploymentUuid = '<%= @deployment.uuid %>';
+    submitBtn.disabled = true;
+    setBtnContent(submitBtn, '<i class="fas fa-spinner fa-spin me-2"></i>Starting...');
 
-    window.databaseConfigurationChannel = window.actionCableConsumer.subscriptions.create(
-      {
-        channel: "DatabaseConfigurationChannel",
-        deployment_uuid: deploymentUuid
-      },
-      {
-        received: function(data) {
-          console.log('Received database configuration update:', data);
-
-          if (data.type === 'update') {
-            updateProgressMessage(data.message);
-          } else if (data.type === 'success') {
-            // Show success notification with proper toast
-            showToast('success', data.message, 'Database Configuration Complete');
-
-            // Update the UI dynamically instead of reloading
-            updateDatabaseStatus('success', data.message);
-            updateCurrentConfiguration(data);
-
-            // Reset form and remove loading states
-            resetForm();
-
-            // Remove the background processing message
-            const bgMessage = document.getElementById('background-processing-message');
-            if (bgMessage) {
-              bgMessage.remove();
-            }
-
-            // Add a success alert to the form area
-            addSuccessAlert(data.message);
-          } else if (data.type === 'error') {
-            showToast('error', data.message, 'Configuration Failed');
-            updateDatabaseStatus('error', data.message);
-            resetForm();
-          }
-        },
-        
-        connected: function() {
-          console.log('Connected to database configuration channel');
-        },
-        
-        disconnected: function() {
-          console.log('Disconnected from database configuration channel');
-        }
-      }
-    );
-  }
-
-  function updateProgressMessage(message) {
-    const messageDiv = document.getElementById('background-processing-message');
-    if (messageDiv) {
-      const progressDiv = messageDiv.querySelector('.progress-update') || (() => {
-        const div = document.createElement('div');
-        div.className = 'progress-update mt-2 p-2 bg-light rounded';
-        messageDiv.appendChild(div);
-        return div;
-      })();
-
-      progressDiv.innerHTML = `
-        <i class="fas fa-info-circle text-primary me-2"></i>
-        <strong>Progress:</strong> ${message}
-      `;
-    }
-  }
-
-  function showToast(type, message, title) {
-    // Create a proper toast notification using the app's toast system
-    const toastHtml = `
-      <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
-        <div class="d-flex">
-          <div class="toast-body">
-            <strong>${title}:</strong> ${message}
-          </div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-mdb-dismiss="toast" aria-label="Close"></button>
-        </div>
-      </div>
-    `;
-
-    let toastContainer = document.querySelector('.toast-container');
-    if (!toastContainer) {
-      toastContainer = document.createElement('div');
-      toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
-      document.body.appendChild(toastContainer);
-    }
-
-    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
-    const toastElement = toastContainer.lastElementChild;
-
-    // Use MDB toast if available, otherwise fallback
-    if (typeof mdb !== 'undefined' && mdb.Toast) {
-      const toast = new mdb.Toast(toastElement);
-      toast.show();
-
-      // Remove toast element after it's hidden
-      toastElement.addEventListener('hidden.mdb.toast', () => {
-        toastElement.remove();
-      });
-    } else {
-      // Fallback: show for 5 seconds then remove
-      setTimeout(() => {
-        toastElement.remove();
-      }, 5000);
-    }
-  }
-
-  function updateDatabaseStatus(status, message) {
-    // Update the Database Status card on the right sidebar
-    const statusCard = document.querySelector('.col-md-4 .card-body');
-    if (!statusCard) return;
-
-    if (status === 'success') {
-      // Parse the message to extract database info
-      const dbMatch = message.match(/(\w+)\s+\(([\w-]+)\)/);
-      const dbType = dbMatch ? dbMatch[1] : 'Database';
-      const dbName = dbMatch ? dbMatch[2] : 'configured';
-      const hasRedis = message.includes('Redis');
-
-      // Update the Database Status card content
-      const statusHtml = `
-        <div class="mb-3">
-          <h6 class="text-muted">Primary Database</h6>
-          <div class="d-flex align-items-center">
-            <i class="fas fa-database text-primary me-2"></i>
-            <div class="flex-grow-1">
-              <strong>${dbType}</strong>
-              <br><small class="text-muted">${dbName}</small>
-            </div>
-            <span class="badge bg-success">Configured</span>
-          </div>
-        </div>
-        ${hasRedis ? `
-        <div class="mb-3">
-          <h6 class="text-muted">Redis Cache</h6>
-          <div class="d-flex align-items-center">
-            <i class="fas fa-memory text-success me-2"></i>
-            <div class="flex-grow-1">
-              <strong>Redis</strong>
-              <br><small class="text-muted">redis-instance</small>
-            </div>
-            <span class="badge bg-success">Enabled</span>
-          </div>
-        </div>
-        ` : ''}
-        <div class="alert alert-success">
-          <i class="fas fa-check-circle me-2"></i>
-          <strong>Ready:</strong> Database is configured and available to your application.
-        </div>
-      `;
-
-      // Find the correct card body for Database Status
-      const databaseStatusCard = Array.from(document.querySelectorAll('.card-header')).find(header =>
-        header.textContent.includes('Database Status')
-      );
-
-      if (databaseStatusCard) {
-        const cardBody = databaseStatusCard.nextElementSibling;
-        if (cardBody) {
-          cardBody.innerHTML = statusHtml;
-        }
-      }
-    }
-  }
-
-  function updateCurrentConfiguration(data) {
-    // Update or add the Current Configuration alert in the main form area
-    const existingAlert = document.querySelector('.alert-success:has(.fa-check-circle)');
-
-    if (!existingAlert) {
-      // Find the form and add the alert before the submit button
-      const submitRow = document.querySelector('.row:has(#database-submit-btn)');
-      if (submitRow) {
-        const configAlert = document.createElement('div');
-        configAlert.className = 'alert alert-success mb-3';
-        configAlert.innerHTML = `
-          <i class="fas fa-check-circle me-2"></i>
-          <strong>Current Configuration:</strong>
-          <ul class="mb-0 mt-2">
-            <li><strong>Database:</strong> Configured successfully</li>
-            <li><strong>Status:</strong>
-              <span class="badge bg-success">Ready</span>
-            </li>
-          </ul>
-        `;
-        submitRow.parentNode.insertBefore(configAlert, submitRow);
-      }
-    }
-  }
-
-  function addSuccessAlert(message) {
-    // Add a success message at the top of the form
-    const formCard = document.querySelector('.col-md-8 .card-body');
-    if (!formCard) return;
-
-    // Remove any existing success alerts
-    const existingSuccessAlert = formCard.querySelector('.configuration-success-alert');
-    if (existingSuccessAlert) {
-      existingSuccessAlert.remove();
-    }
-
-    const successAlert = document.createElement('div');
-    successAlert.className = 'alert alert-success alert-dismissible fade show configuration-success-alert mb-3';
-    successAlert.innerHTML = `
-      <i class="fas fa-check-circle me-2"></i>
-      <strong>Success!</strong> ${message}
-      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-
-    // Insert at the beginning of the card body
-    formCard.insertBefore(successAlert, formCard.firstChild);
-  }
-
-  function subscribeToDatabaseDeletion() {
-    if (window.databaseDeletionChannel) {
-      window.databaseDeletionChannel.unsubscribe();
-      window.databaseDeletionChannel = null;
-    }
-
-    const deploymentUuid = '<%= @deployment.uuid %>';
-
-    window.databaseDeletionChannel = window.actionCableConsumer.subscriptions.create(
-      {
-        channel: "DatabaseDeletionChannel",
-        deployment_uuid: deploymentUuid
-      },
-      {
-        received: function(data) {
-          console.log('Received database deletion update:', data);
-
-          if (data.type === 'success') {
-            // Show success notification
-            showToast('success', data.message, 'Database Deleted');
-
-            // Update the Database Status card to show no configuration
-            const databaseStatusCard = Array.from(document.querySelectorAll('.card-header')).find(header =>
-              header.textContent.includes('Database Status')
-            );
-
-            if (databaseStatusCard) {
-              const cardBody = databaseStatusCard.nextElementSibling;
-              if (cardBody) {
-                cardBody.innerHTML = `
-                  <div class="text-center py-3">
-                    <i class="fas fa-database fa-2x text-muted mb-2"></i>
-                    <p class="text-muted mb-0">No database configured</p>
-                    <small class="text-muted">Configure a database to get started</small>
-                  </div>
-                `;
-              }
-            }
-
-            // Remove any existing configuration alerts
-            const configAlert = document.querySelector('.alert-success:has(.fa-check-circle)');
-            if (configAlert && configAlert.textContent.includes('Current Configuration')) {
-              configAlert.remove();
-            }
-
-            // Refresh the page after a short delay to show the clean state
-            setTimeout(() => {
-              window.location.reload();
-            }, 3000);
-          } else if (data.type === 'error') {
-            showToast('error', data.message, 'Deletion Failed');
-
-            // Re-enable the delete button if it exists
-            const deleteBtn = document.querySelector('button[onclick*="confirmDeletion"]');
-            if (deleteBtn) {
-              deleteBtn.disabled = false;
-              deleteBtn.innerHTML = '<i class="fas fa-trash me-2"></i>Delete Database Configuration';
+    fetch(form.action, {
+      method: 'POST',
+      body: new FormData(form),
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        window.dispatchEvent(new CustomEvent('live-console:start', {
+          detail: {
+            id: 'db-config-<%= @deployment.uuid %>',
+            label: 'Configuring database (<%= j @deployment.name %>)',
+            channelName: 'DatabaseConfigurationChannel',
+            channelParams: { deployment_uuid: '<%= @deployment.uuid %>' },
+            onComplete: function({ success }) {
+              resetSubmitBtn();
+              if (success) setTimeout(() => window.location.reload(), 2000);
             }
           }
-        },
-
-        connected: function() {
-          console.log('Connected to database deletion channel');
-        },
-
-        disconnected: function() {
-          console.log('Disconnected from database deletion channel');
-        }
+        }));
+      } else {
+        showToast('error', data.message || 'Failed to start configuration', 'Error');
+        resetSubmitBtn();
       }
-    );
-  }
-});
-
-// Handle database type selection highlighting
-document.addEventListener('change', function(e) {
-    if (e.target.name === 'database_configuration[database_type]') {
-      // Remove highlighting from all cards
-      document.querySelectorAll('.card.border-primary').forEach(function(card) {
-        card.classList.remove('border-primary');
-        card.classList.add('border-light');
-      });
-      
-      // Add highlighting to selected card
-      const selectedCard = e.target.closest('.card');
-      if (selectedCard) {
-        selectedCard.classList.remove('border-light');
-        selectedCard.classList.add('border-primary');
-      }
-    }
-    
-    if (e.target.name === 'database_configuration[redis_enabled]') {
-      const redisCard = e.target.closest('.card');
-      if (redisCard) {
-        if (e.target.checked) {
-          redisCard.classList.remove('border-light');
-          redisCard.classList.add('border-success');
-        } else {
-          redisCard.classList.remove('border-success');
-          redisCard.classList.add('border-light');
-        }
-      }
-    }
+    })
+    .catch(err => {
+      console.error(err);
+      showToast('error', 'An unexpected error occurred', 'Error');
+      resetSubmitBtn();
+    });
   });
 
-// Enhanced delete confirmation function with detailed information
-function confirmDeletion(event) {
-  event.preventDefault();
+  // ---- Deletion confirmation ----
 
-  // Get database configuration details from the page
-  const dbTypeElement = document.querySelector('.card-body strong');
-  const dbNameElement = document.querySelector('.card-body small.text-muted');
-  const hasRedis = document.querySelector('.fa-memory') !== null;
-
-  const dbType = dbTypeElement ? dbTypeElement.textContent : 'Database';
-  const dbName = dbNameElement ? dbNameElement.textContent : 'database';
-
-  // Create a more detailed confirmation dialog
-  let warningMessage = "⚠️ CRITICAL WARNING: PERMANENT DATA DELETION ⚠️\n\n";
-  warningMessage += "You are about to PERMANENTLY DELETE:\n\n";
-  warningMessage += `📊 ${dbType} Database: ${dbName}\n`;
-
-  if (hasRedis) {
-    warningMessage += "💾 Redis Cache Instance\n";
-  }
-
-  warningMessage += "\n⚡ THIS ACTION WILL:\n";
-  warningMessage += "━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-  warningMessage += "1. Unlink the database from your application\n";
-  warningMessage += "2. PERMANENTLY DELETE ALL DATA in the database\n";
-  warningMessage += "3. Remove DATABASE_URL environment variable\n";
-
-  if (hasRedis) {
-    warningMessage += "4. Unlink and DELETE the Redis instance\n";
-    warningMessage += "5. Remove REDIS_URL environment variable\n";
-    warningMessage += "6. LOSE ALL CACHED DATA in Redis\n";
-  }
-
-  warningMessage += "\n⛔ THIS CANNOT BE UNDONE!\n";
-  warningMessage += "━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
-  warningMessage += "💡 RECOMMENDATION:\n";
-  warningMessage += "• Create a backup before proceeding\n";
-  warningMessage += "• Ensure your application can handle database removal\n\n";
-  warningMessage += "Type 'DELETE' to confirm this action:";
-
-  const userInput = prompt(warningMessage);
-
-  if (userInput === 'DELETE') {
-    // Double confirmation for extra safety
-    const finalConfirm = confirm(
-      `Final Confirmation:\n\n` +
-      `This will IMMEDIATELY and PERMANENTLY delete:\n` +
-      `• ${dbType} database: ${dbName}\n` +
-      (hasRedis ? `• Redis instance\n` : '') +
-      `• All associated data\n\n` +
-      `Last chance - Are you absolutely certain?`
-    );
-
-    if (finalConfirm) {
-      // Submit the form via AJAX for better user experience
-      const form = document.getElementById('simple-delete-form');
-      if (form) {
-        // Show loading state
-        const button = event.target.closest('button');
-        if (button) {
-          button.disabled = true;
-          button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Starting Deletion Process...';
-        }
-
-        // Submit form via AJAX to handle it in background
-        fetch(form.action, {
-          method: 'DELETE',
-          headers: {
-            'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-            'X-Requested-With': 'XMLHttpRequest'
-          }
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.redirect) {
-            // Show success and redirect
-            showToast('info', 'Database deletion started in background. You will be notified when complete.', 'Deletion Started');
-            setTimeout(() => {
-              window.location.href = data.redirect;
-            }, 2000);
-          } else {
-            showToast('error', data.message || 'Failed to start deletion', 'Error');
-            // Reset button
-            if (button) {
-              button.disabled = false;
-              button.innerHTML = '<i class="fas fa-trash me-2"></i>Delete Database Configuration';
-            }
-          }
-        })
-        .catch(error => {
-          console.error('Error:', error);
-          showToast('error', 'An unexpected error occurred', 'Error');
-          // Reset button
-          if (button) {
-            button.disabled = false;
-            button.innerHTML = '<i class="fas fa-trash me-2"></i>Delete Database Configuration';
-          }
-        });
-      }
-    }
-  } else if (userInput !== null) {
-    // User entered something other than 'DELETE'
-    showToast('info', 'Deletion cancelled. You must type DELETE to confirm.', 'Cancelled');
-  }
-}
-
-// Copy to clipboard function
-function copyToClipboard(inputId, button) {
-  const input = document.getElementById(inputId);
-  if (!input) return;
-
-  // Select and copy the text
-  input.select();
-  input.setSelectionRange(0, 99999); // For mobile devices
-
-  try {
-    // Try using the modern Clipboard API
-    navigator.clipboard.writeText(input.value).then(() => {
-      // Show success feedback
-      const originalHTML = button.innerHTML;
-      button.innerHTML = '<i class="fas fa-check text-success"></i>';
-      button.classList.add('btn-success');
-      button.classList.remove('btn-outline-secondary');
-
-      // Reset button after 2 seconds
-      setTimeout(() => {
-        button.innerHTML = originalHTML;
-        button.classList.remove('btn-success');
-        button.classList.add('btn-outline-secondary');
-      }, 2000);
-    }).catch(err => {
-      // Fallback to execCommand if Clipboard API fails
-      document.execCommand('copy');
-      const originalHTML = button.innerHTML;
-      button.innerHTML = '<i class="fas fa-check text-success"></i>';
-      setTimeout(() => {
-        button.innerHTML = originalHTML;
-      }, 2000);
+  window.confirmDeletion = function(event) {
+    event.preventDefault();
+    window.appConfirm({
+      title: 'Delete Database Configuration',
+      bodyHtml: 'This will permanently delete the database configuration and all associated data. This action cannot be undone.',
+      confirmLabel: 'Delete',
+      danger: true
+    }).then(ok => {
+      if (ok) document.getElementById('simple-delete-form').submit();
     });
-  } catch (err) {
-    console.error('Failed to copy:', err);
+  };
+
+  // ---- Copy field to clipboard ----
+
+  window.copyFieldToClipboard = function(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    navigator.clipboard.writeText(input.value).then(() => {
+      const icon = btn.querySelector('i');
+      if (icon) {
+        icon.className = 'fas fa-check text-success';
+        setTimeout(() => { icon.className = 'fas fa-copy'; }, 2000);
+      }
+    }).catch(() => {
+      input.select();
+      document.execCommand('copy');
+    });
+  };
+
+  // ---- Toast helper ----
+
+  function showToast(type, message, title) {
+    const colorMap = { success: 'success', error: 'danger', warning: 'warning', info: 'primary' };
+    const iconMap  = { success: 'fas fa-check-circle', error: 'fas fa-exclamation-circle', warning: 'fas fa-exclamation-triangle', info: 'fas fa-info-circle' };
+    const color = colorMap[type] || 'primary';
+    const icon  = iconMap[type]  || 'fas fa-info-circle';
+    const time  = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const id    = 'toast-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+
+    const toastEl = document.createElement('div');
+    toastEl.id        = id;
+    toastEl.className = 'toast fade show';
+    toastEl.setAttribute('role', 'alert');
+    toastEl.setAttribute('aria-live', 'assertive');
+    toastEl.setAttribute('aria-atomic', 'true');
+    toastEl.setAttribute('data-mdb-autohide', 'true');
+    toastEl.setAttribute('data-mdb-delay', type === 'success' ? '6000' : '8000');
+
+    const header = document.createElement('div');
+    header.className = 'toast-header bg-' + color + ' text-white';
+
+    const hIcon = document.createElement('i');
+    hIcon.className = icon + ' me-2';
+    const hTitle = document.createElement('strong');
+    hTitle.className = 'me-auto';
+    hTitle.textContent = title;
+    const hTime = document.createElement('small');
+    hTime.className = 'text-white-50';
+    hTime.textContent = time;
+    const hClose = document.createElement('button');
+    hClose.type = 'button';
+    hClose.className = 'btn-close btn-close-white ms-2';
+    hClose.setAttribute('data-mdb-dismiss', 'toast');
+    hClose.setAttribute('aria-label', 'Close');
+    header.append(hIcon, hTitle, hTime, hClose);
+
+    const body = document.createElement('div');
+    body.className = 'toast-body bg-' + color + ' bg-opacity-10 border-' + color + ' border-start border-4';
+
+    const bodyRow = document.createElement('div');
+    bodyRow.className = 'd-flex align-items-start';
+    const bIcon = document.createElement('i');
+    bIcon.className = icon + ' text-' + color + ' me-3 mt-1';
+    const bText = document.createElement('div');
+    bText.className = 'flex-grow-1';
+    bText.textContent = message;
+    bodyRow.append(bIcon, bText);
+    body.appendChild(bodyRow);
+
+    toastEl.append(header, body);
+
+    const container = document.getElementById('toast-container') || document.querySelector('.toast-container') || document.body;
+    container.insertAdjacentElement('afterbegin', toastEl);
+
+    toastEl.style.transform  = 'translateX(100%)';
+    toastEl.style.transition = 'transform 0.3s ease-in-out';
+    setTimeout(() => { toastEl.style.transform = 'translateX(0)'; }, 10);
+
+    const toast = new mdb.Toast(toastEl);
+    toast.show();
+    toastEl.addEventListener('hidden.mdb.toast', () => toastEl.remove());
   }
-}
+});
 </script>
 
 <style>
-.text-gray-800 {
-  color: #5a5c69 !important;
-}
-.card {
-  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
-}
+.text-gray-800 { color: #5a5c69 !important; }
+.card { box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important; }
 </style>

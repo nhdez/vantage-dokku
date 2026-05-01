@@ -877,34 +877,45 @@ function updateDokkuStatus(serverData) {
 }
 
 function showToast(type, message, title) {
-  // This function integrates with the app's existing toast system
-  // Create a toast element and show it
+  const colorMap = { success: 'success', error: 'danger', warning: 'warning', info: 'primary', notice: 'success' };
+  const iconMap  = { success: 'fas fa-check-circle', error: 'fas fa-exclamation-circle', warning: 'fas fa-exclamation-triangle', info: 'fas fa-info-circle', notice: 'fas fa-check-circle' };
+  const color = colorMap[type] || 'primary';
+  const icon  = iconMap[type]  || 'fas fa-info-circle';
+  const time  = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const id    = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
   const toastHtml = `
-    <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
-      <div class="d-flex">
-        <div class="toast-body">
-          <strong>${title}:</strong> ${message}
+    <div id="${id}" class="toast fade show" role="alert" aria-live="assertive" aria-atomic="true" data-mdb-autohide="true" data-mdb-delay="5000">
+      <div class="toast-header bg-${color} text-white">
+        <i class="${icon} me-2"></i>
+        <strong class="me-auto">${title}</strong>
+        <small class="text-white-50">${time}</small>
+        <button type="button" class="btn-close btn-close-white ms-2" data-mdb-dismiss="toast" aria-label="Close"></button>
+      </div>
+      <div class="toast-body bg-${color} bg-opacity-10 border-${color} border-start border-4">
+        <div class="d-flex align-items-start">
+          <i class="${icon} text-${color} me-3 mt-1"></i>
+          <div class="flex-grow-1">${message}</div>
         </div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-mdb-dismiss="toast" aria-label="Close"></button>
       </div>
     </div>
   `;
-  
-  const toastContainer = document.querySelector('.toast-container') || document.body;
-  toastContainer.insertAdjacentHTML('beforeend', toastHtml);
-  
-  const toastElement = toastContainer.lastElementChild;
+
+  const toastContainer = document.getElementById('toast-container') || document.querySelector('.toast-container') || document.body;
+  toastContainer.insertAdjacentHTML('afterbegin', toastHtml);
+
+  const toastElement = document.getElementById(id);
+  toastElement.style.transform = 'translateX(100%)';
+  toastElement.style.transition = 'transform 0.3s ease-in-out';
+  setTimeout(() => { toastElement.style.transform = 'translateX(0)'; }, 10);
+
   const toast = new mdb.Toast(toastElement);
   toast.show();
-  
-  // Remove toast element after it's hidden
-  toastElement.addEventListener('hidden.mdb.toast', () => {
-    toastElement.remove();
-  });
+  toastElement.addEventListener('hidden.mdb.toast', () => { toastElement.remove(); });
 }
 
 function viewDashboard() {
-  alert('Dokku dashboard integration will be implemented in the next phase.');
+  showToast('info', 'Dokku dashboard integration will be implemented in the next phase.', 'Coming Soon');
 }
 
 function resetUpdateServerBtn() {
@@ -965,9 +976,6 @@ async function updateServer(url) {
   });
 }
 
-if (typeof window.installDokkuChannel === 'undefined') {
-  window.installDokkuChannel = null;
-}
 
 async function installDokku(url) {
   const btn = document.getElementById('install-dokku-btn');
@@ -994,12 +1002,24 @@ async function installDokku(url) {
   .then(response => response.json())
   .then(data => {
     if (data.success) {
-      showToast('info', data.message, 'Dokku Installation');
-      
-      // Subscribe to ActionCable channel for real-time updates
-      subscribeToInstallDokku(data.server_uuid, btn, originalText);
+      window.dispatchEvent(new CustomEvent('live-console:start', {
+        detail: {
+          id: 'install-dokku-' + data.server_uuid,
+          label: 'Installing Dokku (<%= j @server.name %>)',
+          channelName: 'InstallDokkuChannel',
+          channelParams: { server_uuid: data.server_uuid },
+          onComplete: function({ success }) {
+            if (success) {
+              btn.style.display = 'none';
+              setTimeout(() => window.location.reload(), 3000);
+            } else {
+              btn.disabled = false;
+              btn.innerHTML = originalText;
+            }
+          }
+        }
+      }));
     } else {
-      // Reset button on immediate failure
       btn.disabled = false;
       btn.innerHTML = originalText;
       showToast('error', data.message, 'Installation Failed');
@@ -1013,107 +1033,6 @@ async function installDokku(url) {
   });
 }
 
-function subscribeToInstallDokku(serverUuid, btn, originalText) {
-  // Disconnect any existing channel
-  if (installDokkuChannel) {
-    installDokkuChannel.unsubscribe();
-  }
-  
-  // Subscribe to the install Dokku channel
-  installDokkuChannel = window.actionCableConsumer.subscriptions.create(
-    { 
-      channel: "InstallDokkuChannel",
-      server_uuid: serverUuid
-    },
-    {
-      received: function(data) {
-        if (data.success) {
-          showToast('success', data.message, 'Dokku Installation');
-          
-          // Show installation output
-          if (data.output) {
-            showInstallationOutput(data.output);
-          }
-          
-          // Update server information if Dokku version is available
-          if (data.server_data) {
-            updateDokkuStatus(data.server_data);
-          }
-          
-          // Hide the Install Dokku button since it's now installed
-          btn.style.display = 'none';
-          
-          // Show success message and option to reload
-          setTimeout(async () => {
-            const reload = await window.appConfirm({
-              title: 'Dokku Installed',
-              bodyHtml: 'Installation completed successfully. Reload the page to see the updated interface.',
-              confirmLabel: 'Reload Page',
-            });
-            if (reload) window.location.reload();
-          }, 2000);
-        } else {
-          showToast('error', data.message, 'Installation Failed');
-          
-          // Show error output if available
-          if (data.output) {
-            showInstallationOutput(data.output);
-          }
-          
-          // Reset button on failure
-          btn.disabled = false;
-          btn.innerHTML = originalText;
-        }
-        
-        // Unsubscribe after receiving the result
-        this.unsubscribe();
-        installDokkuChannel = null;
-      }
-    }
-  );
-}
-
-function showInstallationOutput(output) {
-  // Create a modal to show the installation output
-  const modalHtml = `
-    <div class="modal fade" id="installationOutputModal" tabindex="-1" aria-labelledby="installationOutputModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="installationOutputModalLabel">
-              <i class="fas fa-terminal me-2"></i>Dokku Installation Output
-            </h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <pre class="bg-dark text-white p-3 rounded" style="max-height: 400px; overflow-y: auto; font-size: 0.875rem;">${output}</pre>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-mdb-dismiss="modal">Close</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  // Remove existing modal if any
-  const existingModal = document.getElementById('installationOutputModal');
-  if (existingModal) {
-    existingModal.remove();
-  }
-  
-  // Add modal to page
-  document.body.insertAdjacentHTML('beforeend', modalHtml);
-  
-  // Show modal
-  const modal = new mdb.Modal(document.getElementById('installationOutputModal'));
-  modal.show();
-  
-  // Clean up modal after it's hidden
-  document.getElementById('installationOutputModal').addEventListener('hidden.mdb.modal', function() {
-    this.remove();
-  });
-}
 
 async function restartServer(url) {
   const btn = document.getElementById('restart-server-btn');
@@ -1211,7 +1130,7 @@ function showRestartOutput(output) {
 }
 
 function viewLogs() {
-  alert('Log viewing will be implemented in the next phase.');
+  showToast('info', 'Log viewing will be implemented in the next phase.', 'Coming Soon');
 }
 </script>
 
