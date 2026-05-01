@@ -5,6 +5,9 @@ class UpdateDomainsJob < ApplicationJob
     @deployment = Deployment.find(deployment_id)
     @user = User.find(user_id)
 
+    ActionCable.server.broadcast("update_domains_#{@deployment.uuid}",
+      type: "started", message: "Updating domains for #{@deployment.dokku_app_name}...")
+
     begin
       Rails.logger.info "Starting domain update for deployment: #{@deployment.display_name}"
 
@@ -44,7 +47,7 @@ class UpdateDomainsJob < ApplicationJob
 
           # Broadcast success to ActionCable
           ActionCable.server.broadcast("update_domains_#{@deployment.uuid}", {
-            success: true,
+            type: "completed", success: true,
             message: "Domains updated successfully! #{count} domain#{'s' unless count == 1} configured and SSL enabled.",
             count: count,
             domains: @deployment.domains.map { |d| { name: d.name, default: d.default_domain } }
@@ -59,18 +62,16 @@ class UpdateDomainsJob < ApplicationJob
     rescue ActiveRecord::RecordInvalid => e
       Rails.logger.error "Domain validation failed: #{e.record.errors.full_messages.join(', ')}"
 
-      # Broadcast error to ActionCable
       ActionCable.server.broadcast("update_domains_#{@deployment.uuid}", {
-        success: false,
+        type: "completed", success: false,
         message: "Failed to save domains: #{e.record.errors.full_messages.join(', ')}"
       })
     rescue StandardError => e
       Rails.logger.error "Domain update failed: #{e.message}"
       Rails.logger.error e.backtrace.join("\n")
 
-      # Broadcast error to ActionCable
       ActionCable.server.broadcast("update_domains_#{@deployment.uuid}", {
-        success: false,
+        type: "completed", success: false,
         message: "An unexpected error occurred: #{e.message}"
       })
     end

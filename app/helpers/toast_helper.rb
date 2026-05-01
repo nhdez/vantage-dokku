@@ -16,6 +16,7 @@ module ToastHelper
 
     # First pass: collect all messages and track highest priority for each
     flash.each do |type, message|
+      next if type.to_s.end_with?("_title")  # title overrides are not messages
       next if message.blank?
 
       # Handle arrays of messages
@@ -110,17 +111,12 @@ module ToastHelper
   end
 
   def flash_title(type)
-    case normalize_flash_type(type)
-    when "success"
-      "Success!"
-    when "error"
-      "Error!"
-    when "warning"
-      "Warning!"
-    when "info"
-      "Information"
-    else
-      "Notification"
+    flash["#{type}_title"].presence || case normalize_flash_type(type)
+    when "success" then "Success!"
+    when "error"   then "Error!"
+    when "warning" then "Warning!"
+    when "info"    then "Information"
+    else                "Notification"
     end
   end
 

@@ -315,23 +315,42 @@
   </div>
 </div>
 
+<!-- Add Subdomains Input Modal -->
+<div id="add-subdomain-modal" class="modal fade" tabindex="-1" aria-hidden="true" style="display:none;">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-globe me-2"></i>Add Common Subdomains</h5>
+        <button type="button" id="add-subdomain-close-btn" class="btn-close" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Adds <code>www.</code>, <code>api.</code>, <code>app.</code>, and <code>admin.</code> subdomains automatically.</p>
+        <label class="form-label">Base domain</label>
+        <input id="add-subdomain-input" type="text" class="form-control" placeholder="example.com" autocomplete="off">
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="add-subdomain-cancel-btn" class="btn btn-secondary btn-sm">Cancel</button>
+        <button type="button" id="add-subdomain-confirm-btn" class="btn btn-primary btn-sm">Add Subdomains</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   let domainIndex = <%= @domains.count %>;
   
-  let updateDomainsChannel = null;
-  
   // Handle form submission with AJAX
   document.getElementById('domains-form').addEventListener('submit', function(e) {
     e.preventDefault();
-    
+
     const submitBtn = document.getElementById('domain-submit-btn');
-    const loadingText = submitBtn.getAttribute('data-loading-text');
     const originalText = submitBtn.getAttribute('data-original-text');
-    
+
     // Show loading state
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Updating Domains...';
+    submitBtn.replaceChildren();
+    submitBtn.insertAdjacentHTML('beforeend', '<i class="fas fa-spinner fa-spin me-2"></i>Updating Domains...');
     
     // Submit form via AJAX
     const formData = new FormData(this);
@@ -356,95 +375,72 @@ document.addEventListener('DOMContentLoaded', function() {
     })
     .then(data => {
       if (data.success) {
-        showToast('info', data.message, 'Domain Update');
-        
-        // Subscribe to ActionCable channel for real-time updates
-        subscribeToUpdateDomains(data.deployment_uuid, submitBtn, originalText);
+        window.dispatchEvent(new CustomEvent('live-console:start', {
+          detail: {
+            id: 'update-domains-' + data.deployment_uuid,
+            label: 'Updating domains (<%= j @deployment.name %>)',
+            channelName: 'UpdateDomainsChannel',
+            channelParams: { deployment_uuid: data.deployment_uuid },
+            onComplete: function({ success }) {
+              submitBtn.disabled = false;
+              submitBtn.replaceChildren();
+              submitBtn.insertAdjacentHTML('beforeend', originalText);
+              if (success) setTimeout(() => window.location.reload(), 2000);
+            }
+          }
+        }));
       } else {
-        // Reset button on immediate failure
         submitBtn.disabled = false;
-        submitBtn.innerHTML = originalText;
+        submitBtn.replaceChildren();
+        submitBtn.insertAdjacentHTML('beforeend', originalText);
         showToast('error', data.message, 'Update Failed');
       }
     })
     .catch(error => {
       console.error('Error:', error);
       submitBtn.disabled = false;
-      submitBtn.innerHTML = originalText;
+      submitBtn.replaceChildren();
+      submitBtn.insertAdjacentHTML('beforeend', originalText);
       showToast('error', 'An unexpected error occurred while updating domains.', 'Update Error');
     });
   });
   
-  function subscribeToUpdateDomains(deploymentUuid, submitBtn, originalBtnText) {
-    // Disconnect any existing channel
-    if (updateDomainsChannel) {
-      updateDomainsChannel.unsubscribe();
-    }
-    
-    // Subscribe to the update domains channel
-    updateDomainsChannel = window.actionCableConsumer.subscriptions.create(
-      { 
-        channel: "UpdateDomainsChannel",
-        deployment_uuid: deploymentUuid
-      },
-      {
-        received: function(data) {
-          // Reset button
-          submitBtn.disabled = false;
-          submitBtn.innerHTML = originalBtnText;
-          
-          if (data.success) {
-            showToast('success', data.message, 'Domains Updated');
-            
-            // Optionally reload the page to show the updated domains
-            setTimeout(() => {
-              if (confirm('Domains updated successfully! Would you like to refresh the page to see the changes?')) {
-                window.location.reload();
-              }
-            }, 2000);
-          } else {
-            showToast('error', data.message, 'Update Failed');
-          }
-          
-          // Unsubscribe after receiving the result
-          this.unsubscribe();
-          updateDomainsChannel = null;
-        }
-      }
-    );
-  }
-  
   function showToast(type, message, title) {
-    // Create a toast element and show it
+    const colorMap = { success: 'success', error: 'danger', warning: 'warning', info: 'primary', notice: 'success' };
+    const iconMap  = { success: 'fas fa-check-circle', error: 'fas fa-exclamation-circle', warning: 'fas fa-exclamation-triangle', info: 'fas fa-info-circle', notice: 'fas fa-check-circle' };
+    const color = colorMap[type] || 'primary';
+    const icon  = iconMap[type]  || 'fas fa-info-circle';
+    const time  = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const id    = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
     const toastHtml = `
-      <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'info' ? 'info' : 'danger'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
-        <div class="d-flex">
-          <div class="toast-body">
-            <strong>${title}:</strong> ${message}
+      <div id="${id}" class="toast fade show" role="alert" aria-live="assertive" aria-atomic="true" data-mdb-autohide="true" data-mdb-delay="5000">
+        <div class="toast-header bg-${color} text-white">
+          <i class="${icon} me-2"></i>
+          <strong class="me-auto">${title}</strong>
+          <small class="text-white-50">${time}</small>
+          <button type="button" class="btn-close btn-close-white ms-2" data-mdb-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body bg-${color} bg-opacity-10 border-${color} border-start border-4">
+          <div class="d-flex align-items-start">
+            <i class="${icon} text-${color} me-3 mt-1"></i>
+            <div class="flex-grow-1">${message}</div>
           </div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-mdb-dismiss="toast" aria-label="Close"></button>
         </div>
       </div>
     `;
-    
-    // Find or create toast container
-    let toastContainer = document.querySelector('.toast-container');
-    if (!toastContainer) {
-      toastContainer = document.createElement('div');
-      toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
-      document.body.appendChild(toastContainer);
-    }
-    
-    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
-    
-    const toastElement = toastContainer.lastElementChild;
+
+    const toastContainer = document.getElementById('toast-container') || document.querySelector('.toast-container') || document.body;
+    toastContainer.insertAdjacentHTML('afterbegin', toastHtml);
+
+    const toastElement = document.getElementById(id);
+    toastElement.style.transform = 'translateX(100%)';
+    toastElement.style.transition = 'transform 0.3s ease-in-out';
+    setTimeout(() => { toastElement.style.transform = 'translateX(0)'; }, 10);
+
     const toast = new mdb.Toast(toastElement);
     toast.show();
-    
-    // Remove toast element after it's hidden
-    toastElement.addEventListener('hidden.mdb.toast', () => {
-      toastElement.remove();
-    });
+    toastElement.addEventListener('hidden.mdb.toast', () => { toastElement.remove(); });
   }
   
   // Add new domain
@@ -453,16 +449,46 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   
   // Add common subdomains
-  document.getElementById('add-subdomain').addEventListener('click', function() {
-    const baseDomain = prompt('Enter your base domain (e.g., example.com):');
-    if (baseDomain && baseDomain.trim()) {
-      const subdomains = ['www', 'api', 'app', 'admin'];
-      subdomains.forEach(function(subdomain, index) {
-        const fullDomain = subdomain + '.' + baseDomain.trim();
-        const isDefault = index === 0; // Make www. the default
-        addDomain(fullDomain, isDefault);
+  function showAddSubdomainModal() {
+    const modal    = document.getElementById('add-subdomain-modal');
+    const backdrop = document.createElement('div');
+    backdrop.id        = 'add-subdomain-backdrop';
+    backdrop.className = 'modal-backdrop fade show';
+    backdrop.onclick   = hideAddSubdomainModal;
+    document.body.appendChild(backdrop);
+    document.body.classList.add('modal-open');
+    modal.style.display = 'block';
+    setTimeout(() => { modal.classList.add('show'); }, 10);
+    document.getElementById('add-subdomain-input').value = '';
+    document.getElementById('add-subdomain-input').focus();
+  }
+
+  function hideAddSubdomainModal() {
+    const modal    = document.getElementById('add-subdomain-modal');
+    const backdrop = document.getElementById('add-subdomain-backdrop');
+    modal.classList.remove('show');
+    document.body.classList.remove('modal-open');
+    if (backdrop) backdrop.remove();
+    setTimeout(() => { modal.style.display = 'none'; }, 200);
+  }
+
+  document.getElementById('add-subdomain').addEventListener('click', showAddSubdomainModal);
+
+  document.getElementById('add-subdomain-confirm-btn').addEventListener('click', function() {
+    const baseDomain = document.getElementById('add-subdomain-input').value.trim();
+    if (baseDomain) {
+      ['www', 'api', 'app', 'admin'].forEach(function(subdomain, index) {
+        addDomain(subdomain + '.' + baseDomain, index === 0);
       });
     }
+    hideAddSubdomainModal();
+  });
+
+  document.getElementById('add-subdomain-cancel-btn').addEventListener('click', hideAddSubdomainModal);
+  document.getElementById('add-subdomain-close-btn').addEventListener('click', hideAddSubdomainModal);
+
+  document.getElementById('add-subdomain-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('add-subdomain-confirm-btn').click();
   });
   
   // Remove domain
@@ -580,28 +606,24 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   // Domain Deletion
-  document.addEventListener('click', function(e) {
+  document.addEventListener('click', async function(e) {
     if (e.target.closest('.delete-domain-btn')) {
       const button = e.target.closest('.delete-domain-btn');
       const domainName = button.dataset.domain;
       const deploymentUuid = button.dataset.deploymentUuid;
 
-      // Confirmation dialog
-      const warningMessage = `⚠️ DELETE DOMAIN: ${domainName}\n\n` +
-        `This will:\n` +
-        `• Remove the domain from this Dokku app\n` +
-        `• Delete SSL certificates for this domain\n` +
-        `• Stop routing traffic to this app\n\n` +
-        `The domain will become available for use with other apps.\n\n` +
-        `Type 'DELETE' to confirm:`;
+      const ok = await window.appConfirm({
+        title: 'Delete Domain',
+        bodyHtml: `Remove <strong>${domainName}</strong> from this app? This will also delete its SSL certificates and stop routing traffic.`,
+        confirmLabel: 'Delete Domain',
+        danger: true
+      });
 
-      const userInput = prompt(warningMessage);
-
-      if (userInput === 'DELETE') {
-        // Disable button and show loading
+      if (ok) {
         button.disabled = true;
-        const originalHtml = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        const spinnerIcon = document.createElement('i');
+        spinnerIcon.className = 'fas fa-spinner fa-spin';
+        button.replaceChildren(spinnerIcon);
 
         // Send delete request
         fetch(`/deployments/${deploymentUuid}/delete_domain`, {
@@ -645,17 +667,19 @@ document.addEventListener('DOMContentLoaded', function() {
             }
           } else {
             showToast('error', data.error || 'Failed to delete domain', 'Error');
-            // Restore button
             button.disabled = false;
-            button.innerHTML = originalHtml;
+            const trashIcon = document.createElement('i');
+            trashIcon.className = 'fas fa-trash';
+            button.replaceChildren(trashIcon);
           }
         })
         .catch(error => {
           console.error('Error:', error);
           showToast('error', 'An unexpected error occurred', 'Error');
-          // Restore button
           button.disabled = false;
-          button.innerHTML = originalHtml;
+          const trashIcon = document.createElement('i');
+          trashIcon.className = 'fas fa-trash';
+          button.replaceChildren(trashIcon);
         });
       }
     }
@@ -728,12 +752,12 @@ document.addEventListener('DOMContentLoaded', function() {
         showSslStatusToast(domain, data.ssl_status);
       } else {
         console.error('SSL check failed:', data.error);
-        alert('SSL check failed: ' + data.error);
+        showToast('error', 'SSL check failed: ' + data.error, 'SSL Check Failed');
       }
     })
     .catch(error => {
       console.error('Error checking SSL status:', error);
-      alert('Error checking SSL status: ' + error.message);
+      showToast('error', 'Error checking SSL status: ' + error.message, 'SSL Check Error');
     })
     .finally(() => {
       button.disabled = false;

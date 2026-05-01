@@ -199,8 +199,17 @@ class DeploymentsController < ApplicationController
     DeploymentJob.perform_later(@deployment)
 
     log_activity("deployment_started", details: "Started deployment for: #{@deployment.display_name}")
-    toast_success("Deployment started! You can monitor progress in the logs.", title: "Deployment Started")
-    redirect_to logs_deployment_path(@deployment)
+
+    respond_to do |format|
+      format.html do
+        toast_success("Deployment started! You can monitor progress in the logs.", title: "Deployment Started")
+        redirect_to logs_deployment_path(@deployment)
+      end
+      format.json do
+        render json: { success: true, deployment_uuid: @deployment.uuid,
+                       message: "Deployment started for #{@deployment.dokku_app_name}" }
+      end
+    end
   end
 
   def logs

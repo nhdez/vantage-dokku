@@ -122,8 +122,8 @@
           });
 
           // Initialize modals
-          document.querySelectorAll('[data-mdb-modal-init]').forEach((modal) => {
-            if (mdb.Modal) new mdb.Modal(modal);
+          document.querySelectorAll('[data-mdb-modal-init]').forEach((modalEl) => {
+            if (mdb.Modal) mdb.Modal.getInstance(modalEl) || new mdb.Modal(modalEl);
           });
 
           // Initialize collapse (for mobile menu)
@@ -212,6 +212,40 @@
               <li class="nav-item d-flex align-items-center me-3">
                 <%= theme_toggle_button(classes: 'theme-toggle', show_label: false) %>
               </li>
+
+              <!-- Notification Bell -->
+              <li class="nav-item d-flex align-items-center me-2 position-relative"
+                  id="notification-bell"
+                  data-controller="notification-bell"
+                  data-turbo-permanent>
+                <button class="btn btn-link nav-link p-1 position-relative"
+                        data-action="click->notification-bell#toggle"
+                        aria-label="Notifications">
+                  <i class="fas fa-bell" style="font-size:1.1rem;"></i>
+                  <span class="badge bg-danger rounded-pill position-absolute d-none"
+                        style="font-size:.6rem;top:0;right:0;min-width:1.1em;padding:.2em .35em;"
+                        data-notification-bell-target="badge">0</span>
+                </button>
+                <div class="notif-dropdown d-none"
+                     data-notification-bell-target="dropdown">
+                  <div class="notif-header">
+                    <span class="fw-semibold">Notifications</span>
+                    <div class="d-flex gap-2">
+                      <button class="btn btn-link btn-sm text-primary p-0"
+                              data-action="click->notification-bell#markAllRead">Mark all read</button>
+                      <span class="text-muted">·</span>
+                      <button class="btn btn-link btn-sm text-muted p-0"
+                              data-action="click->notification-bell#clearAll">Clear</button>
+                    </div>
+                  </div>
+                  <div data-notification-bell-target="list" class="notif-list"></div>
+                  <div data-notification-bell-target="empty" class="notif-empty">
+                    <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                    <p class="text-muted small mb-0">No recent operations</p>
+                  </div>
+                </div>
+              </li>
+
               <!-- User Menu -->
 
 
@@ -305,8 +339,7 @@
     <% unless devise_controller? && !(controller_name == 'registrations' && action_name == 'edit') %>
     <footer class="bg-light text-center text-lg-start mt-5">
       <div class="text-center p-3" style="background-color: rgba(0, 0, 0, 0.2);">
-        © <%= Date.current.year %> Vantage Dokku by
-        <%= link_to "DataPolaris", "https://datapolaris.com/", class: "text-dark" %>
+        © <%= Date.current.year %> Vantage
       </div>
     </footer>
     <% end %>

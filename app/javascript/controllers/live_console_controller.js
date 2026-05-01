@@ -34,15 +34,32 @@ export default class extends Controller {
     const op = this.ops[id]
     if (!op) return
 
-    if (data.type === "started") {
-      op.lines.push(data.message)
-    } else if (data.type === "output") {
+    // Normalise type aliases from different jobs/channels
+    const type = ({
+      started:              "started",
+      output:               "output",
+      log_message:          "output",  // Deployment::Logger
+      data:                 "output",
+      update:               "output",  // DatabaseConfigurationJob
+      completed:            "completed",
+      deployment_completed: "completed", // Deployment::Logger
+      success:              "completed_ok",
+      error:                "completed_err",
+    })[data.type] ?? "output"
+
+    if (type === "started") {
+      if (data.message) op.lines.push(data.message)
+    } else if (type === "output") {
       if (data.message?.trim()) op.lines.push(data.message)
-    } else if (data.type === "completed") {
-      op.status = data.success ? "success" : "failed"
-      op.lines.push(`\n--- ${data.message} ---`)
+    } else if (type === "completed" || type === "completed_ok" || type === "completed_err") {
+      const success = type === "completed_ok" ? true : type === "completed_err" ? false : !!data.success
+      op.status = success ? "success" : "failed"
+      if (data.message) op.lines.push(`\n--- ${data.message} ---`)
       op.subscription.unsubscribe()
-      op.onComplete?.()
+      op.onComplete?.({ success, lines: op.lines })
+      window.dispatchEvent(new CustomEvent("live-console:completed", {
+        detail: { label: op.label, success, message: data.message, lines: op.lines }
+      }))
       setTimeout(() => this.remove(id), 5000)
     }
 

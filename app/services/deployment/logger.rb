@@ -18,9 +18,12 @@ class Deployment::Logger
 
   def broadcast_completion(success, error_message = nil)
     base = { success: success, error_message: error_message, completed_at: Time.current.iso8601 }
+    msg = success ? "Deployment completed successfully (Attempt ##{@attempt.attempt_number})" \
+                  : "Deployment failed: #{error_message}"
 
     ActionCable.server.broadcast("deployment_logs_#{@deployment.uuid}", base.merge(
       type: "deployment_completed",
+      message: msg,
       attempt_id: @attempt.id,
       attempt_number: @attempt.attempt_number,
       status: @attempt.status,

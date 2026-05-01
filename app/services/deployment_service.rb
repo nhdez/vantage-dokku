@@ -14,6 +14,9 @@ class DeploymentService
   def deploy_from_repository
     @deployment_attempt.update!(status: "running", started_at: Time.current)
 
+    ActionCable.server.broadcast("deployment_logs_#{@deployment.uuid}",
+      type: "started", message: "Deployment started (Attempt ##{@deployment_attempt.attempt_number})")
+
     log("Starting repository deployment")
     log("Repository: #{@deployment.repository_url}")
     log("Branch: #{@deployment.repository_branch}")

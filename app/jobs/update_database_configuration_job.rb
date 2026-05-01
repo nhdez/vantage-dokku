@@ -116,6 +116,7 @@ class UpdateDatabaseConfigurationJob < ApplicationJob
   def sync_env_variable(key, value)
     env_var = @deployment.environment_variables.find_or_initialize_by(key: key)
     env_var.value = value
+    env_var.source = "system"
     env_var.save!
   end
 end

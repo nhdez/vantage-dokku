@@ -52,15 +52,16 @@
           <div class="row">
             <div class="col-md-6 mb-3">
               <h6 class="text-muted">Status</h6>
-              <p class="h5 mb-0">
-                <span class="badge <%= @deployment.status_badge_class %> fs-6">
-                  <i class="<%= @deployment.status_icon %> me-1"></i>
-                  <%= @deployment.status_text %>
+              <p class="h5 mb-0" id="deployment-status-badge">
+                <span class="badge <%= @deployment.status_badge_class %> fs-6" id="status-badge">
+                  <i class="<%= @deployment.status_icon %> me-1" id="status-icon"></i>
+                  <span id="status-text"><%= @deployment.status_text %></span>
                 </span>
               </p>
-              <% if @deployment.last_deployment_at.present? %>
-                <sup><strong>Last deployed:</strong> <%= time_ago_in_words(@deployment.last_deployment_at) %> ago</sup>
-              <% end %>
+              <sup id="last-deployed-sup" <%= 'style="display:none"' unless @deployment.last_deployment_at.present? %>>
+                <strong>Last deployed:</strong>
+                <span id="last-deployed-text"><%= @deployment.last_deployment_at.present? ? "#{time_ago_in_words(@deployment.last_deployment_at)} ago" : "" %></span>
+              </sup>
             </div>
             <div class="col-md-6 mb-3">
               <h6 class="text-muted">Target Server</h6>
@@ -462,16 +463,26 @@
         </div>
         <div class="card-body">
           <div class="d-grid gap-2">
-            <% if @deployment.deployment_status == 'deploying' %>
-              <%= link_to logs_deployment_path(@deployment), class: "btn btn-warning w-100" do %>
-                <i class="fas fa-spinner fa-spin me-2"></i>View Deployment
+            <div id="deploy-action-wrapper"
+                 data-deploy-url="<%= deploy_deployment_path(@deployment) %>"
+                 data-logs-url="<%= logs_deployment_path(@deployment) %>"
+                 data-deployment-uuid="<%= @deployment.uuid %>"
+                 data-deployment-name="<%= j @deployment.name %>"
+                 data-can-deploy="<%= @deployment.can_deploy? %>"
+                 data-deployment-configured="<%= @deployment.deployment_configured? %>">
+              <% if @deployment.deployment_status == 'deploying' %>
+                <%= link_to logs_deployment_path(@deployment), class: "btn btn-warning w-100" do %>
+                  <i class="fas fa-spinner fa-spin me-2"></i>View Deployment
+                <% end %>
+              <% elsif @deployment.can_deploy? && @deployment.deployment_configured? %>
+                <button id="deploy-now-btn" class="btn btn-success w-100"
+                        data-deploy-url="<%= deploy_deployment_path(@deployment) %>"
+                        data-deployment-uuid="<%= @deployment.uuid %>"
+                        data-deployment-name="<%= j @deployment.name %>">
+                  <i class="fas fa-rocket me-2"></i>Deploy Now
+                </button>
               <% end %>
-            <% elsif @deployment.can_deploy? && @deployment.deployment_configured? %>
-              <%= form_with url: deploy_deployment_path(@deployment), method: :post, local: true do |f| %>
-                <%= submit_tag "Deploy Now", class: "btn btn-success w-100",
-                    data: { confirm: "Start deployment? This will clone the repository and deploy to Dokku.", turbo: false } %>
-              <% end %>
-            <% end %>
+            </div>
             
             <% if @deployment.dokku_url.present? %>
               <%= link_to @deployment.dokku_url, target: "_blank", rel: "noopener", class: "btn btn-outline-success" do %>
@@ -503,35 +514,37 @@
           </h6>
         </div>
         <div class="card-body">
-          <% if @deployment.deployment_status == 'deploying' %>
-            <div class="alert alert-warning py-2">
-              <i class="fas fa-spinner fa-spin me-2"></i>
-              <strong>Deployment in progress!</strong>
-              <%= link_to "View logs", logs_deployment_path(@deployment), class: "alert-link" %> to monitor progress.
-            </div>
-          <% elsif @deployment.can_deploy? && @deployment.deployment_configured? %>
-            <div class="alert alert-success py-2">
-              <i class="fas fa-check-circle me-2"></i>
-              <strong>Ready to deploy!</strong> Configuration complete and server connected.
-            </div>
-          <% elsif !@deployment.deployment_configured? %>
-            <div class="alert alert-info py-2">
-              <i class="fas fa-cogs me-2"></i>
-              <strong>Configuration needed:</strong>
-              <%= link_to "Configure Git repository", git_configuration_deployment_path(@deployment), class: "alert-link" %> to enable deployment.
-            </div>
-          <% elsif !@deployment.can_deploy? %>
-            <div class="alert alert-warning py-2">
-              <i class="fas fa-exclamation-triangle me-2"></i>
-              <strong>Server not ready:</strong>
-              <% unless @deployment.server.dokku_installed? %>
-                Install Dokku on the server first.
-              <% end %>
-              <% unless @deployment.server.connection_status == 'connected' %>
-                Verify server connection.
-              <% end %>
-            </div>
-          <% end %>
+          <div id="deployment-mgmt-alert">
+            <% if @deployment.deployment_status == 'deploying' %>
+              <div class="alert alert-warning py-2">
+                <i class="fas fa-spinner fa-spin me-2"></i>
+                <strong>Deployment in progress!</strong>
+                <%= link_to "View logs", logs_deployment_path(@deployment), class: "alert-link" %> to monitor progress.
+              </div>
+            <% elsif @deployment.can_deploy? && @deployment.deployment_configured? %>
+              <div class="alert alert-success py-2">
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Ready to deploy!</strong> Configuration complete and server connected.
+              </div>
+            <% elsif !@deployment.deployment_configured? %>
+              <div class="alert alert-info py-2">
+                <i class="fas fa-cogs me-2"></i>
+                <strong>Configuration needed:</strong>
+                <%= link_to "Configure Git repository", git_configuration_deployment_path(@deployment), class: "alert-link" %> to enable deployment.
+              </div>
+            <% elsif !@deployment.can_deploy? %>
+              <div class="alert alert-warning py-2">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Server not ready:</strong>
+                <% unless @deployment.server.dokku_installed? %>
+                  Install Dokku on the server first.
+                <% end %>
+                <% unless @deployment.server.connection_status == 'connected' %>
+                  Verify server connection.
+                <% end %>
+              </div>
+            <% end %>
+          </div>
 
           <div class="d-grid gap-2">
             <%= link_to git_configuration_deployment_path(@deployment), class: "btn btn-outline-success",
@@ -627,23 +640,233 @@
 </div>
 
 <script>
+// --- DOM helpers ---
+function _icon(cls) {
+  const i = document.createElement('i');
+  i.className = cls;
+  return i;
+}
+
+function _alert(type, iconCls, boldText, rest) {
+  const div   = document.createElement('div');
+  div.className = 'alert alert-' + type + ' py-2';
+  div.appendChild(_icon('fas fa-' + iconCls + ' me-2'));
+  const strong = document.createElement('strong');
+  strong.textContent = boldText;
+  div.appendChild(strong);
+  if (rest) div.appendChild(document.createTextNode(rest));
+  return div;
+}
+
+function _alertWithLink(type, iconCls, boldText, linkHref, linkText, linkSuffix) {
+  const div = _alert(type, iconCls, boldText, null);
+  const a   = document.createElement('a');
+  a.href      = linkHref;
+  a.className = 'alert-link';
+  a.textContent = linkText;
+  div.appendChild(document.createTextNode(' '));
+  div.appendChild(a);
+  if (linkSuffix) div.appendChild(document.createTextNode(linkSuffix));
+  return div;
+}
+
+function _deployBtn(deployUrl, uuid, name) {
+  const btn = document.createElement('button');
+  btn.id = 'deploy-now-btn';
+  btn.className = 'btn btn-success w-100';
+  btn.dataset.deployUrl       = deployUrl;
+  btn.dataset.deploymentUuid  = uuid;
+  btn.dataset.deploymentName  = name;
+  btn.appendChild(_icon('fas fa-rocket me-2'));
+  btn.appendChild(document.createTextNode('Deploy Now'));
+  return btn;
+}
+
+function _viewDeployBtn(logsUrl) {
+  const a = document.createElement('a');
+  a.href      = logsUrl;
+  a.className = 'btn btn-warning w-100';
+  a.appendChild(_icon('fas fa-spinner fa-spin me-2'));
+  a.appendChild(document.createTextNode('View Deployment'));
+  return a;
+}
+
+// --- Status updates ---
+
+function markDeploying(logsUrl) {
+  const badge      = document.getElementById('status-badge');
+  const icon       = document.getElementById('status-icon');
+  const statusText = document.getElementById('status-text');
+  if (badge)      badge.className      = 'badge bg-warning text-dark fs-6';
+  if (icon)       icon.className       = 'fas fa-spinner fa-spin me-1';
+  if (statusText) statusText.textContent = 'Deploying...';
+
+  const wrapper = document.getElementById('deploy-action-wrapper');
+  if (wrapper) wrapper.replaceChildren(_viewDeployBtn(logsUrl));
+
+  const mgmtAlert = document.getElementById('deployment-mgmt-alert');
+  if (mgmtAlert) mgmtAlert.replaceChildren(
+    _alertWithLink('warning', 'spinner fa-spin', 'Deployment in progress!', logsUrl, 'View logs', ' to monitor progress.')
+  );
+}
+
+function updateDeploymentStatus(success) {
+  const badge      = document.getElementById('status-badge');
+  const icon       = document.getElementById('status-icon');
+  const statusText = document.getElementById('status-text');
+  if (badge && icon && statusText) {
+    if (success) {
+      badge.className       = 'badge bg-success fs-6';
+      icon.className        = 'fas fa-check-circle me-1';
+      statusText.textContent = 'Deployed';
+    } else {
+      badge.className       = 'badge bg-danger fs-6';
+      icon.className        = 'fas fa-times-circle me-1';
+      statusText.textContent = 'Failed';
+    }
+  }
+
+  const sup  = document.getElementById('last-deployed-sup');
+  const span = document.getElementById('last-deployed-text');
+  if (sup)  sup.style.display   = '';
+  if (span) span.textContent    = 'just now';
+
+  const wrapper = document.getElementById('deploy-action-wrapper');
+  if (wrapper) {
+    const canDeploy  = wrapper.dataset.canDeploy === 'true';
+    const configured = wrapper.dataset.deploymentConfigured === 'true';
+    wrapper.replaceChildren();
+    if (canDeploy && configured) {
+      const btn = _deployBtn(
+        wrapper.dataset.deployUrl,
+        wrapper.dataset.deploymentUuid,
+        wrapper.dataset.deploymentName
+      );
+      wrapper.appendChild(btn);
+      attachDeployBtnListener();
+    }
+  }
+
+  const mgmtAlert = document.getElementById('deployment-mgmt-alert');
+  if (mgmtAlert) {
+    mgmtAlert.replaceChildren(
+      success
+        ? _alert('success', 'check-circle',        'Deployed successfully!', ' Ready to deploy again when needed.')
+        : _alert('warning', 'exclamation-triangle', 'Deployment failed.',     ' Check the deployment logs for details.')
+    );
+  }
+}
+
+// --- Deploy button ---
+
+function attachDeployBtnListener() {
+  const deployBtn = document.getElementById('deploy-now-btn');
+  if (!deployBtn || deployBtn._bound) return;
+  deployBtn._bound = true;
+
+  deployBtn.addEventListener('click', async function() {
+    const url     = deployBtn.dataset.deployUrl;
+    const uuid    = deployBtn.dataset.deploymentUuid;
+    const name    = deployBtn.dataset.deploymentName;
+    const logsUrl = document.getElementById('deploy-action-wrapper')?.dataset.logsUrl || '#';
+
+    const ok = await window.appConfirm({
+      title: 'Deploy Now',
+      bodyHtml: 'Start deployment for <strong>' + name + '</strong>? This will clone the repository and deploy to Dokku.',
+      confirmLabel: 'Deploy',
+    });
+    if (!ok) return;
+
+    deployBtn.disabled = true;
+    deployBtn.replaceChildren(
+      _icon('fas fa-spinner fa-spin me-2'),
+      document.createTextNode('Starting deployment...')
+    );
+
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        markDeploying(logsUrl);
+        window.dispatchEvent(new CustomEvent('live-console:start', {
+          detail: {
+            id: 'deploy-' + uuid,
+            label: 'Deploying ' + name,
+            channelName: 'DeploymentLogsChannel',
+            channelParams: { deployment_uuid: uuid },
+            onComplete: function({ success }) {
+              updateDeploymentStatus(success);
+            }
+          }
+        }));
+      } else {
+        deployBtn.disabled = false;
+        deployBtn.replaceChildren(
+          _icon('fas fa-rocket me-2'),
+          document.createTextNode('Deploy Now')
+        );
+      }
+    })
+    .catch(() => {
+      deployBtn.disabled = false;
+      deployBtn.replaceChildren(
+        _icon('fas fa-rocket me-2'),
+        document.createTextNode('Deploy Now')
+      );
+    });
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  attachDeployBtnListener();
+});
+
+<% if @deployment.deployment_status == 'deploying' %>
+// Page loaded while deployment is already running — subscribe to watch for completion
+(function() {
+  const uuid = '<%= @deployment.uuid %>';
+  const name = '<%= j @deployment.name %>';
+
+  document.addEventListener('turbo:load', function() {
+    window.dispatchEvent(new CustomEvent('live-console:start', {
+      detail: {
+        id: 'deploy-' + uuid,
+        label: 'Deploying ' + name,
+        channelName: 'DeploymentLogsChannel',
+        channelParams: { deployment_uuid: uuid },
+        onComplete: function({ success }) {
+          updateDeploymentStatus(success);
+        }
+      }
+    }));
+  }, { once: true });
+})();
+<% end %>
+
 function copyToClipboard(button) {
   const text = button.getAttribute('data-text');
   navigator.clipboard.writeText(text).then(function() {
-    const icon = button.querySelector('i');
-    const originalClasses = icon.className;
-    icon.className = 'fas fa-check';
-    
-    // Show success feedback
-    const originalText = button.innerHTML;
-    button.innerHTML = '<i class="fas fa-check me-2"></i>Copied!';
-    
+    const originalText = button.textContent;
+    button.replaceChildren(
+      _icon('fas fa-check me-2'),
+      document.createTextNode('Copied!')
+    );
     setTimeout(() => {
-      button.innerHTML = originalText;
+      button.replaceChildren(
+        _icon('fas fa-copy'),
+        document.createTextNode(' Copy')
+      );
     }, 2000);
   }).catch(function(err) {
     console.error('Failed to copy text: ', err);
-    alert('Failed to copy to clipboard');
+    showToast('error', 'Failed to copy to clipboard. Please copy it manually.', 'Copy Failed');
   });
 }
 </script>
